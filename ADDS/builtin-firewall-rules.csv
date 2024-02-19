@@ -1,5 +1,5 @@
 Direction,Name,Group,Protocol,Port,Program,Service,Remote Address,Notes
-Inbound,Active Directory Domain Controller - Echo Request (ICMPv4-In),Active Directory Domain Services,ICMPv4,-,System,Any,Optional
-Inbound,Active Directory Domain Controller - Echo Request (ICMPv6-In),Active Directory Domain Services,ICMPv6,-,System,Any,Optional
+Inbound,Active Directory Domain Controller - Echo Request (ICMPv4-In),Active Directory Domain Services,ICMPv4,-,System,Any,Optional,-
+Inbound,Active Directory Domain Controller - Echo Request (ICMPv6-In),Active Directory Domain Services,ICMPv6,-,System,Any,Optional,-
 Inbound,Active Directory Domain Controller - LDAP (TCP-In),Active Directory Domain Services,TCP,389,%systemroot%\System32\lsass.exe,Any,-
 Inbound,Active Directory Domain Controller - LDAP (UDP-In),Active Directory Domain Services,UDP,389,%systemroot%\System32\lsass.exe,Any,-
