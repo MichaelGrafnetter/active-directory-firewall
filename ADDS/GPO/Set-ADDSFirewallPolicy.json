@@ -1,0 +1,12 @@
+{
+    "policyName": "Domain Controller Firewall",
+    "configureOutboundRules": true,
+    "clientAddresses": [ "10.220.3.0/24", "10.220.4.0/24" ],
+    "managementAddresses": [ "10.220.2.0/24" ],
+    "domainControllerAddresses": [ "10.220.1.0/24" ],
+    "enableIcmpPing": true,
+    "ntdsStaticPort": 0,
+    "netlogonStaticPort": 0,
+    "dfsrStaticPort": 0,
+    "wmiStaticPort": 0
+}
