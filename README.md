@@ -15,12 +15,39 @@
 
 #### Client Traffic
 
-| Name | Group | Protocol | Port | Program | Service |
-|------|-------|----------|------------|---------|---------|
-| Active Directory Domain Controller - Echo Request (ICMPv4-In) | Active Directory Domain Services | ICMPv4 | - | System | - |
-| Active Directory Domain Controller - Echo Request (ICMPv6-In) | Active Directory Domain Services | ICMPv6 | - | System | - |
-| Active Directory Domain Controller - LDAP (TCP-In) |  Active Directory Domain Services | TCP | 389 | %systemroot%\System32\lsass.exe | - |
-| Active Directory Domain Controller - LDAP (UDP-In) |  Active Directory Domain Services | UDP | 389 | %systemroot%\System32\lsass.exe | - |
+| <!-- --> | <!-- -->                                                      |
+|----------|---------------------------------------------------------------|
+| Name     | Active Directory Domain Controller - Echo Request (ICMPv4-In) |
+| Group    | Active Directory Domain Services |
+| Protocol | ICMPv4 |
+| Program  | System |
+| Notes    | - |
+
+| <!-- --> | <!-- -->                                                      |
+|----------|---------------------------------------------------------------|
+| Name     | Active Directory Domain Controller - Echo Request (ICMPv6-In) |
+| Group    | Active Directory Domain Services |
+| Protocol | ICMPv6 |
+| Program  | System |
+| Notes    | - |
+
+| <!-- --> | <!-- -->                                                      |
+|----------|---------------------------------------------------------------|
+| Name     | Active Directory Domain Controller - LDAP (TCP-In)            |
+| Group    | Active Directory Domain Services |
+| Protocol | TCP |
+| Port     | 389 |
+| Program  | %systemroot%\System32\lsass.exe |
+| Notes    | - |
+
+| <!-- --> | <!-- -->                                                      |
+|----------|---------------------------------------------------------------|
+| Name     | Active Directory Domain Controller - LDAP (UDP-In)            |
+| Group    | Active Directory Domain Services |
+| Protocol | UDP |
+| Port     | 389 |
+| Program  | %systemroot%\System32\lsass.exe |
+| Notes    | - |
 
 #### Management Traffic
 
@@ -40,4 +67,8 @@
 
 ## Active Directory Certificate Services
 
+- [Firewall Rules for Active Directory Certificate Services](https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/firewall-rules-for-active-directory-certificate-services/ba-p/1128612)
+
 ## Active Directory Federation Services
+
+- [AD FS Required Ports and Protocols](https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/deployment/best-practices-securing-ad-fs#ports-required)
