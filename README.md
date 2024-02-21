@@ -655,16 +655,6 @@
 
 | <!-- -->    | <!-- --> |
 |-------------|----------|
-| Name        | **File and Printer Sharing (SMB-Out)** |
-| Group       | File and Printer Sharing |
-| Protocol    | TCP |
-| Port        | 445 |
-| Program     | `System` |
-| Description | Outbound rule for File and Printer Sharing to allow Server Message Block transmission and reception via Named Pipes. [TCP 445] |
-| Notes       | - |
-
-| <!-- -->    | <!-- --> |
-|-------------|----------|
 | Name        | **Windows Management Instrumentation (WMI-Out)** |
 | Group       | Windows Management Instrumentation (WMI) |
 | Protocol    | TCP |

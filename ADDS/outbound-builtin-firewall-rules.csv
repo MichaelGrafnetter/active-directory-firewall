@@ -17,6 +17,5 @@ Name,Group,Protocol,Port,IcmpType,Program,Service,RemoteAddress,Description
 "File and Printer Sharing (NB-Datagram-Out)","File and Printer Sharing",UDP,138,,"System",,Any,"Outbound rule for File and Printer Sharing to allow NetBIOS Datagram transmission and reception. [UDP 138]"
 "File and Printer Sharing (NB-Name-Out)","File and Printer Sharing",UDP,137,,"System",,Any,"Outbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137]"
 "File and Printer Sharing (NB-Session-Out)","File and Printer Sharing",TCP,139,,"System",,Any,"Outbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]"
-"File and Printer Sharing (SMB-Out)","File and Printer Sharing",TCP,445,,"System",,Any,"Outbound rule for File and Printer Sharing to allow Server Message Block transmission and reception via Named Pipes. [TCP 445]"
 "Windows Management Instrumentation (WMI-Out)","Windows Management Instrumentation (WMI)",TCP,Any,,"%SystemRoot%\system32\svchost.exe",winmgmt,Any,"Outbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]"
 "iSCSI Service (TCP-Out)","iSCSI Service",TCP,Any,,"%SystemRoot%\system32\svchost.exe",Msiscsi,Any,"Outbound rule for the iSCSI Service to allow communications with an iSCSI server or device. [TCP]"

@@ -989,23 +989,6 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
-# Create Outbound rule "File and Printer Sharing (SMB-Out)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{421C7FFC-FA6F-4594-8ABF-E6CCC4339CDE}' `
-                    -DisplayName 'File and Printer Sharing (SMB-Out)' `
-                    -Group '@FirewallAPI.dll,-28502' `
-                    -Description 'Outbound rule for File and Printer Sharing to allow Server Message Block transmission and reception via Named Pipes. [TCP 445]' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Outbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -RemotePort 445 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
-
 # Create Outbound rule "Windows Management Instrumentation (WMI-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name '{39691525-BC5D-4497-B8FA-365898EE4A70}' `
