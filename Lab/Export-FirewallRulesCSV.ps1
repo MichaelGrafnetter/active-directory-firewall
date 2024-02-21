@@ -7,7 +7,7 @@ Get-NetFirewallRule -PolicyStore $sourceGpo | foreach {
     $serviceFilter = Get-NetFirewallServiceFilter -AssociatedNetFirewallRule $PSItem
     # Direction,Name,Group,Protocol,Port,IcmpType,Program,Service,RemoteAddress,Description
     @'
-{6},"{1}","{2}",{8},{9},{11},"{12}",{13},{11},"{3}"
+{6},"{1}","{2}",{8},{9},{11},"{12}",{13},{10},"{3}"
 '@ -f $PSItem.Name,
       $PSItem.DisplayName,
       $PSItem.DisplayGroup,

@@ -356,6 +356,91 @@
 | Description | Inbound rule to allow remote RPC/TCP access to the DNS service. |
 | Notes       | - |
 
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Windows Backup (RPC)** |
+| Group       | Windows Backup |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\wbengine.exe` |
+| Service     | `wbengine` |
+| Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **DFS Management (TCP-In)** |
+| Group       | DFS Management |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\dfsfrsHost.exe` |
+| Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Performance Logs and Alerts (TCP-In)** |
+| Group       | Performance Logs and Alerts |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%systemroot%\system32\plasrv.exe` |
+| Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Remote Event Log Management (RPC)** |
+| Group       | Remote Event Log Management |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `Eventlog` |
+| Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Remote Scheduled Tasks Management (RPC)** |
+| Group       | Remote Scheduled Tasks Management |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `schedule` |
+| Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Remote Service Management (RPC)** |
+| Group       | Remote Service Management |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\system32\services.exe` |
+| Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Remote Volume Management - Virtual Disk Service (RPC)** |
+| Group       | Remote Volume Management |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\system32\vds.exe` |
+| Service     | `vds` |
+| Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Remote Volume Management - Virtual Disk Service Loader (RPC)** |
+| Group       | Remote Volume Management |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\system32\vdsldr.exe` |
+| Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
+| Notes       | - |
+
 #### DC Replication Traffic
 
 | <!-- -->    | <!-- --> |
@@ -381,6 +466,224 @@
 | Notes       | - |
 
 ### Outbound Rules
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Active Directory Domain Controller -  Echo Request (ICMPv4-Out)** |
+| Group       | Active Directory Domain Services |
+| Protocol    | ICMPv4 |
+| ICMP Type   | 8 |
+| Program     | `System` |
+| Description | Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Active Directory Domain Controller -  Echo Request (ICMPv6-Out)** |
+| Group       | Active Directory Domain Services |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 128 |
+| Program     | `System` |
+
+| Description | Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Active Directory Domain Controller (TCP-Out)** |
+| Group       | Active Directory Domain Services |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%systemroot%\System32\lsass.exe` |
+| Description | Outbound rule for the Active Directory Domain Controller service. [TCP] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Active Directory Domain Controller (UDP-Out)** |
+| Group       | Active Directory Domain Services |
+| Protocol    | UDP |
+| Port        | Any |
+| Program     | `%systemroot%\System32\lsass.exe` |
+| Description | Outbound rule for the Active Directory Domain Controller service. [UDP] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Active Directory Web Services (TCP-Out)** |
+| Group       | Active Directory Web Services |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
+| Service     | `adws` |
+| Description | Outbound rule for the Active Directory Web Services. [TCP] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - DNS (UDP-Out)** |
+| Group       | Core Networking |
+| Protocol    | UDP |
+| Port        | 53 |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `dnscache` |
+| Description | Outbound rule to allow DNS requests. DNS responses based on requests that matched this rule will be permitted regardless of source address.  This behavior is classified as loose source mapping. [LSM] [UDP 53] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - Group Policy (NP-Out)** |
+| Group       | Core Networking |
+| Protocol    | TCP |
+| Port        | 445 |
+| Program     | `System` |
+| Description | Core Networking - Group Policy (NP-Out) |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - Group Policy (TCP-Out)** |
+| Group       | Core Networking |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `gpsvc` |
+| Description | Outbound rule to allow remote RPC traffic for Group Policy updates. [TCP] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - Neighbor Discovery Advertisement (ICMPv6-Out)** |
+| Group       | Core Networking |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 136 |
+| Program     | `System` |
+| Description | Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - Neighbor Discovery Solicitation (ICMPv6-Out)** |
+| Group       | Core Networking |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 135 |
+| Program     | `System` |
+| Description | Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - Packet Too Big (ICMPv6-Out)** |
+| Group       | Core Networking |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 2 |
+| Program     | `System` |
+| Description | Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - Parameter Problem (ICMPv6-Out)** |
+| Group       | Core Networking |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 4 |
+| Program     | `System` |
+| Description | Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Core Networking - Time Exceeded (ICMPv6-Out)** |
+| Group       | Core Networking |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 3 |
+| Program     | `System` |
+| Description | Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **All Outgoing (TCP)** |
+| Group       | DNS Service |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%systemroot%\System32\dns.exe` |
+| Service     | `dns` |
+| Description | Outbound rule to allow all TCP traffic from the DNS service. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **All Outgoing (UDP)** |
+| Group       | DNS Service |
+| Protocol    | UDP |
+| Port        | Any |
+| Program     | `%systemroot%\System32\dns.exe` |
+| Service     | `dns` |
+| Description | Outbound rule to allow all UDP traffic from the DNS service. |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **File and Printer Sharing (NB-Datagram-Out)** |
+| Group       | File and Printer Sharing |
+| Protocol    | UDP |
+| Port        | 138 |
+| Program     | `System` |
+| Description | Outbound rule for File and Printer Sharing to allow NetBIOS Datagram transmission and reception. [UDP 138] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **File and Printer Sharing (NB-Name-Out)** |
+| Group       | File and Printer Sharing |
+| Protocol    | UDP |
+| Port        | 137 |
+| Program     | `System` |
+| Description | Outbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **File and Printer Sharing (NB-Session-Out)** |
+| Group       | File and Printer Sharing |
+| Protocol    | TCP |
+| Port        | 139 |
+| Program     | `System` |
+| Description | Outbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **File and Printer Sharing (SMB-Out)** |
+| Group       | File and Printer Sharing |
+| Protocol    | TCP |
+| Port        | 445 |
+| Program     | `System` |
+| Description | Outbound rule for File and Printer Sharing to allow Server Message Block transmission and reception via Named Pipes. [TCP 445] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **Windows Management Instrumentation (WMI-Out)** |
+| Group       | Windows Management Instrumentation (WMI) |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `winmgmt` |
+| Description | Outbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
+| Name        | **iSCSI Service (TCP-Out)** |
+| Group       | iSCSI Service |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `Msiscsi` |
+| Description | Outbound rule for the iSCSI Service to allow communications with an iSCSI server or device. [TCP] |
+| Notes       | - |
 
 ### Static RPC Ports
 

@@ -678,4 +678,368 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Outbound rule "Active Directory Domain Controller -  Echo Request (ICMPv4-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{B0379302-26BF-46E0-B731-9ECCCA2549A2}' `
+                    -DisplayName 'Active Directory Domain Controller -  Echo Request (ICMPv4-Out)' `
+                    -Group '@FirewallAPI.dll,-37601' `
+                    -Description 'Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol ICMPv4 `
+                    -IcmpType 8 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Active Directory Domain Controller -  Echo Request (ICMPv6-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{D1EA7D65-980E-42C0-B462-A865840813D3}' `
+                    -DisplayName 'Active Directory Domain Controller -  Echo Request (ICMPv6-Out)' `
+                    -Group '@FirewallAPI.dll,-37601' `
+                    -Description 'Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 128 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Active Directory Domain Controller (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{BA86A0A2-68E3-4366-811D-A3B794EA6359}' `
+                    -DisplayName 'Active Directory Domain Controller (TCP-Out)' `
+                    -Group '@FirewallAPI.dll,-37601' `
+                    -Description 'Outbound rule for the Active Directory Domain Controller service. [TCP]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\lsass.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Active Directory Domain Controller (UDP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{F1C5912B-0663-4344-A0CD-4CC5544C99F4}' `
+                    -DisplayName 'Active Directory Domain Controller (UDP-Out)' `
+                    -Group '@FirewallAPI.dll,-37601' `
+                    -Description 'Outbound rule for the Active Directory Domain Controller service. [UDP]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\lsass.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Active Directory Web Services (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{3B5E6FD9-45EF-46CA-B96A-4DD0383E9BBD}' `
+                    -DisplayName 'Active Directory Web Services (TCP-Out)' `
+                    -Group '@%SystemRoot%\system32\firewallapi.dll,-53426' `
+                    -Description 'Outbound rule for the Active Directory Web Services. [TCP]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe' `
+                    -Service 'adws' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - DNS (UDP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{E23FCABD-E4FA-4E47-8343-C61E3CDAFB9F}' `
+                    -DisplayName 'Core Networking - DNS (UDP-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Outbound rule to allow DNS requests. DNS responses based on requests that matched this rule will be permitted regardless of source address.  This behavior is classified as loose source mapping. [LSM] [UDP 53]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort 53 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'dnscache' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Group Policy (NP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{3536ED0C-9C2D-4A61-87A7-4940E49748EE}' `
+                    -DisplayName 'Core Networking - Group Policy (NP-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Core Networking - Group Policy (NP-Out)' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 445 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Group Policy (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{E2A89153-2599-4758-90F0-2FFE9B641466}' `
+                    -DisplayName 'Core Networking - Group Policy (TCP-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Outbound rule to allow remote RPC traffic for Group Policy updates. [TCP]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'gpsvc' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Neighbor Discovery Advertisement (ICMPv6-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{A191FCFE-7D79-4ED1-B4BC-73A5CACCFCC5}' `
+                    -DisplayName 'Core Networking - Neighbor Discovery Advertisement (ICMPv6-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 136 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Neighbor Discovery Solicitation (ICMPv6-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{D1EE65ED-4B17-418C-B7F6-7CDBC7D73AFB}' `
+                    -DisplayName 'Core Networking - Neighbor Discovery Solicitation (ICMPv6-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 135 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Packet Too Big (ICMPv6-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{15AC1073-64C7-4CC2-9E04-A407F1F652DF}' `
+                    -DisplayName 'Core Networking - Packet Too Big (ICMPv6-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 2 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Parameter Problem (ICMPv6-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{B42AA23D-A67C-4DAC-97F7-71FD6E4090D0}' `
+                    -DisplayName 'Core Networking - Parameter Problem (ICMPv6-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 4 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Time Exceeded (ICMPv6-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{8059CAC7-AD9D-40E7-81EA-0C7F19752ECB}' `
+                    -DisplayName 'Core Networking - Time Exceeded (ICMPv6-Out)' `
+                    -Group '@FirewallAPI.dll,-25000' `
+                    -Description 'Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 3 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "All Outgoing (TCP)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{CA18A5B1-3113-421B-8022-9A7DEE157497}' `
+                    -DisplayName 'All Outgoing (TCP)' `
+                    -Group '@firewallapi.dll,-53012' `
+                    -Description 'Outbound rule to allow all TCP traffic from the DNS service.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\dns.exe' `
+                    -Service 'dns' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "All Outgoing (UDP)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{D105FFEF-5BD4-4AC5-ADC8-8BFE2437DC1F}' `
+                    -DisplayName 'All Outgoing (UDP)' `
+                    -Group '@firewallapi.dll,-53012' `
+                    -Description 'Outbound rule to allow all UDP traffic from the DNS service.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\dns.exe' `
+                    -Service 'dns' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "File and Printer Sharing (NB-Datagram-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{9E3C996B-A69B-47FA-A780-DCE75F4EA9B8}' `
+                    -DisplayName 'File and Printer Sharing (NB-Datagram-Out)' `
+                    -Group '@FirewallAPI.dll,-28502' `
+                    -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Datagram transmission and reception. [UDP 138]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort 138 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "File and Printer Sharing (NB-Name-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{DCC4C794-DBF3-4E21-8A42-1A3DBF36547C}' `
+                    -DisplayName 'File and Printer Sharing (NB-Name-Out)' `
+                    -Group '@FirewallAPI.dll,-28502' `
+                    -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort 137 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "File and Printer Sharing (NB-Session-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{2BFA65F4-D6B4-4AC4-ACE0-97217F3438EC}' `
+                    -DisplayName 'File and Printer Sharing (NB-Session-Out)' `
+                    -Group '@FirewallAPI.dll,-28502' `
+                    -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 139 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "File and Printer Sharing (SMB-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{421C7FFC-FA6F-4594-8ABF-E6CCC4339CDE}' `
+                    -DisplayName 'File and Printer Sharing (SMB-Out)' `
+                    -Group '@FirewallAPI.dll,-28502' `
+                    -Description 'Outbound rule for File and Printer Sharing to allow Server Message Block transmission and reception via Named Pipes. [TCP 445]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 445 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Windows Management Instrumentation (WMI-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{39691525-BC5D-4497-B8FA-365898EE4A70}' `
+                    -DisplayName 'Windows Management Instrumentation (WMI-Out)' `
+                    -Group '@FirewallAPI.dll,-34251' `
+                    -Description 'Outbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'winmgmt' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "iSCSI Service (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{47CE3FB7-D494-452B-85F3-75717F9D7383}' `
+                    -DisplayName 'iSCSI Service (TCP-Out)' `
+                    -Group '@FirewallAPI.dll,-29002' `
+                    -Description 'Outbound rule for the iSCSI Service to allow communications with an iSCSI server or device. [TCP]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'Msiscsi' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
