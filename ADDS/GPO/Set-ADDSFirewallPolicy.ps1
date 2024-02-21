@@ -19,6 +19,7 @@ Import-Module -Name NetSecurity,GroupPolicy -ErrorAction Stop
 [string] $gpoName = 'DC Firewall'
 [string] $gpoComment = 'Created by script.'
 [bool] $blockOutboundTraffic = $false
+[bool] $logDroppedPackets = $true
 
 # Try to fetch the target GPO
 [Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $gpoName -ErrorAction SilentlyContinue
@@ -60,6 +61,16 @@ if($blockOutboundTraffic)
     $defaultOutboundAction = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action]::Block
 }
 
+# Determine the dropped packet logging settings
+[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
+
+if($logDroppedPackets)
+{
+    $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
+}
+
+[int] $maxLogFileSize = 32MB # Logs really cannot be bigger than 32MB!
+
 # Configure all firewall profiles (Domain, Private, and Public)
 Set-NetFirewallProfile -GPOSession $gpoSession `
                        -All `
@@ -67,10 +78,15 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -DefaultInboundAction Block `
                        -DefaultOutboundAction $defaultOutboundAction `
                        -AllowLocalFirewallRules False `
+                       -AllowUnicastResponseToMulticast False `
+                       -NotifyOnListen False `
+                       -LogFileName '%systemroot%\system32\logfiles\firewall\pfirewall.log' `
+                       -LogMaxSizeKilobytes ($maxLogFileSize/1KB-1) `
+                       -LogBlocked $logBlocled `
+                       -LogAllowed False `
+                       -LogIgnored False `
                        -Verbose `
                        -ErrorAction Stop
-
-# TODO: Log file
 
 # Create Inbound rule "Active Directory Domain Controller - W32Time (NTP-UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
