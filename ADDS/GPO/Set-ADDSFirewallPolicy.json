@@ -1,11 +1,13 @@
 {
-    "policyName": "Domain Controller Firewall",
-    "configureOutboundRules": true,
-    "clientAddresses": [ "10.220.3.0/24", "10.220.4.0/24" ],
-    "managementAddresses": [ "10.220.2.0/24" ],
-    "domainControllerAddresses": [ "10.220.1.0/24" ],
-    "ntdsStaticPort": 0,
-    "netlogonStaticPort": 0,
-    "dfsrStaticPort": 0,
-    "wmiStaticPort": 0
+    "GroupPolicyObjectName": "Domain Controller Firewall",
+    "GroupPolicyObjectComment": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
+    "EnforceOutboundRules": true,
+    "LogDroppedPackets": true,
+    "ClientAddresses": [ "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "10.220.6.0/24" ],
+    "ManagementAddresses": [ "10.220.3.0/24" ],
+    "DomainControllerAddresses": [ "10.220.1.0/24" ],
+    "NtdsStaticPort": 0,
+    "NetlogonStaticPort": 0,
+    "DfsrStaticPort": 0,
+    "WmiStaticPort": 0
 }

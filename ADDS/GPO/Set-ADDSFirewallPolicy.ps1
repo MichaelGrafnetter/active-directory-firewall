@@ -4,6 +4,9 @@ Creates a Group Policy Object (GPO) that configures the Windows Firewall for Dom
 
 .DESCRIPTION
 
+.PARAMETER ConfigurationFileName
+Specifies the name of the configuration file from which some firewall settings are applied.
+
 .NOTES
 Author:  Michael Grafnetter
 Version: 1.0
@@ -13,21 +16,66 @@ Version: 1.0
 #Requires -Modules NetSecurity,GroupPolicy
 #Requires -Version 5
 
+[CmdletBinding()]
+Param(
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullOrEmpty()]
+    [string] $ConfigurationFileName = 'Set-ADDSFirewallPolicy.json'
+)
+
+# Apply additional runtime validation
 Set-StrictMode -Version Latest -ErrorAction Stop
+
+# Preload the required modules
 Import-Module -Name NetSecurity,GroupPolicy -ErrorAction Stop
 
-[string] $gpoName = 'DC Firewall'
-[string] $gpoComment = 'Created by script.'
-[bool] $blockOutboundTraffic = $false
-[bool] $logDroppedPackets = $true
+# Set the default configuration values, which can be overridden by an external JSON file
+class ScriptSettings
+{
+    [string]   $GroupPolicyObjectName     = 'Domain Controller Firewall'
+    [string]   $GroupPolicyObjectComment  = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
+    [bool]     $EnforceOutboundRules      = $false
+    [bool]     $LogDroppedPackets         = $false
+    [string[]] $ClientAddresses           = 'Any'
+    [string[]] $ManagementAddresses       = 'Any'
+    [string[]] $DomainControllerAddresses = 'Any'
+    [uint16]   $NtdsStaticPort            = 0
+    [uint16]   $NetlogonStaticPort        = 0
+    [uint16]   $DfsrStaticPort            = 0
+    [uint16]   $WmiStaticPort             = 0
+}
+
+[ScriptSettings] $configuration = [ScriptSettings]::new()
+
+# Load the configuration from a JSON file if it exists
+[string] $configurationFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ConfigurationFileName -ErrorAction Stop
+
+if(Test-Path -Path $configurationFilePath -PathType Leaf)
+{
+    [System.Runtime.Serialization.Json.DataContractJsonSerializer] $serializer = [System.Runtime.Serialization.Json.DataContractJsonSerializer]::new([ScriptSettings])
+    [System.IO.FileStream] $stream = [System.IO.File]::Open($configurationFilePath, [System.IO.FileMode]::Open)
+    try
+    {
+        $configuration = $serializer.ReadObject($stream)
+    }
+    catch
+    {
+        # Do not continue if there is any issue reading the configuration file
+        throw
+    }
+    finally
+    {
+        $stream.Close()
+    }
+}
 
 # Try to fetch the target GPO
-[Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $gpoName -ErrorAction SilentlyContinue
+[Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $configuration.GroupPolicyObjectName -ErrorAction SilentlyContinue
 
 if($null -eq $gpo)
 {
     # Create the GPO if it does not exist
-    $gpo = New-GPO -Name $gpoName -Comment $gpoComment -Verbose -ErrorAction Stop
+    $gpo = New-GPO -Name $configuration.GroupPolicyObjectName -Comment $configuration.GroupPolicyObjectComment -Verbose -ErrorAction Stop
 }
 
 if($gpo.GpoStatus -ne [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled)
@@ -37,11 +85,11 @@ if($gpo.GpoStatus -ne [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled)
     $gpo.GpoStatus = [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled
 }
 
-if($gpo.Description -ne $gpoComment)
+if($gpo.Description -ne $configuration.GroupPolicyObjectComment)
 {
     # Fix the GPO description
     # TODO: Verbose
-    $gpo.Description = $gpoComment
+    $gpo.Description = $configuration.GroupPolicyObjectComment
 }
 
 # Contruct the qualified GPO name
@@ -56,7 +104,7 @@ Remove-NetFirewallRule -All -PolicyStore $policyStore -Verbose -ErrorAction Stop
 # Determine the default outbound action
 [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action] $defaultOutboundAction = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action]::Allow
 
-if($blockOutboundTraffic)
+if($configuration.EnforceOutboundRules)
 {
     $defaultOutboundAction = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action]::Block
 }
@@ -64,17 +112,20 @@ if($blockOutboundTraffic)
 # Determine the dropped packet logging settings
 [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
 
-if($logDroppedPackets)
+if($configuration.LogDroppedPackets)
 {
     $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
 }
 
 [int] $maxLogFileSize = 32MB # Logs really cannot be bigger than 32MB!
 
+# TODO: -AllowUserPorts -AllowUserApps
+
 # Configure all firewall profiles (Domain, Private, and Public)
 Set-NetFirewallProfile -GPOSession $gpoSession `
                        -All `
                        -Enabled True `
+                       -AllowInboundRules True `
                        -DefaultInboundAction Block `
                        -DefaultOutboundAction $defaultOutboundAction `
                        -AllowLocalFirewallRules False `
@@ -88,6 +139,28 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -Verbose `
                        -ErrorAction Stop
 
+[string[]] $allAddresses =
+    ($configuration.ClientAddresses + $configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
+    Sort-Object -Unique
+
+if($allAddresses -contains 'Any')
+{
+    # Consolidate the remote addresses
+    $allAddresses = @('Any')
+}
+
+[string[]] $dcAndManagementAddresses =
+    ($configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
+    Sort-Object -Unique
+
+if($dcAndManagementAddresses -contains 'Any')
+{
+    # Consolidate the remote addresses
+    $dcAndManagementAddresses = @('Any')
+}
+
+#region Inbound Firewall Rules
+
 # Create Inbound rule "Active Directory Domain Controller - W32Time (NTP-UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'W32Time-NTP-UDP-In' `
@@ -100,7 +173,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 123 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\svchost.exe' `
                     -Service 'w32time' `
                     -Verbose `
@@ -118,7 +191,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPCEPMap `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'rpcss' `
                     -Verbose `
@@ -136,7 +209,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 464 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -153,7 +226,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 464 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -170,7 +243,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -187,7 +260,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 389 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -204,7 +277,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 389 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -221,7 +294,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 636 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -238,7 +311,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 3268 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -255,7 +328,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 3269 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -308,7 +381,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%SystemRoot%\system32\NTFRS.exe' `
                     -Service 'NTFRS' `
                     -Verbose `
@@ -326,7 +399,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 88 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -343,7 +416,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 88 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -360,7 +433,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 445 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -377,7 +450,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 445 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -394,7 +467,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%SystemRoot%\system32\dfsrs.exe' `
                     -Service 'Dfsr' `
                     -Verbose `
@@ -412,7 +485,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol ICMPv4 `
                     -IcmpType 8 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -429,7 +502,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol ICMPv6 `
                     -IcmpType 128 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -446,7 +519,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 138 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $allAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -582,7 +655,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 9389 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $dcAndManagementAddresses `
                     -Program '%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe' `
                     -Service 'adws' `
                     -Verbose `
@@ -600,7 +673,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 5985 `
-                    -RemoteAddress LocalSubnet `
+                    -RemoteAddress $configuration.ManagementAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -617,7 +690,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort Any `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'winmgmt' `
                     -Verbose `
@@ -635,7 +708,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 3389 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'termservice' `
                     -Verbose `
@@ -653,7 +726,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 3389 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'termservice' `
                     -Verbose `
@@ -671,7 +744,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%systemroot%\system32\dfsfrsHost.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -688,11 +761,154 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%systemroot%\System32\dns.exe' `
                     -Service 'dns' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Backup (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{6F488B11-584F-4F10-8608-CB998B22B40E}' `
+                    -DisplayName 'Windows Backup (RPC)' `
+                    -Group '@wbengine.exe,-106' `
+                    -Description 'Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%systemroot%\system32\wbengine.exe' `
+                    -Service 'wbengine' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "DFS Management (TCP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{B0AFA33E-1B0C-4DB7-9793-8945C6083CEB}' `
+                    -DisplayName 'DFS Management (TCP-In)' `
+                    -Group '@FirewallAPI.dll,-37802' `
+                    -Description 'Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%systemroot%\system32\dfsfrsHost.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Performance Logs and Alerts (TCP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{47A86CD1-3740-40FA-BC3D-2C72467B01A5}' `
+                    -DisplayName 'Performance Logs and Alerts (TCP-In)' `
+                    -Group '@FirewallAPI.dll,-34752' `
+                    -Description 'Inbound rule for Performance Logs and Alerts traffic. [TCP-In]' `
+                    -Enabled True `
+                    -Profile Private, Public `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%systemroot%\system32\plasrv.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Remote Event Log Management (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{ECE4A0F4-8284-4224-AB64-57E043624084}' `
+                    -DisplayName 'Remote Event Log Management (RPC)' `
+                    -Group '@FirewallAPI.dll,-29252' `
+                    -Description 'Inbound rule for the local Event Log service to be remotely managed via RPC/TCP.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'Eventlog' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Remote Scheduled Tasks Management (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{0E3267CF-2159-45CD-A373-4FC03E28745D}' `
+                    -DisplayName 'Remote Scheduled Tasks Management (RPC)' `
+                    -Group '@FirewallAPI.dll,-33252' `
+                    -Description 'Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'schedule' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Remote Service Management (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{B5BE1626-BBF5-445C-91D8-F351AB261F98}' `
+                    -DisplayName 'Remote Service Management (RPC)' `
+                    -Group '@FirewallAPI.dll,-29502' `
+                    -Description 'Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\system32\services.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Remote Volume Management - Virtual Disk Service (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{BF441172-2ED7-4349-8FA4-9E94293EC124}' `
+                    -DisplayName 'Remote Volume Management - Virtual Disk Service (RPC)' `
+                    -Group '@FirewallAPI.dll,-34501' `
+                    -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\system32\vds.exe' `
+                    -Service 'vds' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Remote Volume Management - Virtual Disk Service Loader (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name '{152F900D-5865-46E7-B766-F26E5BC9AEEB}' `
+                    -DisplayName 'Remote Volume Management - Virtual Disk Service Loader (RPC)' `
+                    -Group '@FirewallAPI.dll,-34501' `
+                    -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\system32\vdsldr.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+#endregion Inbound Firewall Rules
+#region Outbound Firewall Rules
 
 # Create Outbound rule "Active Directory Domain Controller -  Echo Request (ICMPv4-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -774,7 +990,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -RemotePort Any `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe' `
                     -Service 'adws' `
                     -Verbose `
@@ -810,7 +1026,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -RemotePort 445 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -827,7 +1043,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -RemotePort Any `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'gpsvc' `
                     -Verbose `
@@ -960,7 +1176,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'File and Printer Sharing (NB-Datagram-Out)' `
                     -Group '@FirewallAPI.dll,-28502' `
                     -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Datagram transmission and reception. [UDP 138]' `
-                    -Enabled True `
+                    -Enabled False `
                     -Profile Any `
                     -Direction Outbound `
                     -Action Allow `
@@ -977,7 +1193,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'File and Printer Sharing (NB-Name-Out)' `
                     -Group '@FirewallAPI.dll,-28502' `
                     -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137]' `
-                    -Enabled True `
+                    -Enabled False `
                     -Profile Any `
                     -Direction Outbound `
                     -Action Allow `
@@ -994,7 +1210,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'File and Printer Sharing (NB-Session-Out)' `
                     -Group '@FirewallAPI.dll,-28502' `
                     -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]' `
-                    -Enabled True `
+                    -Enabled False `
                     -Profile Any `
                     -Direction Outbound `
                     -Action Allow `
@@ -1011,13 +1227,13 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'Windows Management Instrumentation (WMI-Out)' `
                     -Group '@FirewallAPI.dll,-34251' `
                     -Description 'Outbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]' `
-                    -Enabled True `
+                    -Enabled False `
                     -Profile Any `
                     -Direction Outbound `
                     -Action Allow `
                     -Protocol TCP `
                     -RemotePort Any `
-                    -RemoteAddress Any `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'winmgmt' `
                     -Verbose `
@@ -1040,5 +1256,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Service 'Msiscsi' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
+
+#endregion Outbound Firewall Rules
 
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
