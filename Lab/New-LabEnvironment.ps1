@@ -24,7 +24,7 @@ Version: 1.0
 #Requires -Version 5
 
 # Install AutomatedLab
-$labSources = 'E:\LabSources'
+$global:labSources = 'E:\LabSources'
 $vmPath = 'E:\LabVMs'
 $labAdmin = 'Admin'
 $adminPassword = 'Pa$$w0rd'

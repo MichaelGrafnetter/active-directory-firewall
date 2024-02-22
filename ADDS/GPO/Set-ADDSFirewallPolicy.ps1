@@ -1008,7 +1008,24 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -RemotePort 53 `
-                    -RemoteAddress Any `
+                    -RemoteAddress 'DNS' `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'dnscache' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - DNS (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DNSC-Client-TCP-Out' `
+                    -DisplayName 'Core Networking - DNS (TCP-Out)' `
+                    -Description 'Outbound rule to allow DNS requests.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 53 `
+                    -RemoteAddress 'DNS' `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'dnscache' `
                     -Verbose `
@@ -1257,6 +1274,63 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Outbound rule "Windows Server Update Services Client - Device Setup Manager (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WSUS-Client-DsmSvc-TCP-Out' `
+                    -DisplayName 'Windows Server Update Services Client - Device Setup Manager (TCP-Out)' `
+                    -Description 'Outbound rule for the detection, download and installation of device-related software from WSUS.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 8530,8531 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'DsmSvc' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Windows Server Update Services Client - Windows Update (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WSUS-Client-Wuauserv-TCP-Out' `
+                    -DisplayName 'Windows Server Update Services Client - Windows Update (TCP-Out)' `
+                    -Description 'Outbound rule for the detection, download, and installation of updates for Windows and other programs from WSUS.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 8530,8531 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'wuauserv' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "DFS Replication (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DFSR-TCP-Out' `
+                    -DisplayName 'DFS Replication (TCP-Out)' `
+                    -Description 'Outbound rule to allow DFS Replication RPC traffic.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
+                    -Program '%SystemRoot%\system32\dfsrs.exe' `
+                    -Service 'Dfsr' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 #endregion Outbound Firewall Rules
 
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
+
+#region Administrative Templates
+
+# Turn off multicast name resolution
+Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -Value 0 -Type DWord -Verbose | Out-Null
+
+#endregion Administrative Templates

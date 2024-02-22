@@ -1,0 +1,5 @@
+Name,Group,Protocol,Port,IcmpType,Program,Service,RemoteAddress,Description
+"Windows Server Update Services Client - Device Setup Manager (TCP-Out)",,TCP,"8530,8531",,"%SystemRoot%\system32\svchost.exe",DsmSvc,Any,"Outbound rule for detection, download and installation of device-related software from WSUS."
+"Windows Server Update Services Client - Windows Update (TCP-Out)",,TCP,"8530,8531",,"%SystemRoot%\system32\svchost.exe",wuauserv,Any,"Outbound rule for the detection, download, and installation of updates for Windows and other programs from WSUS."
+"DFS Replication (TCP-Out)",,TCP,Any,,%SystemRoot%\system32\dfsrs.exe,Dfsr,DC,Outbound rule to allow DFS Replication RPC traffic.
+"Core Networking - DNS (TCP-Out)",,TCP,53,,"%SystemRoot%\system32\svchost.exe",dnscache,Any,"Outbound rule to allow DNS requests."
