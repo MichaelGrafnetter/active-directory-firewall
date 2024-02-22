@@ -7,8 +7,7 @@ The Hyper-V role should already be installed on the host OS.
 
 Windows 11 and Windows Server 2022 installation media need to be placed into the ISOs subdirectory of the lab sources directory.
 
-TODO: WSUS on ROOT-SRV
-TODO: NPS on ROOT-SRV
+TODO: NPS Configuration on ROOT-SRV
 
 TODO: Internet Connectivity
 TODO: RSAT on ROOT-PC1 and ROOT-PC2 (Requires Internet)
@@ -99,10 +98,15 @@ Invoke-LabCommand -ActivityName 'Enable RDP for Everyone on DCs' -ComputerName R
     Add-ADGroupMember -Identity 'Remote Desktop Users' -Members 'Domain Users' -ErrorAction SilentlyContinue
 }
 
-Invoke-LabCommand -ActivityName 'Disable Windows Update' -ComputerName ROOT-DC1,CORP-DC,FABRIKAM-DC -ScriptBlock {
-    $gpoName = 'Disable Windows Update'
+Invoke-LabCommand -ActivityName 'Configure Windows Update' -ComputerName ROOT-DC1,CORP-DC,FABRIKAM-DC -ScriptBlock {
+    $gpoName = 'Configure Windows Update'
     New-GPO -Name $gpoName -ErrorAction SilentlyContinue | Out-Null
+
     Set-GPRegistryValue -Name $gpoName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -ValueName 'NoAutoUpdate' -Value 1 -Type DWord
+    Set-GPRegistryValue -Name $gpoName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -ValueName 'UseWUServer' -Value 1 -Type DWord
+    Set-GPRegistryValue -Name $gpoName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -ValueName 'WUServer' -Value 'https://update.contoso.com:8531' -Type String
+    Set-GPRegistryValue -Name $gpoName -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -ValueName 'WUStatusServer' -Value 'https://update.contoso.com:8531' -Type String
+
     New-GPLink -Name $gpoName -Target (Get-ADDomain).DistinguishedName -ErrorAction SilentlyContinue
 }
 
@@ -382,4 +386,52 @@ Invoke-LabCommand -ActivityName 'Create Nested Hyper-V External Switch' -Compute
                     
     # Reconfigure WSL to use the switch
     Set-Content $env:USERPROFILE\.wslconfig -Value "[wsl2]`nnetworkingMode=bridged`nvmSwitch=External`nmemory=2GB`ndhcp=true`nipv6=true" -Force
+}
+
+
+Invoke-LabCommand -ActivityName 'Install WSUS' -ComputerName ROOT-SRV -ScriptBlock {
+    Import-Module -Name ServerManager -Verbose:$false
+    Install-WindowsFeature -Name UpdateServices -IncludeManagementTools -Restart:$false -WarningAction SilentlyContinue
+    New-Item -Path "$env:SystemDrive\WSUS" -ItemType Directory -ErrorAction SilentlyContinue | Out-Null
+    & "$env:ProgramFiles\Update Services\Tools\wsusutil.exe" postinstall "CONTENT_DIR=$env:SystemDrive\WSUS"
+}
+
+Invoke-LabCommand -ActivityName 'Create WSUS DNS Records' -ComputerName ROOT-DC1 -ScriptBlock {
+    Import-Module -Name ActiveDirectory,DnsServer -Verbose:$false
+    [string] $dnsZone = (Get-ADDomain).DNSRoot
+    [ipaddress] $wsusIP = (Get-DnsServerResourceRecord -Name ROOT-SRV -ZoneName $dnsZone).RecordData.IPv4Address
+    Add-DnsServerResourceRecordA -Name update -IPv4Address $wsusIP -ZoneName $dnsZone -Verbose -ErrorAction SilentlyContinue
+}
+
+Invoke-LabCommand -ActivityName 'Configure WSUS SPN' -ComputerName ROOT-DC1 -ScriptBlock {
+    Import-Module -Name ActiveDirectory -Verbose:$false
+    [string] $dnsRoot = (Get-ADDomain).DNSRoot
+    Set-ADComputer -Identity ROOT-SRV -ServicePrincipalNames @{ Add = "http/update.$dnsRoot" } -Verbose
+    Set-ADComputer -Identity ROOT-SRV -ServicePrincipalNames @{ Add = "http/update" } -Verbose
+}
+
+Invoke-LabCommand -ActivityName 'Configure IIS TLS Binding for WSUS' -ComputerName ROOT-SRV -ScriptBlock {
+    [string] $dnsRoot = $env:USERDNSDOMAIN.ToLower()
+    [System.Security.Cryptography.X509Certificates.X509Certificate2] $cert =
+        Get-ChildItem -Path Cert:\LocalMachine\My -DnsName "update.$dnsRoot" -ErrorAction SilentlyContinue
+                    
+    if($null -eq $cert)
+    {
+        # Refresh Root CAs and Templates from AD 
+        certutil -pulse | Out-Null
+
+        Import-Module -Name PKI -Verbose:$false
+        $result = Get-Certificate -Template WebServer `
+                                -SubjectName "CN=update.$dnsRoot" `
+                                -DnsName "update.$dnsRoot" `
+                                -CertStoreLocation cert:\LocalMachine\My
+        $cert = $result.Certificate
+    }
+                    
+    Import-Module -Name WebAdministration -Verbose:$false
+    [string] $siteName = 'WSUS Administration'
+    Remove-WebBinding -Name $siteName -BindingInformation '*:8531:' -Protocol https -Confirm:$false -ErrorAction SilentlyContinue
+    Remove-WebBinding -Name $siteName -BindingInformation "*:8531:update.$dnsRoot" -Protocol https -Confirm:$false -ErrorAction SilentlyContinue
+    New-WebBinding -Name $siteName -Protocol https -Port 8531 -HostHeader "update.$dnsRoot" -Force
+    (Get-WebBinding -Name $siteName -Port 8531 -Protocol https).RebindSslCertificate($cert.Thumbprint, 'My')
 }
