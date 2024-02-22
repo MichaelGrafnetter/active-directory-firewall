@@ -5,6 +5,8 @@ Creates a Hyper-V based lab environment for DC firewall tests using AutomatedLab
 .DESCRIPTION
 The Hyper-V role should already be installed on the host OS.
 
+Windows 11 and Windows Server 2022 installation media need to be placed into the ISOs subdirectory of the lab sources directory.
+
 TODO: WSUS on ROOT-SRV
 TODO: NPS on ROOT-SRV
 
@@ -19,7 +21,7 @@ Version: 1.0
 #>
 
 #Requires -Modules Hyper-V
-#Requires -RunAsAdmin
+#Requires -RunAsAdministrator
 #Requires -Version 5
 
 # Install AutomatedLab
