@@ -1330,7 +1330,13 @@ Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
 
 #region Administrative Templates
 
-# Turn off multicast name resolution
+# Turn off Link-Local Multicast Name Resolution (LLMNR)
 Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -Value 0 -Type DWord -Verbose | Out-Null
 
+# Turn off Multicast DNS (mDNS)
+Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value 0 -Type DWord -Verbose | Out-Null
+
 #endregion Administrative Templates
+
+# TODO: netsh advfirewall set allprofiles logging filename %systemroot%\system32\LogFiles\firewall\pfirewall.log
+# TODO: Disable Print Spooler
