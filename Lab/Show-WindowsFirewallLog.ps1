@@ -15,12 +15,15 @@ Version: 1.0
 #Requires -RunAsAdministrator
 
 Param(
-    [parameter(Mandatory = $false, Position = 0)]
+    [Parameter(Mandatory = $false, Position = 0)]
     [ValidateNotNullOrEmpty()]
-    [string] $LogFilePath = "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log"
+    [string] $LogFilePath = "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log",
+
+    [Parameter()]
+    [switch] $Live
 )
 
-Get-Content -Path $LogFilePath |
+Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
     Select-Object -Skip 3 |
     ForEach-Object { $PSItem -replace '^#Fields: ' } |
     ConvertFrom-Csv -Delimiter ' ' |
