@@ -29,6 +29,8 @@ Set-StrictMode -Version Latest -ErrorAction Stop
 # Preload the required modules
 Import-Module -Name NetSecurity,GroupPolicy -ErrorAction Stop
 
+#region Configuration
+
 # Set the default configuration values, which can be overridden by an external JSON file
 class ScriptSettings
 {
@@ -50,24 +52,24 @@ class ScriptSettings
 # Load the configuration from a JSON file if it exists
 [string] $configurationFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ConfigurationFileName -ErrorAction Stop
 
-if(Test-Path -Path $configurationFilePath -PathType Leaf)
+[System.Runtime.Serialization.Json.DataContractJsonSerializer] $serializer = [System.Runtime.Serialization.Json.DataContractJsonSerializer]::new([ScriptSettings])
+[System.IO.FileStream] $stream = [System.IO.File]::Open($configurationFilePath, [System.IO.FileMode]::Open)
+try
 {
-    [System.Runtime.Serialization.Json.DataContractJsonSerializer] $serializer = [System.Runtime.Serialization.Json.DataContractJsonSerializer]::new([ScriptSettings])
-    [System.IO.FileStream] $stream = [System.IO.File]::Open($configurationFilePath, [System.IO.FileMode]::Open)
-    try
-    {
-        $configuration = $serializer.ReadObject($stream)
-    }
-    catch
-    {
-        # Do not continue if there is any issue reading the configuration file
-        throw
-    }
-    finally
-    {
-        $stream.Close()
-    }
+    $configuration = $serializer.ReadObject($stream)
 }
+catch
+{
+    # Do not continue if there is any issue reading the configuration file
+    throw
+}
+finally
+{
+    $stream.Close()
+}
+
+#endregion Configuration
+#region Create and configure the GPO
 
 # Try to fetch the target GPO
 [Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $configuration.GroupPolicyObjectName -ErrorAction SilentlyContinue
@@ -92,14 +94,43 @@ if($gpo.Description -ne $configuration.GroupPolicyObjectComment)
     $gpo.Description = $configuration.GroupPolicyObjectComment
 }
 
+#endregion Create and configure the GPO
+#region Firewall Profiles
+
 # Contruct the qualified GPO name
 [string] $policyStore = '{0}\{1}' -f $gpo.DomainName,$gpo.DisplayName
 
-# Remove any pre-existing firewall rules
-Remove-NetFirewallRule -All -PolicyStore $policyStore -Verbose -ErrorAction Stop
-
 # Open the GPO
+# TODO: Verbose
 [string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -ErrorAction Stop
+
+# Remove any pre-existing firewall rules
+# Note: As Microsoft removed the -GPOSession parameter from the Remove-NetFirewallRule in Windows Server 2022, low-level CIM operations need to be used instead.
+
+# The source GPO session is provided as a custom CIM operation option.
+$cimOperationOptions = [Microsoft.Management.Infrastructure.Options.CimOperationOptions]::new()
+$cimOperationOptions.SetCustomOption('GPOSession', $gpoSession, $false)
+
+# Open a temporary local CIM session
+[CimSession] $localSession = New-CimSession -ErrorAction Stop
+
+try
+{
+    # Fetch all firewall rules from the GPO
+    [ciminstance[]] $gpoFirewallRules = $localSession.EnumerateInstances('ROOT\StandardCimv2','MSFT_NetFirewallRule', $cimOperationOptions)
+
+    # Remove all firewall rules from the GPO
+    foreach($rule in $gpoFirewallRules)
+    {
+        Write-Verbose -Message ('Deleting firewall rule {0}.' -f $rule.Name) -Verbose
+        $localSession.DeleteInstance('ROOT\StandardCimv2', $rule, $operationOptions)
+    }
+}
+finally
+{
+    # Close the temporary local CIM session
+    Remove-CimSession -CimSession $localSession -ErrorAction SilentlyContinue
+}
 
 # Determine the default outbound action
 [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action] $defaultOutboundAction = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action]::Allow
@@ -159,6 +190,7 @@ if($dcAndManagementAddresses -contains 'Any')
     $dcAndManagementAddresses = @('Any')
 }
 
+#endregion Firewall Profiles
 #region Inbound Firewall Rules
 
 # Create Inbound rule "Active Directory Domain Controller - W32Time (NTP-UDP-In)"
@@ -673,6 +705,23 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 5985 `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Remote Management (HTTPS-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINRM-HTTPS-In-TCP-PUBLIC' `
+                    -DisplayName 'Windows Remote Management (HTTPS-In)' `
+                    -Group '@FirewallAPI.dll,-30267' `
+                    -Description 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5986]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 5986 `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program 'System' `
                     -Verbose `
@@ -1324,8 +1373,43 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Outbound rule "Microsoft Management Console (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'MMC-TCP-Out' `
+                    -DisplayName 'Microsoft Management Console (TCP-Out)' `
+                    -Description 'Outbound rule for the MMC console to allow AD management, certificate requests, and other administrative actions.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\mmc.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Remote Procedure Call (RPC-EPMAP)"
+# Note: It is not possible to limit the rule to the RpcEptMapper service, because of user impersonation.
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RPCEPMAP-TCP-Out' `
+                    -DisplayName 'Remote Procedure Call (RPC-EPMAP)' `
+                    -Description 'Outbound rule for the RPCSS service to allow RPC/TCP traffic to other servers, including Certification Authority.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 135 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service Any `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 #endregion Outbound Firewall Rules
 
+# TODO: Verbose
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
 
 #region Administrative Templates
