@@ -1407,6 +1407,22 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Outbound rule "Windows Activation - KMS Connection Broker (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'KMS-Client-TCP-Out' `
+                    -DisplayName 'Windows Activation - KMS Connection Broker (TCP-Out)' `
+                    -Description 'Outbound rule to allow Windows activation against a KMS server.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 1688 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\SppExtComObj.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 #endregion Outbound Firewall Rules
 
 # TODO: Verbose
