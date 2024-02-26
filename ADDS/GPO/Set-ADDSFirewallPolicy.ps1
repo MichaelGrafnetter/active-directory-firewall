@@ -858,7 +858,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Group '@FirewallAPI.dll,-34752' `
                     -Description 'Inbound rule for Performance Logs and Alerts traffic. [TCP-In]' `
                     -Enabled True `
-                    -Profile Private, Public `
+                    -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
