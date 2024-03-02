@@ -11,5 +11,18 @@
     "DfsrStaticPort": 5722,
     "WmiStaticPort": true,
     "DisableLLMNR": true,
-    "DisableMDNS": true
+    "DisableMDNS": true,
+    "EnableServiceManagement": true,
+    "EnableEventLogManagement": true,
+    "EnableScheduledTaskManagement": true,
+    "EnableWindowsRemoteManagement": true,
+    "EnablePerformanceLogAccess": true,
+    "EnableRemoteDesktop": true,
+    "EnableDiskManagement": true,
+    "EnableBackupManagement": true,
+    "EnableLegacyFileReplication": false,
+    "EnableNetbiosNameService": false,
+    "EnableNetbiosDatagramService": false,
+    "EnableNetbiosSessionService": false,
+    "EnableWINS": false
 }

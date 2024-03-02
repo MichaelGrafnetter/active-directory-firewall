@@ -34,20 +34,33 @@ Import-Module -Name NetSecurity,GroupPolicy,ActiveDirectory -ErrorAction Stop
 # Set the default configuration values, which can be overridden by an external JSON file
 class ScriptSettings
 {
-    [string]           $GroupPolicyObjectName     = 'Domain Controller Firewall'
-    [string]           $GroupPolicyObjectComment  = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
-    [bool]             $EnforceOutboundRules      = $false
-    [bool]             $LogDroppedPackets         = $false
-    [string]           $LogFilePath               = '%systemroot%\system32\logfiles\firewall\pfirewall.log'
-    [string[]]         $ClientAddresses           = 'Any'
-    [string[]]         $ManagementAddresses       = 'Any'
-    [string[]]         $DomainControllerAddresses = 'Any'
-    [Nullable[uint16]] $NtdsStaticPort            = $null
-    [Nullable[uint16]] $NetlogonStaticPort        = $null
-    [Nullable[uint16]] $DfsrStaticPort            = $null
-    [Nullable[bool]]   $WmiStaticPort             = $null
-    [bool]             $DisableLLMNR              = $false
-    [Nullable[bool]]   $DisableMDNS               = $null
+    [string]           $GroupPolicyObjectName         = 'Domain Controller Firewall'
+    [string]           $GroupPolicyObjectComment      = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
+    [bool]             $EnforceOutboundRules          = $false
+    [bool]             $LogDroppedPackets             = $false
+    [string]           $LogFilePath                   = '%systemroot%\system32\logfiles\firewall\pfirewall.log'
+    [string[]]         $ClientAddresses               = 'Any'
+    [string[]]         $ManagementAddresses           = 'Any'
+    [string[]]         $DomainControllerAddresses     = 'Any'
+    [Nullable[uint16]] $NtdsStaticPort                = $null
+    [Nullable[uint16]] $NetlogonStaticPort            = $null
+    [Nullable[uint16]] $DfsrStaticPort                = $null
+    [Nullable[bool]]   $WmiStaticPort                 = $null
+    [bool]             $DisableLLMNR                  = $false
+    [Nullable[bool]]   $DisableMDNS                   = $null
+    [bool]             $EnableServiceManagement       = $true
+    [bool]             $EnableEventLogManagement      = $true
+    [bool]             $EnableScheduledTaskManagement = $true
+    [bool]             $EnableWindowsRemoteManagement = $true
+    [bool]             $EnablePerformanceLogAccess    = $true
+    [bool]             $EnableRemoteDesktop           = $true
+    [bool]             $EnableDiskManagement          = $true
+    [bool]             $EnableBackupManagement        = $true
+    [bool]             $EnableLegacyFileReplication   = $true
+    [bool]             $EnableNetbiosNameService      = $true
+    [bool]             $EnableNetbiosDatagramService  = $true
+    [bool]             $EnableNetbiosSessionService   = $true
+    [bool]             $EnableWINS                    = $true
 }
 
 [ScriptSettings] $configuration = [ScriptSettings]::new()
@@ -194,6 +207,28 @@ if($dcAndManagementAddresses -contains 'Any')
 }
 
 #endregion Firewall Profiles
+#region Helper Functions
+
+<#
+.SYNOPSIS Converts a boolean value to a NetSecurity.Enabled enumeration value, which is accepted by the New-NetFirewallRule cmdlet.
+#>
+function ConvertTo-NetSecurityEnabled
+{
+    [OutputType([Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled])]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [bool] $Value
+    )
+
+    if($Value) {
+        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled]::True
+    }
+    else {
+        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled]::False
+    }
+}
+
+#endregion Helper Functions
 #region Inbound Firewall Rules
 
 # Create Inbound rule "Active Directory Domain Controller - W32Time (NTP-UDP-In)"
@@ -234,7 +269,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Kerberos Key Distribution Center - PCR (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{04C4FC79-D3F1-4597-A4E2-724C7E544ABF}' `
+                    -Name 'ADDS-Kerberos-Password-UDP-In' `
                     -DisplayName 'Kerberos Key Distribution Center - PCR (UDP-In)' `
                     -Group '@kdcsvc.dll,-1008' `
                     -Description 'Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [UDP 464]' `
@@ -251,7 +286,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Kerberos Key Distribution Center - PCR (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{DBC7B56C-1058-4DAC-8994-A6AC2A9D35CE}' `
+                    -Name 'ADDS-Kerberos-Password-TCP-In' `
                     -DisplayName 'Kerberos Key Distribution Center - PCR (TCP-In)' `
                     -Group '@kdcsvc.dll,-1008' `
                     -Description 'Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [TCP 464]' `
@@ -370,7 +405,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "DNS (UDP, Incoming)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{4C695187-A3B5-4CDB-999C-386D3ADF2B98}' `
+                    -Name 'DNSSrv-DNS-UDP-In' `
                     -DisplayName 'DNS (UDP, Incoming)' `
                     -Group '@firewallapi.dll,-53012' `
                     -Description 'Inbound rule to allow remote UDP access to the DNS service.' `
@@ -388,7 +423,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "DNS (TCP, Incoming)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{B227B296-DB1A-43DD-AD6B-B94FDB2A807C}' `
+                    -Name 'DNSSrv-DNS-TCP-In' `
                     -DisplayName 'DNS (TCP, Incoming)' `
                     -Group '@firewallapi.dll,-53012' `
                     -Description 'Inbound rule to allow remote TCP access to the DNS service.' `
@@ -406,11 +441,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "File Replication (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{13C054C8-7F03-4BA3-9B4A-439700CD56F8}' `
+                    -Name 'NTFRS-NTFRSSvc-In-TCP' `
                     -DisplayName 'File Replication (RPC)' `
                     -Group '@ntfrsres.dll,-525' `
                     -Description 'Inbound rule to allow File Replication RPC traffic.' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableLegacyFileReplication) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -424,7 +459,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Kerberos Key Distribution Center (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{46F8569F-DAA4-45EC-BFEA-EA40FA214DB0}' `
+                    -Name 'ADDS-Kerberos-TCP-In' `
                     -DisplayName 'Kerberos Key Distribution Center (TCP-In)' `
                     -Group '@kdcsvc.dll,-1008' `
                     -Description 'Inbound rule for the Kerberos Key Distribution Center service. [TCP 88]' `
@@ -441,7 +476,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Kerberos Key Distribution Center (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{35BAD697-2FFD-498A-AF8A-8941507899F3}' `
+                    -Name 'ADDS-Kerberos-UDP-In' `
                     -DisplayName 'Kerberos Key Distribution Center (UDP-In)' `
                     -Group '@kdcsvc.dll,-1008' `
                     -Description 'Inbound rule for the Kerberos Key Distribution Center service. [UDP 88]' `
@@ -493,7 +528,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 # Create Inbound rule "DFS Replication (RPC-In)"
 # Note that a static port 5722 was used before Windows Server 2012
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{C1DFBB01-2307-498C-8107-592E37B7EC81}' `
+                    -Name 'DFSR-DFSRSvc-In-TCP' `
                     -DisplayName 'DFS Replication (RPC-In)' `
                     -Group '@FirewallAPI.dll,-37702' `
                     -Description 'Inbound rule to allow DFS Replication RPC traffic.' `
@@ -545,11 +580,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Active Directory Domain Controller - NetBIOS name resolution (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{F371EA70-3231-43CB-93BE-3E8230615589}' `
+                    -Name 'ADDS-NB-Datagram-UDP-In' `
                     -DisplayName 'Active Directory Domain Controller - NetBIOS name resolution (UDP-In)' `
                     -Group '@FirewallAPI.dll,-37601' `
                     -Description 'Inbound rule for the Active Directory Domain Controller service to allow NetBIOS name resolution. [UDP 138]' `
-                    -Enabled False `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosDatagramService) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -560,9 +595,97 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Inbound rule "File and Printer Sharing (NB-Name-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FPS-NB_Name-In-UDP' `
+                    -DisplayName 'File and Printer Sharing (NB-Name-In)' `
+                    -Group '@FirewallAPI.dll,-28502' `
+                    -Description 'Inbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosNameService) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 137 `
+                    -RemoteAddress $allAddresses `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "File and Printer Sharing (NB-Session-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FPS-NB_Name-In-UDP' `
+                    -DisplayName 'File and Printer Sharing (NB-Session-In)' `
+                    -Group '@FirewallAPI.dll,-28502' `
+                    -Description 'Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosSessionService) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 139 `
+                    -RemoteAddress $allAddresses `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Internet Naming Service (WINS) (UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name ' WINS-Service-In-UDP' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) (UDP-In)' `
+                    -Group ' @%SystemRoot%\System32\firewallapi.dll,-53300' `
+                    -Description 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 42 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%SystemRoot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Internet Naming Service (WINS) (TCP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINS-Service-In-TCP' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) (TCP-In)' `
+                    -Group ' @%SystemRoot%\System32\firewallapi.dll,-53300' `
+                    -Description 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 42 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%SystemRoot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Internet Naming Service (WINS) - Remote Management (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINS-Service-In-RPC' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) - Remote Management (RPC)' `
+                    -Group '@%SystemRoot%\System32\firewallapi.dll,-53311' `
+                    -Description 'Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 # Create Inbound rule "Core Networking - Destination Unreachable (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{A5C294FC-1DB0-435B-B45F-E0B42DBAB4A5}' `
+                    -Name 'CoreNet-ICMP6-DU-In' `
                     -DisplayName 'Core Networking - Destination Unreachable (ICMPv6-In)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Destination Unreachable error messages are sent from any node that a packet traverses which is unable to forward the packet for any reason except congestion.' `
@@ -579,7 +702,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{132A3D94-52EE-4C8F-8B95-2244FC667C45}' `
+                    -Name 'CoreNet-ICMP4-DUFRAG-In' `
                     -DisplayName 'Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Destination Unreachable Fragmentation Needed error messages are sent from any node that a packet traverses which is unable to forward the packet because fragmentation was needed and the don''t fragment bit was set.' `
@@ -596,7 +719,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{AD224DDF-0DEE-4B32-BF07-33CEFF9AE2CA}' `
+                    -Name 'CoreNet-ICMP6-NDA-In' `
                     -DisplayName 'Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request.' `
@@ -613,7 +736,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{7A244106-8B29-4E42-A6FF-A281EFD3A0A4}' `
+                    -Name 'CoreNet-ICMP6-NDS-In' `
                     -DisplayName 'Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node.' `
@@ -630,7 +753,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Core Networking - Packet Too Big (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{D7B7AF15-6EF0-4857-B8C6-189B8F415977}' `
+                    -Name 'CoreNet-ICMP6-PTB-In' `
                     -DisplayName 'Core Networking - Packet Too Big (ICMPv6-In)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link.' `
@@ -647,7 +770,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Core Networking - Parameter Problem (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{AE4EC77A-23DD-4AB2-9974-EE53FB704584}' `
+                    -Name 'CoreNet-ICMP6-PP-In' `
                     -DisplayName 'Core Networking - Parameter Problem (ICMPv6-In)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets.' `
@@ -664,7 +787,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Core Networking - Time Exceeded (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{20F352EA-DFED-4874-8A09-201C4DFB8F2F}' `
+                    -Name 'CoreNet-ICMP6-TE-In' `
                     -DisplayName 'Core Networking - Time Exceeded (ICMPv6-In)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path.' `
@@ -703,13 +826,13 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'Windows Remote Management (HTTP-In)' `
                     -Group '@FirewallAPI.dll,-30267' `
                     -Description 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5985]' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWindowsRemoteManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 5985 `
-                    -RemoteAddress $configuration.ManagementAddresses `
+                    -RemoteAddress $dcAndManagementAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -720,13 +843,13 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'Windows Remote Management (HTTPS-In)' `
                     -Group '@FirewallAPI.dll,-30267' `
                     -Description 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5986]' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWindowsRemoteManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 5986 `
-                    -RemoteAddress $configuration.ManagementAddresses `
+                    -RemoteAddress $dcAndManagementAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -743,7 +866,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort Any `
-                    -RemoteAddress $configuration.ManagementAddresses `
+                    -RemoteAddress $dcAndManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'winmgmt' `
                     -Verbose `
@@ -755,7 +878,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'Remote Desktop - User Mode (UDP-In)' `
                     -Group '@FirewallAPI.dll,-28752' `
                     -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389]' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableRemoteDesktop) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -773,7 +896,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'Remote Desktop - User Mode (TCP-In)' `
                     -Group '@FirewallAPI.dll,-28752' `
                     -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableRemoteDesktop) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -787,7 +910,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "DFS Management (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{A48BE1C2-DCD0-4ED9-BD81-65CA684038A7}' `
+                    -Name 'DfsMgmt-In-TCP' `
                     -DisplayName 'DFS Management (TCP-In)' `
                     -Group '@FirewallAPI.dll,-37802' `
                     -Description 'Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.' `
@@ -796,7 +919,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort RPC `
+                    -LocalPort Any `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%systemroot%\system32\dfsfrsHost.exe' `
                     -Verbose `
@@ -804,7 +927,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "RPC (TCP, Incoming)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{EB15F1AF-B208-4EFD-AA60-B3B3DEA87F17}' `
+                    -Name 'DNSSrv-RPC-TCP-In' `
                     -DisplayName 'RPC (TCP, Incoming)' `
                     -Group '@firewallapi.dll,-53012' `
                     -Description 'Inbound rule to allow remote RPC/TCP access to the DNS service.' `
@@ -822,11 +945,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Windows Backup (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{6F488B11-584F-4F10-8608-CB998B22B40E}' `
+                    -Name 'WindowsServerBackup-wbengine-In-TCP-NoScope' `
                     -DisplayName 'Windows Backup (RPC)' `
                     -Group '@wbengine.exe,-106' `
                     -Description 'Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableBackupManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -838,30 +961,13 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
-# Create Inbound rule "DFS Management (TCP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{B0AFA33E-1B0C-4DB7-9793-8945C6083CEB}' `
-                    -DisplayName 'DFS Management (TCP-In)' `
-                    -Group '@FirewallAPI.dll,-37802' `
-                    -Description 'Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort Any `
-                    -RemoteAddress $configuration.ManagementAddresses `
-                    -Program '%systemroot%\system32\dfsfrsHost.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
-
 # Create Inbound rule "Performance Logs and Alerts (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{47A86CD1-3740-40FA-BC3D-2C72467B01A5}' `
+                    -Name 'PerfLogsAlerts-PLASrv-In-TCP-NoScope' `
                     -DisplayName 'Performance Logs and Alerts (TCP-In)' `
                     -Group '@FirewallAPI.dll,-34752' `
                     -Description 'Inbound rule for Performance Logs and Alerts traffic. [TCP-In]' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnablePerformanceLogAccess) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -874,11 +980,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Remote Event Log Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{ECE4A0F4-8284-4224-AB64-57E043624084}' `
+                    -Name 'RemoteEventLogSvc-In-TCP' `
                     -DisplayName 'Remote Event Log Management (RPC)' `
                     -Group '@FirewallAPI.dll,-29252' `
                     -Description 'Inbound rule for the local Event Log service to be remotely managed via RPC/TCP.' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableEventLogManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -892,11 +998,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Remote Scheduled Tasks Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{0E3267CF-2159-45CD-A373-4FC03E28745D}' `
+                    -Name 'RemoteTask-In-TCP' `
                     -DisplayName 'Remote Scheduled Tasks Management (RPC)' `
                     -Group '@FirewallAPI.dll,-33252' `
                     -Description 'Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP.' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableScheduledTaskManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -910,11 +1016,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Remote Service Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{B5BE1626-BBF5-445C-91D8-F351AB261F98}' `
+                    -Name 'RemoteSvcAdmin-In-TCP' `
                     -DisplayName 'Remote Service Management (RPC)' `
                     -Group '@FirewallAPI.dll,-29502' `
                     -Description 'Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP.' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableServiceManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -927,11 +1033,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Remote Volume Management - Virtual Disk Service (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{BF441172-2ED7-4349-8FA4-9E94293EC124}' `
+                    -Name 'RVM-VDS-In-TCP' `
                     -DisplayName 'Remote Volume Management - Virtual Disk Service (RPC)' `
                     -Group '@FirewallAPI.dll,-34501' `
                     -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP.' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDiskManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -945,11 +1051,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Remote Volume Management - Virtual Disk Service Loader (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{152F900D-5865-46E7-B766-F26E5BC9AEEB}' `
+                    -Name 'RVM-VDSLDR-In-TCP' `
                     -DisplayName 'Remote Volume Management - Virtual Disk Service Loader (RPC)' `
                     -Group '@FirewallAPI.dll,-34501' `
                     -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP.' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDiskManagement) `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
@@ -965,7 +1071,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Active Directory Domain Controller -  Echo Request (ICMPv4-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{B0379302-26BF-46E0-B731-9ECCCA2549A2}' `
+                    -Name 'ADDS-ICMP4-Out' `
                     -DisplayName 'Active Directory Domain Controller -  Echo Request (ICMPv4-Out)' `
                     -Group '@FirewallAPI.dll,-37601' `
                     -Description 'Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
@@ -982,7 +1088,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Active Directory Domain Controller -  Echo Request (ICMPv6-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{D1EA7D65-980E-42C0-B462-A865840813D3}' `
+                    -Name 'ADDS-ICMP6-Out' `
                     -DisplayName 'Active Directory Domain Controller -  Echo Request (ICMPv6-Out)' `
                     -Group '@FirewallAPI.dll,-37601' `
                     -Description 'Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
@@ -999,7 +1105,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Active Directory Domain Controller (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{BA86A0A2-68E3-4366-811D-A3B794EA6359}' `
+                    -Name 'ADDS-TCP-Out' `
                     -DisplayName 'Active Directory Domain Controller (TCP-Out)' `
                     -Group '@FirewallAPI.dll,-37601' `
                     -Description 'Outbound rule for the Active Directory Domain Controller service. [TCP]' `
@@ -1016,7 +1122,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Active Directory Domain Controller (UDP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{F1C5912B-0663-4344-A0CD-4CC5544C99F4}' `
+                    -Name 'ADDS-UDP-Out' `
                     -DisplayName 'Active Directory Domain Controller (UDP-Out)' `
                     -Group '@FirewallAPI.dll,-37601' `
                     -Description 'Outbound rule for the Active Directory Domain Controller service. [UDP]' `
@@ -1033,7 +1139,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Active Directory Web Services (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{3B5E6FD9-45EF-46CA-B96A-4DD0383E9BBD}' `
+                    -Name 'ADWS-TCP-Out' `
                     -DisplayName 'Active Directory Web Services (TCP-Out)' `
                     -Group '@%SystemRoot%\system32\firewallapi.dll,-53426' `
                     -Description 'Outbound rule for the Active Directory Web Services. [TCP]' `
@@ -1051,7 +1157,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - DNS (UDP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{E23FCABD-E4FA-4E47-8343-C61E3CDAFB9F}' `
+                    -Name 'CoreNet-DNS-Out-UDP' `
                     -DisplayName 'Core Networking - DNS (UDP-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Outbound rule to allow DNS requests. DNS responses based on requests that matched this rule will be permitted regardless of source address.  This behavior is classified as loose source mapping. [LSM] [UDP 53]' `
@@ -1069,7 +1175,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - DNS (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'DNSC-Client-TCP-Out' `
+                    -Name 'CoreNet-DNS-Out-TCP' `
                     -DisplayName 'Core Networking - DNS (TCP-Out)' `
                     -Description 'Outbound rule to allow DNS requests.' `
                     -Enabled True `
@@ -1086,7 +1192,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - Group Policy (NP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{3536ED0C-9C2D-4A61-87A7-4940E49748EE}' `
+                    -Name 'CoreNet-GP-NP-Out-TCP' `
                     -DisplayName 'Core Networking - Group Policy (NP-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Core Networking - Group Policy (NP-Out)' `
@@ -1103,7 +1209,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - Group Policy (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{E2A89153-2599-4758-90F0-2FFE9B641466}' `
+                    -Name 'CoreNet-GP-Out-TCP' `
                     -DisplayName 'Core Networking - Group Policy (TCP-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Outbound rule to allow remote RPC traffic for Group Policy updates. [TCP]' `
@@ -1121,7 +1227,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - Neighbor Discovery Advertisement (ICMPv6-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{A191FCFE-7D79-4ED1-B4BC-73A5CACCFCC5}' `
+                    -Name 'CoreNet-ICMP6-NDA-Out' `
                     -DisplayName 'Core Networking - Neighbor Discovery Advertisement (ICMPv6-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request.' `
@@ -1138,7 +1244,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - Neighbor Discovery Solicitation (ICMPv6-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{D1EE65ED-4B17-418C-B7F6-7CDBC7D73AFB}' `
+                    -Name 'CoreNet-ICMP6-NDS-Out' `
                     -DisplayName 'Core Networking - Neighbor Discovery Solicitation (ICMPv6-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node.' `
@@ -1155,7 +1261,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - Packet Too Big (ICMPv6-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{15AC1073-64C7-4CC2-9E04-A407F1F652DF}' `
+                    -Name 'CoreNet-ICMP6-PTB-Out' `
                     -DisplayName 'Core Networking - Packet Too Big (ICMPv6-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link.' `
@@ -1172,7 +1278,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - Parameter Problem (ICMPv6-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{B42AA23D-A67C-4DAC-97F7-71FD6E4090D0}' `
+                    -Name 'CoreNet-ICMP6-PP-Out' `
                     -DisplayName 'Core Networking - Parameter Problem (ICMPv6-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets.' `
@@ -1189,7 +1295,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "Core Networking - Time Exceeded (ICMPv6-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{8059CAC7-AD9D-40E7-81EA-0C7F19752ECB}' `
+                    -Name 'CoreNet-ICMP6-TE-Out' `
                     -DisplayName 'Core Networking - Time Exceeded (ICMPv6-Out)' `
                     -Group '@FirewallAPI.dll,-25000' `
                     -Description 'Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path.' `
@@ -1206,7 +1312,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "All Outgoing (TCP)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{CA18A5B1-3113-421B-8022-9A7DEE157497}' `
+                    -Name 'DNSSrv-TCP-Out' `
                     -DisplayName 'All Outgoing (TCP)' `
                     -Group '@firewallapi.dll,-53012' `
                     -Description 'Outbound rule to allow all TCP traffic from the DNS service.' `
@@ -1224,7 +1330,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "All Outgoing (UDP)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{D105FFEF-5BD4-4AC5-ADC8-8BFE2437DC1F}' `
+                    -Name 'DNSSrv-UDP-Out' `
                     -DisplayName 'All Outgoing (UDP)' `
                     -Group '@firewallapi.dll,-53012' `
                     -Description 'Outbound rule to allow all UDP traffic from the DNS service.' `
@@ -1242,11 +1348,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "File and Printer Sharing (NB-Datagram-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{9E3C996B-A69B-47FA-A780-DCE75F4EA9B8}' `
+                    -Name 'FPS-NB_Datagram-Out-UDP' `
                     -DisplayName 'File and Printer Sharing (NB-Datagram-Out)' `
                     -Group '@FirewallAPI.dll,-28502' `
                     -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Datagram transmission and reception. [UDP 138]' `
-                    -Enabled False `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosDatagramService) `
                     -Profile Any `
                     -Direction Outbound `
                     -Action Allow `
@@ -1259,11 +1365,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "File and Printer Sharing (NB-Name-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{DCC4C794-DBF3-4E21-8A42-1A3DBF36547C}' `
+                    -Name 'FPS-NB_Name-Out-UDP' `
                     -DisplayName 'File and Printer Sharing (NB-Name-Out)' `
                     -Group '@FirewallAPI.dll,-28502' `
                     -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137]' `
-                    -Enabled False `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosNameService) `
                     -Profile Any `
                     -Direction Outbound `
                     -Action Allow `
@@ -1276,11 +1382,11 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "File and Printer Sharing (NB-Session-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{2BFA65F4-D6B4-4AC4-ACE0-97217F3438EC}' `
+                    -Name 'FPS-NB_Session-Out-TCP' `
                     -DisplayName 'File and Printer Sharing (NB-Session-Out)' `
                     -Group '@FirewallAPI.dll,-28502' `
                     -Description 'Outbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]' `
-                    -Enabled False `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosSessionService) `
                     -Profile Any `
                     -Direction Outbound `
                     -Action Allow `
@@ -1291,9 +1397,45 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Outbound rule "Windows Internet Naming Service (WINS) (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINS-Service-Out-TCP' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) (TCP-Out)' `
+                    -Group '@%SystemRoot%\System32\firewallapi.dll,-53300' `
+                    -Description 'Outbound rule for the Windows Internet Naming Service. [TCP]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Windows Internet Naming Service (WINS) (UDP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINS-Service-Out-UDP' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) (UDP-Out)' `
+                    -Group '@%SystemRoot%\System32\firewallapi.dll,-53300' `
+                    -Description 'Outbound rule for the Windows Internet Naming Service. [UDP]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 # Create Outbound rule "Windows Management Instrumentation (WMI-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{39691525-BC5D-4497-B8FA-365898EE4A70}' `
+                    -Name 'WMI-WINMGMT-Out-TCP' `
                     -DisplayName 'Windows Management Instrumentation (WMI-Out)' `
                     -Group '@FirewallAPI.dll,-34251' `
                     -Description 'Outbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]' `
@@ -1311,7 +1453,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Outbound rule "iSCSI Service (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name '{47CE3FB7-D494-452B-85F3-75717F9D7383}' `
+                    -Name 'MsiScsi-Out-TCP' `
                     -DisplayName 'iSCSI Service (TCP-Out)' `
                     -Group '@FirewallAPI.dll,-29002' `
                     -Description 'Outbound rule for the iSCSI Service to allow communications with an iSCSI server or device. [TCP]' `
@@ -1485,29 +1627,38 @@ $startupScript.AppendLine('REM This script is managed by the Set-ADDSFirewallPol
 # Configure the WMI  protocol to use the deafult static port 24158
 if($configuration.WmiStaticPort -eq $true) {
     $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('REM Moves the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.') | Out-Null
+    $startupScript.AppendLine('echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.') | Out-Null
     $startupScript.AppendLine('winmgmt.exe /standalonehost 6') | Out-Null
 } elseif($configuration.WmiStaticPort -eq $false) {
     $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('REM Moves the WMI service into the shared Svchost process.') | Out-Null
+    $startupScript.AppendLine('echo Move the WMI service into the shared Svchost process.') | Out-Null
     $startupScript.AppendLine('winmgmt.exe /sharedhost') | Out-Null
 }
 
 # Configure the DFS-R protocol to use a specific port
+[string] $dfsrDiagInstallScript = @'
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+'@
+
 if($configuration.DfsrStaticPort -ge 1) {
     $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('REM Set static RPC port for DFS Replication.') | Out-Null
+    $startupScript.AppendLine($dfsrDiagInstallScript) | Out-Null
+    $startupScript.AppendLine('echo Set static RPC port for DFS Replication.') | Out-Null
     $startupScript.AppendFormat('dfsrdiag.exe StaticRPC /Port:{0}', $configuration.DfsrStaticPort) | Out-Null
     $startupScript.AppendLine() | Out-Null
 } elseif($configuration.DfsrStaticPort -eq 0) {
     $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('REM Set dynamic RPC port for DFS Replication.') | Out-Null
+    $startupScript.AppendLine($dfsrDiagInstallScript) | Out-Null
+    $startupScript.AppendLine('echo Set dynamic RPC port for DFS Replication.') | Out-Null
     $startupScript.AppendLine('dfsrdiag.exe StaticRPC /Port:0') | Out-Null
 }
 
 # Create the firewall log file
 $startupScript.AppendLine() | Out-Null
-$startupScript.AppendLine('REM Create the firewall log file and configure its DACL.') | Out-Null
+$startupScript.AppendLine('echo Create the firewall log file and configure its DACL.') | Out-Null
 $startupScript.AppendFormat('netsh advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) | Out-Null
 
 # Overwrite the script file
