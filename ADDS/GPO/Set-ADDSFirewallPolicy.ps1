@@ -614,7 +614,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "File and Printer Sharing (NB-Session-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'FPS-NB_Name-In-UDP' `
+                    -Name 'FPS-NB_Session-In-TCP' `
                     -DisplayName 'File and Printer Sharing (NB-Session-In)' `
                     -Group '@FirewallAPI.dll,-28502' `
                     -Description 'Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]' `
@@ -631,7 +631,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 # Create Inbound rule "Windows Internet Naming Service (WINS) (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name ' WINS-Service-In-UDP' `
+                    -Name 'WINS-Service-In-UDP' `
                     -DisplayName 'Windows Internet Naming Service (WINS) (UDP-In)' `
                     -Group ' @%SystemRoot%\System32\firewallapi.dll,-53300' `
                     -Description 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42]' `
