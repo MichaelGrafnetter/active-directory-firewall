@@ -13,7 +13,7 @@ Version: 1.0
 
 #>
 
-#Requires -Modules NetSecurity,GroupPolicy
+#Requires -Modules NetSecurity,GroupPolicy,ActiveDirectory
 #Requires -Version 5
 
 [CmdletBinding()]
@@ -27,29 +27,32 @@ Param(
 Set-StrictMode -Version Latest -ErrorAction Stop
 
 # Preload the required modules
-Import-Module -Name NetSecurity,GroupPolicy -ErrorAction Stop
+Import-Module -Name NetSecurity,GroupPolicy,ActiveDirectory -ErrorAction Stop
 
 #region Configuration
 
 # Set the default configuration values, which can be overridden by an external JSON file
 class ScriptSettings
 {
-    [string]   $GroupPolicyObjectName     = 'Domain Controller Firewall'
-    [string]   $GroupPolicyObjectComment  = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
-    [bool]     $EnforceOutboundRules      = $false
-    [bool]     $LogDroppedPackets         = $false
-    [string[]] $ClientAddresses           = 'Any'
-    [string[]] $ManagementAddresses       = 'Any'
-    [string[]] $DomainControllerAddresses = 'Any'
-    [uint16]   $NtdsStaticPort            = 0
-    [uint16]   $NetlogonStaticPort        = 0
-    [uint16]   $DfsrStaticPort            = 0
-    [uint16]   $WmiStaticPort             = 0
+    [string]           $GroupPolicyObjectName     = 'Domain Controller Firewall'
+    [string]           $GroupPolicyObjectComment  = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
+    [bool]             $EnforceOutboundRules      = $false
+    [bool]             $LogDroppedPackets         = $false
+    [string]           $LogFilePath               = '%systemroot%\system32\logfiles\firewall\pfirewall.log'
+    [string[]]         $ClientAddresses           = 'Any'
+    [string[]]         $ManagementAddresses       = 'Any'
+    [string[]]         $DomainControllerAddresses = 'Any'
+    [Nullable[uint16]] $NtdsStaticPort            = $null
+    [Nullable[uint16]] $NetlogonStaticPort        = $null
+    [Nullable[uint16]] $DfsrStaticPort            = $null
+    [Nullable[bool]]   $WmiStaticPort             = $null
+    [bool]             $DisableLLMNR              = $false
+    [Nullable[bool]]   $DisableMDNS               = $null
 }
 
 [ScriptSettings] $configuration = [ScriptSettings]::new()
 
-# Load the configuration from a JSON file if it exists
+# Load the configuration from the JSON file
 [string] $configurationFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ConfigurationFileName -ErrorAction Stop
 
 [System.Runtime.Serialization.Json.DataContractJsonSerializer] $serializer = [System.Runtime.Serialization.Json.DataContractJsonSerializer]::new([ScriptSettings])
@@ -123,7 +126,7 @@ try
     foreach($rule in $gpoFirewallRules)
     {
         Write-Verbose -Message ('Deleting firewall rule {0}.' -f $rule.Name) -Verbose
-        $localSession.DeleteInstance('ROOT\StandardCimv2', $rule, $operationOptions)
+        $localSession.DeleteInstance('ROOT\StandardCimv2', $rule, $cimOperationOptions)
     }
 }
 finally
@@ -162,7 +165,7 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -AllowLocalFirewallRules False `
                        -AllowUnicastResponseToMulticast False `
                        -NotifyOnListen False `
-                       -LogFileName '%systemroot%\system32\logfiles\firewall\pfirewall.log' `
+                       -LogFileName $configuration.LogFilePath `
                        -LogMaxSizeKilobytes ($maxLogFileSize/1KB-1) `
                        -LogBlocked $logBlocled `
                        -LogAllowed False `
@@ -488,6 +491,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -ErrorAction Stop | Out-Null
 
 # Create Inbound rule "DFS Replication (RPC-In)"
+# Note that a static port 5722 was used before Windows Server 2012
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name '{C1DFBB01-2307-498C-8107-592E37B7EC81}' `
                     -DisplayName 'DFS Replication (RPC-In)' `
@@ -1428,15 +1432,104 @@ New-NetFirewallRule -GPOSession $gpoSession `
 # TODO: Verbose
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
 
-#region Administrative Templates
+#region Registry Settings
 
 # Turn off Link-Local Multicast Name Resolution (LLMNR)
-Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -Value 0 -Type DWord -Verbose | Out-Null
+if($configuration.DisableLLMNR) {
+    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -Value 0 -Type DWord -Verbose | Out-Null
+} else {
+    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -ErrorAction SilentlyContinue -Verbose | Out-Null
+}
+
+# Delete any previous GP Preferences registry values, so that we do not create duplicates.
+Remove-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Verbose -ErrorAction SilentlyContinue | Out-Null
+Remove-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Verbose -ErrorAction SilentlyContinue | Out-Null
+Remove-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Verbose -ErrorAction SilentlyContinue | Out-Null
 
 # Turn off Multicast DNS (mDNS)
-Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value 0 -Type DWord -Verbose | Out-Null
+if($configuration.DisableMDNS -eq $true) {
+    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Update -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value 0 -Type DWord -Verbose | Out-Null
+} elseif($configuration.DisableMDNS -eq $false) {
+    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Delete -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value 0 -Type DWord -Verbose | Out-Null
+}
 
-#endregion Administrative Templates
+# Configure the DRS-R protocol to use a specific port
+if($configuration.NtdsStaticPort -ge 1) {
+    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Update -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Value ([int] $configuration.NtdsStaticPort) -Type DWord -Verbose | Out-Null
+} elseif($configuration.NtdsStaticPort -eq 0) {
+    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Delete -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Value 0 -Type DWord -Verbose | Out-Null
+}
 
-# TODO: netsh advfirewall set allprofiles logging filename %systemroot%\system32\LogFiles\firewall\pfirewall.log
+# Configure the NETLOGON protocol to use a specific port
+if($configuration.NetlogonStaticPort -ge 1) {
+    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Update -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Value ([int] $configuration.NetlogonStaticPort) -Type DWord -Verbose | Out-Null
+} elseif($configuration.NetlogonStaticPort -eq 0) {
+    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Delete -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Value 0 -Type DWord -Verbose | Out-Null
+}
+#endregion Registry Settings
+
+#region Startup Script
+
+# Fetch the GPO info from the PDC emulator
+[Microsoft.ActiveDirectory.Management.ADDomain] $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
+[Microsoft.ActiveDirectory.Management.ADObject] $gpoContainer = Get-ADObject -Identity $gpo.Path -Properties 'gPCFileSysPath','gPCMachineExtensionNames' -Server $domain.PDCEmulator -ErrorAction Stop
+
+[string] $scriptPath = '{0}\Machine\Scripts\Startup\FirewallConfiguration.bat' -f $gpoContainer.gPCFileSysPath
+[string] $scriptsIniPath = '{0}\Machine\Scripts\scripts.ini' -f $gpoContainer.gPCFileSysPath
+[System.Text.StringBuilder] $startupScript = [System.Text.StringBuilder]::new()
+
+# Startup script header
+$startupScript.AppendLine('@ECHO OFF') | Out-Null
+$startupScript.AppendLine('REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.') | Out-Null
+
+# Configure the WMI  protocol to use the deafult static port 24158
+if($configuration.WmiStaticPort -eq $true) {
+    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine('REM Moves the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.') | Out-Null
+    $startupScript.AppendLine('winmgmt.exe /standalonehost 6') | Out-Null
+} elseif($configuration.WmiStaticPort -eq $false) {
+    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine('REM Moves the WMI service into the shared Svchost process.') | Out-Null
+    $startupScript.AppendLine('winmgmt.exe /sharedhost') | Out-Null
+}
+
+# Configure the DFS-R protocol to use a specific port
+if($configuration.DfsrStaticPort -ge 1) {
+    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine('REM Set static RPC port for DFS Replication.') | Out-Null
+    $startupScript.AppendFormat('dfsrdiag.exe StaticRPC /Port:{0}', $configuration.DfsrStaticPort) | Out-Null
+    $startupScript.AppendLine() | Out-Null
+} elseif($configuration.DfsrStaticPort -eq 0) {
+    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine('REM Set dynamic RPC port for DFS Replication.') | Out-Null
+    $startupScript.AppendLine('dfsrdiag.exe StaticRPC /Port:0') | Out-Null
+}
+
+# Create the firewall log file
+$startupScript.AppendLine() | Out-Null
+$startupScript.AppendLine('REM Create the firewall log file and configure its DACL.') | Out-Null
+$startupScript.AppendFormat('netsh advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) | Out-Null
+
+# Overwrite the script file
+Set-Content -Path $scriptPath -Value $startupScript.ToString() -Encoding Ascii -Force -Verbose
+
+# Register the startup script in the scripts.ini file
+[string] $scriptsIni = @'
+[Startup]
+0CmdLine=FirewallConfiguration.bat
+0Parameters=
+'@
+
+Set-Content -Path $scriptsIniPath -Value $scriptsIni -Encoding Ascii -Force -Verbose
+
+# Register the Scripts client-side extension in AD if necessary
+[string] $machineScriptsExtension = '[{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B6664F-4972-11D1-A7CA-0000F87571E3}]'
+
+if(-not $gpoContainer.gPCMachineExtensionNames.Contains($machineScriptsExtension)) {
+    [string] $updatedMachineExtensionNames = $machineScriptsExtension + $gpoContainer.gPCMachineExtensionNames
+    Set-ADObject -Identity $gpoContainer -Replace @{ gPCMachineExtensionNames = $updatedMachineExtensionNames } -Server $domain.PDCEmulator -ErrorAction Stop -Verbose
+}
+
+#endregion Startup Script
+
 # TODO: Disable Print Spooler
