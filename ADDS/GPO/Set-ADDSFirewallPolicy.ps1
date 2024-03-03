@@ -1519,10 +1519,10 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
-# Create Outbound rule "Microsoft Management Console (TCP-Out)"
+# Create Outbound rule "Administrative Tools - Microsoft Management Console (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'MMC-TCP-Out' `
-                    -DisplayName 'Microsoft Management Console (TCP-Out)' `
+                    -Name 'AdminTools-MMC-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Microsoft Management Console (TCP-Out)' `
                     -Description 'Outbound rule for the MMC console to allow AD management, certificate requests, and other administrative actions.' `
                     -Enabled True `
                     -Profile Any `
@@ -1566,6 +1566,455 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemotePort 1688 `
                     -RemoteAddress Any `
                     -Program '%SystemRoot%\system32\SppExtComObj.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Active Directory Administrative Center (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsac-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Active Directory Administrative Center (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Active Directory Administrative Center.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsac.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Repadmin (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Repadmin-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Repadmin (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Repadmin tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\repadmin.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Setspn (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Setspn-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Setspn (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Setspn tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\setspn.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Server Manager (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-ServerManager-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Server Manager (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Server Manager.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\ServerManager.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dcdiag (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dcdiag-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dcdiag (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dcdiag tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dcdiag.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Ntdsutil (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Ntdsutil-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Ntdsutil (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Ntdsutil tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\ntdsutil.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dfsrdiag (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dfsrdiag-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dfsrdiag (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dfsrdiag tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dfsrdiag.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Nltest (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Nltest-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Nltest (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Nltest tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\nltest.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Ldifde (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Ldifde-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Ldifde (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Ldifde tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\ldifde.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Csvde (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Csvde-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Csvde (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Csvde tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\csvde.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dcpromo (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dcpromo-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dcpromo (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dcpromo tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dcpromo.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dsacls (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsacls-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dsacls (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dsacls tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsacls.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dsquery (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsquery-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dsquery (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dsquery tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsquery.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dsget (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsget-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dsget (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dsget tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsget.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dsadd (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsadd-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dsadd (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dsadd tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsadd.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dsmod (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsmod-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dsmod (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dsmod tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsmod.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dsmove (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsmove-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dsmove (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dsmove tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsmove.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Dsrm (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Dsrm-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Dsrm (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Dsrm tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\dsrm.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Ldp (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Ldp-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Ldp (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Ldp tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\ldp.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Netdom (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Netdom-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Netdom (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Netdom tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\netdom.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Net (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Net-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Net (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Net tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\net.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Redircmp (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Redircmp-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Redircmp (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Redircmp tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\redircmp.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Redirusr (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Redirusr-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Redirusr (TCP-Out)' `
+                    -Description 'Outbound rule to allow AD management using the Redirusr tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\redirusr.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Certutil (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Certutil-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Certutil (TCP-Out)' `
+                    -Description 'Outbound rule to allow certificate and CA management using the Certutil tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\certutil.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Certreq (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Certreq-TCP-Out' `
+                    -DisplayName 'Administrative Tools - Certreq (TCP-Out)' `
+                    -Description 'Outbound rule to allow certificate request submission using the Certreq tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\certreq.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - Nslookup (UDP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-Nslookup-UDP-Out' `
+                    -DisplayName 'Administrative Tools - Nslookup (UDP-Out)' `
+                    -Description 'Outbound rule to allow DNS queries using the Nslookup tool.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort 53 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\nslookup.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Administrative Tools - W32tm (UDP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'AdminTools-W32tm-UDP-Out' `
+                    -DisplayName 'Administrative Tools - W32tm (UDP-Out)' `
+                    -Description 'Outbound rule to allow Windows Time service configuration and monitoring.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort 123 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\w32tm.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Active Directory Domain Controller - W32Time (NTP-UDP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'W32Time-NTP-UDP-Out' `
+                    -DisplayName 'Active Directory Domain Controller - W32Time (NTP-UDP-Out)' `
+                    -Description 'Outbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -RemotePort 123 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\svchost.exe' `
+                    -Service 'w32time' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
