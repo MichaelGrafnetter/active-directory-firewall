@@ -1,3 +1,44 @@
+winrs.exe
+powershell.exe
+powershell_ise.exe
+sc.exe
+schtasks.exe
+rendom
+gpfixup
+dnscmd
+djoin
+dfsutil
+dfsrmig
+at.exe
+
+New-NetFirewallRule -DisplayName "Windows Time (NTP/SNTP)" `
+-Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
+-Service W32Time -Program $ServiceHost -Group $Group `
+-Enabled True -Action Allow -Direction $Direction -Protocol UDP `
+-LocalAddress Any -RemoteAddress Internet4 `
+-LocalPort Any -RemotePort 123 `
+-LocalUser Any `
+-InterfaceType $DefaultInterface `
+-LocalOnlyMapping $false -LooseSourceMapping $false `
+-Description "Maintains date and time synchronization on all clients and servers in the network.
+If this service is stopped, date and time synchronization will be unavailable.
+If this service is disabled, any services that explicitly depend on it will fail to start." |
+Format-RuleOutput
+
+New-NetFirewallRule -DisplayName "Network Location Awareness" `
+-Platform $Platform -PolicyStore $PolicyStore -Profile Any `
+-Service NlaSvc -Program $ServiceHost -Group $Group `
+-Enabled True -Action Allow -Direction $Direction -Protocol TCP `
+-LocalAddress Any -RemoteAddress Internet4 `
+-LocalPort Any -RemotePort 80 `
+-LocalUser Any `
+-InterfaceType $DefaultInterface `
+-Description "Collects and stores configuration information for the network and notifies
+programs when this information is modified.
+If this rule is disabled, configuration information might be unavailable." |
+Format-RuleOutput
+
+
 Extension rule for active users and NT localsystem, the following services need
 access based on logged on user:
 Cryptographic Services(CryptSvc),
@@ -75,24 +116,6 @@ discovered vulnerabilities in network protocols" |
         Format-RuleOutput
     }
     
-    $Program = "%SystemRoot%\System32\SppExtComObj.Exe"
-    if ((Test-ExecutableFile $Program) -or $ForceLoad)
-    {
-        # Port 1688 is used for Microsoft Key Management Service (KMS) for Windows Activation
-        New-NetFirewallRule -DisplayName "KMS Connection Broker" `
-            -Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
-            -Service Any -Program $Program -Group $Group `
-            -Enabled True -Action Allow -Direction $Direction -Protocol TCP `
-            -LocalAddress Any -RemoteAddress Internet4 `
-            -LocalPort Any -RemotePort 1688 `
-            -LocalUser $NetworkService `
-            -InterfaceType $DefaultInterface `
-            -Description "Activate Office and KMS based software.
-    sppextcomobj.exe is used for Key Management Service (KMS) Licensing for
-    Microsoft Products, the KMS Connection Broker or sppextcomobj.exe is responsible for the activation
-    of Microsoft products." |
-        Format-RuleOutput
-    }
 
     $Program = "%SystemRoot%\System32\BackgroundTransferHost.exe"
 if ((Test-ExecutableFile $Program) -or $ForceLoad)
@@ -244,33 +267,6 @@ New-NetFirewallRule -DisplayName "Windows Modules Installer" `
 	-Description "Enables installation, modification, and removal of Windows updates and optional
 components.
 If this service is disabled, install or uninstall of Windows updates might fail for this computer." |
-Format-RuleOutput
-
-New-NetFirewallRule -DisplayName "Windows Time (NTP/SNTP)" `
-	-Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
-	-Service W32Time -Program $ServiceHost -Group $Group `
-	-Enabled True -Action Allow -Direction $Direction -Protocol UDP `
-	-LocalAddress Any -RemoteAddress Internet4 `
-	-LocalPort Any -RemotePort 123 `
-	-LocalUser Any `
-	-InterfaceType $DefaultInterface `
-	-LocalOnlyMapping $false -LooseSourceMapping $false `
-	-Description "Maintains date and time synchronization on all clients and servers in the network.
-If this service is stopped, date and time synchronization will be unavailable.
-If this service is disabled, any services that explicitly depend on it will fail to start." |
-Format-RuleOutput
-
-New-NetFirewallRule -DisplayName "Network Location Awareness" `
-	-Platform $Platform -PolicyStore $PolicyStore -Profile Any `
-	-Service NlaSvc -Program $ServiceHost -Group $Group `
-	-Enabled True -Action Allow -Direction $Direction -Protocol TCP `
-	-LocalAddress Any -RemoteAddress Internet4 `
-	-LocalPort Any -RemotePort 80 `
-	-LocalUser Any `
-	-InterfaceType $DefaultInterface `
-	-Description "Collects and stores configuration information for the network and notifies
-programs when this information is modified.
-If this rule is disabled, configuration information might be unavailable." |
 Format-RuleOutput
 
 
