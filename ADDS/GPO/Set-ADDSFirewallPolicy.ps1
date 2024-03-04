@@ -39,6 +39,7 @@ class ScriptSettings
     [bool]             $EnforceOutboundRules          = $false
     [bool]             $LogDroppedPackets             = $false
     [string]           $LogFilePath                   = '%systemroot%\system32\logfiles\firewall\pfirewall.log'
+    [uint16]           $LogMaxSizeKilobytes           = [int16]::MaxValue
     [string[]]         $ClientAddresses               = 'Any'
     [string[]]         $ManagementAddresses           = 'Any'
     [string[]]         $DomainControllerAddresses     = 'Any'
@@ -164,7 +165,12 @@ if($configuration.LogDroppedPackets)
     $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
 }
 
-[int] $maxLogFileSize = 32MB # Logs really cannot be bigger than 32MB!
+# Sanitize the maximum log file size
+if($configuration.LogMaxSizeKilobytes -gt [int16]::MaxValue -or $configuration.LogMaxSizeKilobytes -le 0)
+{
+    # Windows only accepts 1KB-32MB the the maximum log file size.
+    $configuration.LogMaxSizeKilobytes = [int16]::MaxValue # = 32MB
+}
 
 # TODO: -AllowUserPorts -AllowUserApps
 
@@ -179,7 +185,7 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -AllowUnicastResponseToMulticast False `
                        -NotifyOnListen False `
                        -LogFileName $configuration.LogFilePath `
-                       -LogMaxSizeKilobytes ($maxLogFileSize/1KB-1) `
+                       -LogMaxSizeKilobytes $configuration.LogMaxSizeKilobytes `
                        -LogBlocked $logBlocled `
                        -LogAllowed False `
                        -LogIgnored False `
@@ -2015,6 +2021,23 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%systemroot%\System32\svchost.exe' `
                     -Service 'w32time' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Active Directory Domain Controller - Forest DC Connectivity (TCP-Out)"
+# TODO: Parametrize
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'ADDS-RemoteDC-TCP-Out' `
+                    -DisplayName 'Active Directory Domain Controller - Forest DC Connectivity (TCP-Out)' `
+                    -Description 'Outbound rule to allow DC-DC management.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort Any `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
+                    -Program Any `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 

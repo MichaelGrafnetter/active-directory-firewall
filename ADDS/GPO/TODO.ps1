@@ -11,6 +11,8 @@ dfsutil
 dfsrmig
 at.exe
 
+# Windows Commands: https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands
+
 New-NetFirewallRule -DisplayName "Windows Time (NTP/SNTP)" `
 -Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
 -Service W32Time -Program $ServiceHost -Group $Group `
