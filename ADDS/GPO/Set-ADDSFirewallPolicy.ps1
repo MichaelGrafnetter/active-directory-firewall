@@ -118,8 +118,10 @@ if($gpo.Description -ne $configuration.GroupPolicyObjectComment)
 [string] $policyStore = '{0}\{1}' -f $gpo.DomainName,$gpo.DisplayName
 
 # Open the GPO
+# Note: The Open-NetGPO cmdlet by default contacts a random DC instead of PDC-E
 # TODO: Verbose
-[string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -ErrorAction Stop
+[Microsoft.ActiveDirectory.Management.ADDomain] $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
+[string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $domain.PDCEmulator -ErrorAction Stop
 
 # Remove any pre-existing firewall rules
 # Note: As Microsoft removed the -GPOSession parameter from the Remove-NetFirewallRule in Windows Server 2022, low-level CIM operations need to be used instead.
@@ -2085,7 +2087,6 @@ if($configuration.NetlogonStaticPort -ge 1) {
 #region Startup Script
 
 # Fetch the GPO info from the PDC emulator
-[Microsoft.ActiveDirectory.Management.ADDomain] $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
 [Microsoft.ActiveDirectory.Management.ADObject] $gpoContainer = Get-ADObject -Identity $gpo.Path -Properties 'gPCFileSysPath','gPCMachineExtensionNames' -Server $domain.PDCEmulator -ErrorAction Stop
 
 [string] $scriptPath = '{0}\Machine\Scripts\Startup\FirewallConfiguration.bat' -f $gpoContainer.gPCFileSysPath
@@ -2134,7 +2135,7 @@ $startupScript.AppendLine('echo Create the firewall log file and configure its D
 $startupScript.AppendFormat('netsh advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) | Out-Null
 
 # Overwrite the script file
-Set-Content -Path $scriptPath -Value $startupScript.ToString() -Encoding Ascii -Force -Verbose
+Set-Content -Path $scriptPath -Value $startupScript.ToString() -Encoding Ascii -Force -ErrorAction Stop -Verbose
 
 # Register the startup script in the scripts.ini file
 [string] $scriptsIni = @'
@@ -2143,7 +2144,7 @@ Set-Content -Path $scriptPath -Value $startupScript.ToString() -Encoding Ascii -
 0Parameters=
 '@
 
-Set-Content -Path $scriptsIniPath -Value $scriptsIni -Encoding Ascii -Force -Verbose
+Set-Content -Path $scriptsIniPath -Value $scriptsIni -Encoding Ascii -Force -ErrorAction Stop -Verbose
 
 # Register the Scripts client-side extension in AD if necessary
 [string] $machineScriptsExtension = '[{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B6664F-4972-11D1-A7CA-0000F87571E3}]'

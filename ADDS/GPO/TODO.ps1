@@ -1,3 +1,30 @@
+https://*.smartscreen.microsoft.com URLs are used by Windows Defender Antivirus Network Inspection Service (NisSrv.exe), Windows Defender SmartScreen (smartscreen.exe), and Windows Defender Exploit Guard Network Protection (wdnsfltr.exe).
+
+$fqdn = 'contoso.com'
+$id = '{' + (new-guid).ToString() + '}'
+New-NetFirewallDynamicKeywordAddress -id $id -Keyword $fqdn -AutoResolve $true
+New-NetFirewallRule -DisplayName "allow $fqdn" -Action Allow -Direction Outbound -RemoteDynamicKeywordAddresses $id
+
+$domains = @(
+    '*.microsoft.com',
+    '*.msftconnecttest.com',
+    'assets.msn.com',
+    'client.wns.windows.com',
+    'config.edge.skype.com',
+    'ctldl.windowsupdate.com',
+    'dns.msftncsi.com',
+    'login.live.com',
+    'ntp.msn.com'
+)
+
+foreach ($domain in $domains) {
+    $id = '{' + (New-Guid).ToString() + '}'
+    New-NetFirewallDynamicKeywordAddress -Id $id -Keyword $domain -AutoResolve $true
+    New-NetFirewallRule -DisplayName "allow $domain" -Action Allow -Direction Outbound -RemoteDynamicKeywordAddresses $id
+}
+
+
+
 winrs.exe
 powershell.exe
 powershell_ise.exe
@@ -12,20 +39,6 @@ dfsrmig
 at.exe
 
 # Windows Commands: https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands
-
-New-NetFirewallRule -DisplayName "Windows Time (NTP/SNTP)" `
--Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
--Service W32Time -Program $ServiceHost -Group $Group `
--Enabled True -Action Allow -Direction $Direction -Protocol UDP `
--LocalAddress Any -RemoteAddress Internet4 `
--LocalPort Any -RemotePort 123 `
--LocalUser Any `
--InterfaceType $DefaultInterface `
--LocalOnlyMapping $false -LooseSourceMapping $false `
--Description "Maintains date and time synchronization on all clients and servers in the network.
-If this service is stopped, date and time synchronization will be unavailable.
-If this service is disabled, any services that explicitly depend on it will fail to start." |
-Format-RuleOutput
 
 New-NetFirewallRule -DisplayName "Network Location Awareness" `
 -Platform $Platform -PolicyStore $PolicyStore -Profile Any `
