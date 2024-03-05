@@ -170,7 +170,7 @@ if($configuration.LogDroppedPackets)
 # Sanitize the maximum log file size
 if($configuration.LogMaxSizeKilobytes -gt [int16]::MaxValue -or $configuration.LogMaxSizeKilobytes -le 0)
 {
-    # Windows only accepts 1KB-32MB the the maximum log file size.
+    # Windows only accepts 1KB-32MB as the maximum log file size.
     $configuration.LogMaxSizeKilobytes = [int16]::MaxValue # = 32MB
 }
 
@@ -218,7 +218,12 @@ if($dcAndManagementAddresses -contains 'Any')
 #region Helper Functions
 
 <#
-.SYNOPSIS Converts a boolean value to a NetSecurity.Enabled enumeration value, which is accepted by the New-NetFirewallRule cmdlet.
+.SYNOPSIS
+Converts a boolean value to a NetSecurity.Enabled enumeration value, which is accepted by the New-NetFirewallRule cmdlet.
+
+.PARAMETER Value
+The boolean value to convert.
+
 #>
 function ConvertTo-NetSecurityEnabled
 {
