@@ -40,28 +40,6 @@ at.exe
 
 # Windows Commands: https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands
 
-New-NetFirewallRule -DisplayName "Network Location Awareness" `
--Platform $Platform -PolicyStore $PolicyStore -Profile Any `
--Service NlaSvc -Program $ServiceHost -Group $Group `
--Enabled True -Action Allow -Direction $Direction -Protocol TCP `
--LocalAddress Any -RemoteAddress Internet4 `
--LocalPort Any -RemotePort 80 `
--LocalUser Any `
--InterfaceType $DefaultInterface `
--Description "Collects and stores configuration information for the network and notifies
-programs when this information is modified.
-If this rule is disabled, configuration information might be unavailable." |
-Format-RuleOutput
-
-
-Extension rule for active users and NT localsystem, the following services need
-access based on logged on user:
-Cryptographic Services(CryptSvc),
-Microsoft Account Sign-in Assistant(wlidsvc),
-Windows Update(wuauserv),
-Background Intelligent Transfer Service(BITS),
-BITS and CryptSvc in addition need System account and wlidsvc needs both Network Service and local service account"
-
 
 # TODO: Split services into separate processes
 
@@ -267,34 +245,6 @@ components.
 If this service is disabled, install or uninstall of Windows updates might fail for this computer." |
 Format-RuleOutput
 
-
-
-# TODO: network service use for wlidsvc doesn't seem to work, BITS also fails connecting to router
-# sometimes but receives data.
-
-# Extension rules are special rules for problematic services, see "ProblematicTraffic.md" for more info
-$ExtensionAccounts = Get-SDDL -Domain "NT AUTHORITY" -User "SYSTEM", "LOCAL SERVICE", "NETWORK SERVICE" -Merge
-Merge-SDDL ([ref] $ExtensionAccounts) -From $UsersGroupSDDL
-
-# NOTE: Windows update will not work without this extension rule
-New-NetFirewallRule -DisplayName "Extension rule for complex services" `
-	-Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
-	-Service Any -Program $ServiceHost -Group $Group `
-	-Enabled True -Action Allow -Direction $Direction -Protocol TCP `
-	-LocalAddress Any -RemoteAddress Internet4 `
-	-LocalPort Any -RemotePort 80, 443 `
-	-LocalUser $ExtensionAccounts `
-	-InterfaceType $DefaultInterface `
-	-Description "Extension rule for active users and NT localsystem, the following services need
-access based on logged on user:
-Cryptographic Services(CryptSvc),
-Microsoft Account Sign-in Assistant(wlidsvc),
-Windows Update(wuauserv),
-Background Intelligent Transfer Service(BITS),
-BITS and CryptSvc in addition need System account and wlidsvc needs both Network Service and
-local service account" |
-Format-RuleOutput
-
 #
 # The following rules are in "ProblematicTraffic" pseudo group, these need extension rules (above)
 #
@@ -337,42 +287,3 @@ To use a gateway device, the device must support byte counters
 (the device must respond to the GetTotalBytesSent and GetTotalBytesReceived actions)
 and Universal Plug and Play (UPnP) must be enabled." |
 Format-RuleOutput
-
-# TODO: fails on port 80 regardless of extension rule
-New-NetFirewallRule -DisplayName "Cryptographic Services" `
-	-Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
-	-Service CryptSvc -Program $ServiceHost -Group $Group `
-	-Enabled True -Action Allow -Direction $Direction -Protocol TCP `
-	-LocalAddress Any -RemoteAddress Internet4 `
-	-LocalPort Any -RemotePort 80, 443 `
-	-LocalUser Any `
-	-InterfaceType $DefaultInterface `
-	-Description "Provides three management services:
-Catalog Database Service, which confirms the signatures of Windows files and allows new programs
-to be installed;
-Protected Root Service, which adds and removes Trusted Root Certification Authority certificates
-from this computer;
-and Automatic Root Certificate Update Service, which retrieves root certificates from
-Windows Update and enable scenarios such as SSL." |
-Format-RuleOutput
-
-New-NetFirewallRule -DisplayName "Windows update service" `
-	-Platform $Platform -PolicyStore $PolicyStore -Profile $DefaultProfile `
-	-Service wuauserv -Program $ServiceHost -Group $Group `
-	-Enabled True -Action Allow -Direction $Direction -Protocol TCP `
-	-LocalAddress Any -RemoteAddress Internet4 `
-	-LocalPort Any -RemotePort 80, 443 `
-	-LocalUser Any `
-	-InterfaceType $DefaultInterface `
-	-Description "Enables the detection, download, and installation of updates for Windows and
-other programs.
-If this service is disabled, users of this computer will not be able to use Windows Update or its
-automatic updating feature,
-and programs will not be able to use the Windows Update Agent (WUA) API." |
-Format-RuleOutput
-
-# TODO: BITS?
-
-
-
-

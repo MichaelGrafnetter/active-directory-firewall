@@ -817,7 +817,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
-
+                   
 # Create Inbound rule "Active Directory Web Services (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'ADWS-TCP-In' `
@@ -1521,40 +1521,6 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
-# Create Outbound rule "Windows Server Update Services Client - Device Setup Manager (TCP-Out)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WSUS-Client-DsmSvc-TCP-Out' `
-                    -DisplayName 'Windows Server Update Services Client - Device Setup Manager (TCP-Out)' `
-                    -Description 'Outbound rule for the detection, download and installation of device-related software from WSUS.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Outbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -RemotePort 8530,8531 `
-                    -RemoteAddress Any `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'DsmSvc' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
-
-# Create Outbound rule "Windows Server Update Services Client - Windows Update (TCP-Out)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WSUS-Client-Wuauserv-TCP-Out' `
-                    -DisplayName 'Windows Server Update Services Client - Windows Update (TCP-Out)' `
-                    -Description 'Outbound rule for the detection, download, and installation of updates for Windows and other programs from WSUS.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Outbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -RemotePort 8530,8531 `
-                    -RemoteAddress Any `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'wuauserv' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
-
 # Create Outbound rule "DFS Replication (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'DFSR-TCP-Out' `
@@ -2086,7 +2052,99 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Program Any `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Core Networking - Network Location Awareness (HTTP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-NlaSvc-HTTP-Out' `
+                    -DisplayName 'Core Networking - Network Location Awareness (HTTP-Out)' `
+                    -Description 'Collects and stores configuration information for the network and notifies programs when this information is modified.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 80 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'NlaSvc' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 #endregion Outbound Firewall Rules
+#region Windows Update Outbound Firewall Rules
+
+<#
+Enabling outbound communication for Windows Update and Windows Server Update Services is tricky.
+The Windows Update, Delivery Optimization, Background Intelligent Transfer Service,
+Cryptographic Services, and Device Setup Manager services are all hosted in the shared svchost.exe process.
+These services sometimes impersonate the user, which makes it impossible to create a rule that only allows the services to communicate.
+A workaround is to allow the svchost.exe process to communicate with all public IP addresses belonging to Microsoft.
+The list is located in the msft-public-ips.csv and can be updated from https://www.microsoft.com/en-us/download/details.aspx?id=53602
+#>
+
+# Load the list of Microsoft public IP addresses
+[string] $msftPublicIpsFilePath = Join-Path -Path $PSScriptRoot -ChildPath 'msft-public-ips.csv' -ErrorAction Stop
+[string[]] $msftPublicIps = Import-Csv -Path $msftPublicIpsFilePath -Delimiter ',' -ErrorAction Stop | Select-Object -ExpandProperty Prefix -ErrorAction Stop
+
+# Create Outbound rule "Windows Update - Microsoft Public IP Addresses (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WindowsUpdate-MsftPublicIPs-TCP-Out' `
+                    -DisplayName 'Windows Update - Microsoft Public IP Addresses (TCP-Out)' `
+                    -Description 'Outbound rule to allow the Windows Update client to communicate with Microsoft public IP addresses.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 80,443 `
+                    -RemoteAddress $msftPublicIps `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service Any `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+<#
+The same is true for Windows Server Update Services (WSUS) communication.
+It is at least possible to distinguish the traffic based on the port numbers 8530 (HTTP) and 8531 (HTTPS),
+which are used by WSUS by default.
+#>
+
+# Create Outbound rule "Windows Update - Windows Server Update Services (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WSUS-Client-TCP-Out' `
+                    -DisplayName 'Windows Update - Windows Server Update Services (TCP-Out)' `
+                    -Description 'Outbound rule for the detection, download and installation of device-related software from WSUS.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 8530,8531 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service Any `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Windows Update - Update Session Orchestrator (TCP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WindowsUpdate-USO-TCP-Out' `
+                    -DisplayName 'Windows Update - Update Session Orchestrator (TCP-Out)' `
+                    -Description 'A Windows OS component that orchestrates the sequence of downloading and installing various update types from Windows Update.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress $msftPublicIps `
+                    -Program '%SystemRoot%\system32\MoUsoCoreWorker.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+                    
+# TODO: Communication with Windows Update is sometimes also initiated by taskhostw.exe (Scheduled Task).
+
+#endregion Windows Update Outbound Firewall Rules
 #region Defender Outbound Firewall Rules
 
 # Create Outbound rule "Microsoft Defender Antivirus - Command-Line Utility (TCP-Out)"
@@ -2396,6 +2454,32 @@ NisSrv.exe	C:\Program Files\Microsoft Security Client	Microsoft Defender Antivir
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
 
 #region Registry Settings
+
+# Set the Delivery Optimization Download Mode to Simple
+# DCs should not download updates from peers.
+Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows\DeliveryOptimization' -ValueName 'DODownloadMode' -Value 99 -Type DWord -Verbose | Out-Null
+
+# Set Allow Telemetry to Security [Enterprise Only]
+Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection' -ValueName 'AllowTelemetry' -Value 0 -Type DWord -Verbose | Out-Null
+
+# Turn off Application Telemetry
+Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat' -ValueName 'AITEnable' -Value 0 -Type DWord -Verbose | Out-Null
+
+<#
+TODO: Add more registry settings
+OneSettings
+
+ Allow Diagnostic Data to Disabled.
+Administrative Template > Windows Components > Data Collection and Preview Builds
+
+7 Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)' is set to 'Disabled'
+MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes
+MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
+MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)
+MSS: (SynAttackProtect) Syn attack protection level (protects against DoS)
+
+
+#>
 
 # Turn off Link-Local Multicast Name Resolution (LLMNR)
 if($configuration.DisableLLMNR) {
