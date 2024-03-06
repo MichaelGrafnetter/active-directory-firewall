@@ -21,6 +21,8 @@
     "EnableRemoteDesktop": true,
     "EnableDiskManagement": true,
     "EnableBackupManagement": true,
+    "EnableFirewallManagement": false,
+    "EnableComPlusManagement": false,
     "EnableLegacyFileReplication": false,
     "EnableNetbiosNameService": false,
     "EnableNetbiosDatagramService": false,

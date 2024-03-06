@@ -57,6 +57,8 @@ class ScriptSettings
     [bool]             $EnableRemoteDesktop           = $true
     [bool]             $EnableDiskManagement          = $true
     [bool]             $EnableBackupManagement        = $true
+    [bool]             $EnableFirewallManagement      = $true
+    [bool]             $EnableComPlusManagement       = $true
     [bool]             $EnableLegacyFileReplication   = $true
     [bool]             $EnableNetbiosNameService      = $true
     [bool]             $EnableNetbiosDatagramService  = $true
@@ -86,7 +88,7 @@ finally
 }
 
 #endregion Configuration
-#region Create and configure the GPO
+#region Create and Configure the GPO
 
 # Try to fetch the target GPO
 [Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $configuration.GroupPolicyObjectName -ErrorAction SilentlyContinue
@@ -1041,6 +1043,42 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort Any `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\services.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "COM+ Remote Administration (DCOM-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'ComPlusRemoteAdministration-DCOM-In' `
+                    -DisplayName 'COM+ Remote Administration (DCOM-In)' `
+                    -Group '@%systemroot%\system32\firewallapi.dll,-3405' `
+                    -Description 'Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableComPlusManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%systemroot%\system32\dllhost.exe' `
+                    -Service 'COMSysApp' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Defender Firewall Remote Management (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteFwAdmin-In-TCP' `
+                    -DisplayName 'Windows Defender Firewall Remote Management (RPC)' `
+                    -Group '@FirewallAPI.dll,-30002' `
+                    -Description 'Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableFirewallManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'policyagent' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
@@ -2047,8 +2085,311 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Program Any `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
-
 #endregion Outbound Firewall Rules
+#region Defender Outbound Firewall Rules
+
+# Create Outbound rule "Microsoft Defender Antivirus - Command-Line Utility (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+# Windows 8.1 and Windows Server 2016 (MMA Based)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-MpCmdRun-TCP-Out' `
+                    -DisplayName 'Microsoft Defender Antivirus - Command-Line Utility (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender\MpCmdRun.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Endpoint DLP - Command-Line Utility (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-MpDlpCmd-TCP-Out' `
+                    -DisplayName 'Microsoft Endpoint DLP - Command-Line Utility (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender\MpDlpCmd.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender Antivirus - Service Executable (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+# Windows 8.1 and Windows Server 2016 (MMA Based)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-MsMpEng-TCP-Out' `
+                    -DisplayName 'Microsoft Defender Antivirus - Service Executable (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender\MsMpEng.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender Antivirus - Policy Configuration Tool (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+# Windows 8.1 and Windows Server 2016 (MMA Based)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-ConfigSecurityPolicy-TCP-Out' `
+                    -DisplayName 'Microsoft Defender Antivirus - Policy Configuration Tool (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender\ConfigSecurityPolicy.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender Antivirus - Core Service (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+# Windows 8.1 and Windows Server 2016 (MMA Based)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-MpDefenderCoreService-TCP-Out' `
+                    -DisplayName 'Microsoft Defender Antivirus - Core Service (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender\MpDefenderCoreService.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Endpoint DLP - Data Loss Prevention Service (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-MpDlpService-TCP-Out' `
+                    -DisplayName 'Microsoft Endpoint DLP - Data Loss Prevention Service (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender\MpDlpService.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender Antivirus - Network Realtime Inspection (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+# Windows 8.1 and Windows Server 2016 (MMA Based)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-NisSrv-TCP-Out' `
+                    -DisplayName 'Microsoft Defender Antivirus - Network Realtime Inspection (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 80,443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender\NisSrv.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Service Executable (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-MsSense-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Service Executable (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\MsSense.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Communication Module (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseCnCProxy-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Communication Module (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseCnCProxy.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Incident Response Module (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseIR-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Incident Response Module (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseIR.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Classification Engine Module (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseCE-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Classification Engine Module (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\Classification\SenseCE.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Sample Upload Module (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseSampleUploader-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Sample Upload Module (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseSampleUploader.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Network Detection and Response Module (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseNdr-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Network Detection and Response Module (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseNdr.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Screenshot Capture Module (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseSC-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Screenshot Capture Module (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseSC.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Configuration Management (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseCM-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Configuration Management (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseCM.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Microsoft Defender for Endpoint - Threat Vulnerability Management (TCP-Out)"
+# Windows 11, Windows 10, Windows Server 2022 and Windows Server 2019
+# Windows Server 2016 and Windows Server 2012 R2 (Unified Agent)
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DefenderAV-SenseTVM-TCP-Out' `
+                    -DisplayName 'Microsoft Defender for Endpoint - Threat Vulnerability Management (TCP-Out)' `
+                    -Description 'Outbound rule .' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 443 `
+                    -RemoteAddress Any `
+                    -Program '%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseTVM.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+<# TODO: Add more rules for the following executables:
+# Windows 8.1 and Windows Server 2016 (MMA Based)
+# Windows 7 SP1, Windows Server 2012 R2 and Windows Server 2008 R2 (MMA Based)
+
+                    MonitoringHost.exe	C:\Program Files\Microsoft Monitoring Agent\Agent	Microsoft Monitoring Agent Service Host Process
+                    HealthService.exe	C:\Program Files\Microsoft Monitoring Agent\Agent	Microsoft Monitoring Agent Service
+                    TestCloudConnection.exe	C:\Program Files\Microsoft Monitoring Agent\Agent	Microsoft Monitoring Agent Cloud Connection Test utility
+
+# Windows 7 SP1, Windows Server 2012 R2 and Windows Server 2008 R2 (MMA Based)
+MpCmdRun.exe	C:\Program Files\Microsoft Security Client	Microsoft Defender Antivirus command-line utility (SCEP)
+MsMpEng.exe	C:\Program Files\Microsoft Security Client	Microsoft Defender Antivirus service executable (SCEP)
+ConfigSecurityPolicy.exe	C:\Program Files\Microsoft Security Client	Microsoft Security Client Policy Configuration Tool (SCEP)
+NisSrv.exe	C:\Program Files\Microsoft Security Client	Microsoft Defender Antivirus Network Realtime Inspection (SCEP)
+#>
+
+#endregion Defender Outbound Firewall Rules                  
 
 # TODO: Verbose
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
@@ -2093,12 +2434,15 @@ if($configuration.NetlogonStaticPort -ge 1) {
 
 # Fetch the GPO info from the PDC emulator
 [Microsoft.ActiveDirectory.Management.ADObject] $gpoContainer = Get-ADObject -Identity $gpo.Path -Properties 'gPCFileSysPath','gPCMachineExtensionNames' -Server $domain.PDCEmulator -ErrorAction Stop
+[string] $startupScriptDirectory = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\Startup' -ErrorAction Stop
+[string] $scriptPath = Join-Path -Path $startupScriptDirectory -ChildPath 'FirewallConfiguration.bat' -ErrorAction Stop
+[string] $scriptsIniPath = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\scripts.ini' -ErrorAction Stop
 
-[string] $scriptPath = '{0}\Machine\Scripts\Startup\FirewallConfiguration.bat' -f $gpoContainer.gPCFileSysPath
-[string] $scriptsIniPath = '{0}\Machine\Scripts\scripts.ini' -f $gpoContainer.gPCFileSysPath
-[System.Text.StringBuilder] $startupScript = [System.Text.StringBuilder]::new()
+# Create the directory for startup scripts if it does not exist
+New-Item -Path $startupScriptDirectory -ItemType Directory -Force -Verbose | Out-Null
 
 # Startup script header
+[System.Text.StringBuilder] $startupScript = [System.Text.StringBuilder]::new()
 $startupScript.AppendLine('@ECHO OFF') | Out-Null
 $startupScript.AppendLine('REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.') | Out-Null
 
