@@ -2500,6 +2500,15 @@ Set-Content -Path $scriptsIniPath -Value $scriptsIni -Encoding Ascii -Force -Err
 
 if(-not $gpoContainer.gPCMachineExtensionNames.Contains($machineScriptsExtension)) {
     [string] $updatedMachineExtensionNames = $machineScriptsExtension + $gpoContainer.gPCMachineExtensionNames
+    
+    # The CSE GUIDs must be sorted in case-insensitive ascending order
+    [string[]] $sortedExtensions =
+        $updatedMachineExtensionNames.Split('[]') |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($PSItem) } |
+        Sort-Object -Culture ([cultureinfo]::InvariantCulture)
+    $updatedMachineExtensionNames = '[' + ($sortedExtensions -join '][') + ']'
+
+    # Update the GPO
     Set-ADObject -Identity $gpoContainer -Replace @{ gPCMachineExtensionNames = $updatedMachineExtensionNames } -Server $domain.PDCEmulator -ErrorAction Stop -Verbose
 }
 
