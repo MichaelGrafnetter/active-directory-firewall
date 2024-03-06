@@ -129,7 +129,8 @@ if($gpo.Description -ne $configuration.GroupPolicyObjectComment)
 # Note: As Microsoft removed the -GPOSession parameter from the Remove-NetFirewallRule in Windows Server 2022, low-level CIM operations need to be used instead.
 
 # The source GPO session is provided as a custom CIM operation option.
-$cimOperationOptions = [Microsoft.Management.Infrastructure.Options.CimOperationOptions]::new()
+[Microsoft.Management.Infrastructure.Options.CimOperationOptions] $cimOperationOptions =
+    [Microsoft.Management.Infrastructure.Options.CimOperationOptions]::new()
 $cimOperationOptions.SetCustomOption('GPOSession', $gpoSession, $false)
 
 # Open a temporary local CIM session
