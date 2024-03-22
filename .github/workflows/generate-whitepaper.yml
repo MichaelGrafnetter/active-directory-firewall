@@ -16,11 +16,13 @@ jobs:
         uses: docker://pandoc/latex:latest-ubuntu
         with:
           args: >-
-            --output='Domain_Controller_Firewall.pdf'
-            --from=markdown
+            --output='Domain_Controller_Firewall.docx'
+            --table-of-contents
+            --toc-depth=2
+            --number-sections
             ADDS/README.md
       - name: Publish the whitepaper as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Whitepaper
-          path: Domain_Controller_Firewall.pdf
+          path: Domain_Controller_Firewall.docx
