@@ -685,6 +685,45 @@
 | Description | Outbound rule for the iSCSI Service to allow communications with an iSCSI server or device. [TCP] |
 | Notes       | - |
 
+### Issues
+
+#### Services with User Impersonation
+
+- Windows Update (wuauserv)
+- Cryptographic Services (CryptSvc)
+- Microsoft Account Sign-in Assistant (wlidsvc)
+- Background Intelligent Transfer Service(BITS)
+
+#### Dynamic Keywords
+
+https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
+
+#### taskhostw.exe
+
+![](Screenshots/scheduled-task-custom-handler.png)
+
+#### Predefined Address Sets
+
+![](Screenshots/firewall-predefined-sets.png)
+
+- Internet
+- Intranet
+- DNS Servers
+
+#### Proxy
+
+![](Screenshots/proxy-config.png)
+
+![](Screenshots/proxy-error.png)
+
+#### Log File Not Created
+
+![](Screenshots/firewall-log-config.png)
+
+```bat
+netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+```
+
 ### Static RPC Ports
 
 - [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
