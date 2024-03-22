@@ -1,0 +1,9 @@
+# Markdown files
+*.md
+  indent_style = space
+  indent_size = 2
+
+# YAML files
+*.yml
+  indent_style = space
+  indent_size = 2

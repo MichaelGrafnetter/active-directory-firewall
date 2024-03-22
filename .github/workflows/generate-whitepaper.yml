@@ -1,0 +1,26 @@
+name: Generate Whitepaper
+
+on:
+  push:
+    paths:
+      - 'ADDS/README.md'
+      - '.github/workflows/generate-whitepaper.yml'
+
+jobs:
+  generate:
+    name: Generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Generate the whitepaper using Pandoc
+        uses: docker://pandoc/latex:latest-ubuntu
+        with:
+          args: >-
+            --output='Domain_Controller_Firewall.pdf'
+            --from=markdown
+            ADDS/README.md
+      - name: Publish the whitepaper as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Whitepaper
+          path: Domain_Controller_Firewall.pdf
