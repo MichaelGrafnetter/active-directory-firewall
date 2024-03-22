@@ -7,7 +7,7 @@ Path to the log file.
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 1.0
+Version: 1.1
 
 #>
 
@@ -27,4 +27,5 @@ Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
     Select-Object -Skip 3 |
     ForEach-Object { $PSItem -replace '^#Fields: ' } |
     ConvertFrom-Csv -Delimiter ' ' |
+    Select-Object -Property date,time,path,action,pid,src-ip,src-port,dst-ip,dst-port |
     Out-GridView -Title 'Windows Firewall Log' -Wait

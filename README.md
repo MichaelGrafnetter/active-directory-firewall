@@ -734,6 +734,12 @@ Any process
 netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
+### Troubleshooting
+
+`Show-WindowsFirewallLog.ps1`
+
+![](Screenshots/firewall-log-parser.png)
+
 ### Static RPC Ports
 
 - [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
