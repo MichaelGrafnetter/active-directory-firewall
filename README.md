@@ -702,6 +702,16 @@ https://learn.microsoft.com/en-us/windows/security/operating-system-security/net
 
 ![](Screenshots/scheduled-task-custom-handler.png)
 
+#### Azure Arc
+
+PowerShell, msiexec
+
+![](Screenshots/azure-arc-binaries.png)
+
+Any process
+
+![](Screenshots/azure-arc-firewall.png)
+
 #### Predefined Address Sets
 
 ![](Screenshots/firewall-predefined-sets.png)
