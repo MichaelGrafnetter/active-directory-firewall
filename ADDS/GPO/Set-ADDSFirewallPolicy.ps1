@@ -54,6 +54,7 @@ class ScriptSettings
     [bool]             $EnableScheduledTaskManagement = $true
     [bool]             $EnableWindowsRemoteManagement = $true
     [bool]             $EnablePerformanceLogAccess    = $true
+    [bool]             $EnableOpenSSHServer           = $true
     [bool]             $EnableRemoteDesktop           = $true
     [bool]             $EnableDiskManagement          = $true
     [bool]             $EnableBackupManagement        = $true
@@ -64,6 +65,8 @@ class ScriptSettings
     [bool]             $EnableNetbiosDatagramService  = $true
     [bool]             $EnableNetbiosSessionService   = $true
     [bool]             $EnableWINS                    = $true
+    [bool]             $EnableNetworkProtection       = $false
+    [bool]             $EnableInternetTraffic         = $true
 }
 
 [ScriptSettings] $configuration = [ScriptSettings]::new()
@@ -176,8 +179,6 @@ if($configuration.LogMaxSizeKilobytes -gt [int16]::MaxValue -or $configuration.L
     # Windows only accepts 1KB-32MB as the maximum log file size.
     $configuration.LogMaxSizeKilobytes = [int16]::MaxValue # = 32MB
 }
-
-# TODO: -AllowUserPorts -AllowUserApps
 
 # Configure all firewall profiles (Domain, Private, and Public)
 Set-NetFirewallProfile -GPOSession $gpoSession `
@@ -1115,6 +1116,23 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort Any `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\vdsldr.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "OpenSSH SSH Server (sshd)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'OpenSSH-Server-In-TCP' `
+                    -DisplayName 'OpenSSH SSH Server (sshd)' `
+                    -Group 'OpenSSH Server' `
+                    -Description 'Inbound rule for OpenSSH SSH Server (sshd)' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableOpenSSHServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 22 `
+                    -RemoteAddress $configuration.ManagementAddresses `
+                    -Program '%SystemRoot%\system32\OpenSSH\sshd.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
@@ -2070,6 +2088,22 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Outbound rule "Internet Traffic (HTTP-Out)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Internet-HTTP-Out' `
+                    -DisplayName 'Internet Traffic (HTTP-Out)' `
+                    -Description 'Outbound rule to allow unlimited HTTP traffic to the Internet. Required by cloud-enabled components, including Windows Update for Business and Azure Arc.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableInternetTraffic) `
+                    -Profile Any `
+                    -Direction Outbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -RemotePort 80,443 `
+                    -RemoteAddress Any `
+                    -Program Any `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
 #endregion Outbound Firewall Rules
 #region Windows Update Outbound Firewall Rules
 
@@ -2078,18 +2112,12 @@ Enabling outbound communication for Windows Update and Windows Server Update Ser
 The Windows Update, Delivery Optimization, Background Intelligent Transfer Service,
 Cryptographic Services, and Device Setup Manager services are all hosted in the shared svchost.exe process.
 These services sometimes impersonate the user, which makes it impossible to create a rule that only allows the services to communicate.
-A workaround is to allow the svchost.exe process to communicate with all public IP addresses belonging to Microsoft.
-The list is located in the msft-public-ips.csv and can be updated from https://www.microsoft.com/en-us/download/details.aspx?id=53602
 #>
 
-# Load the list of Microsoft public IP addresses
-[string] $msftPublicIpsFilePath = Join-Path -Path $PSScriptRoot -ChildPath 'msft-public-ips.csv' -ErrorAction Stop
-[string[]] $msftPublicIps = Import-Csv -Path $msftPublicIpsFilePath -Delimiter ',' -ErrorAction Stop | Select-Object -ExpandProperty Prefix -ErrorAction Stop
-
-# Create Outbound rule "Windows Update - Microsoft Public IP Addresses (TCP-Out)"
+# Create Outbound rule "Windows Update - Internet (TCP-Out)"
 New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WindowsUpdate-MsftPublicIPs-TCP-Out' `
-                    -DisplayName 'Windows Update - Microsoft Public IP Addresses (TCP-Out)' `
+                    -Name 'WindowsUpdate-TCP-Out' `
+                    -DisplayName 'Windows Update - Internet (TCP-Out)' `
                     -Description 'Outbound rule to allow the Windows Update client to communicate with Microsoft public IP addresses.' `
                     -Enabled True `
                     -Profile Any `
@@ -2097,7 +2125,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -RemotePort 80,443 `
-                    -RemoteAddress $msftPublicIps `
+                    -RemoteAddress Any `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service Any `
                     -Verbose `
@@ -2137,10 +2165,30 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -RemotePort 443 `
-                    -RemoteAddress $msftPublicIps `
+                    -RemoteAddress Any `
                     -Program '%SystemRoot%\system32\MoUsoCoreWorker.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
+
+# Create Outbound rule "Cryptographic Service (TCP-Out)"
+# The Cryptographic Services (CryptSvc) communicates with non-Microsoft IPs, including Akamai CDN.
+[ciminstance] $cryptSvcRule = New-NetFirewallRule `
+    -GPOSession $gpoSession `
+    -Name 'CryptSvc-TCP-Out' `
+    -DisplayName 'Cryptographic Service (TCP-Out)' `
+    -Description 'Provides Catalog Database Service, Protected Root Service, and Automatic Root Certificate Update Service.' `
+    -Enabled True `
+    -Profile Any `
+    -Direction Outbound `
+    -Action Allow `
+    -Protocol TCP `
+    -RemotePort 80,443 `
+    -RemoteAddress Any `
+    -Verbose `
+    -ErrorAction Stop
+
+[string] $cryptSvcSid = 'S-1-5-80-242729624-280608522-2219052887-3187409060-2225943459'
+Get-NetFirewallApplicationFilter -AssociatedNetFirewallRule $cryptSvcRule -ErrorAction Stop | Set-NetFirewallApplicationFilter -Package $cryptSvcSid -ErrorAction Stop -Verbose
                     
 # TODO: Communication with Windows Update is sometimes also initiated by taskhostw.exe (Scheduled Task).
 
@@ -2456,14 +2504,48 @@ Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
 #region Registry Settings
 
 # Set the Delivery Optimization Download Mode to Simple
-# DCs should not download updates from peers.
-Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows\DeliveryOptimization' -ValueName 'DODownloadMode' -Value 99 -Type DWord -Verbose | Out-Null
+# DCs should not be downloading updates from peers.
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\Software\Policies\Microsoft\Windows\DeliveryOptimization' `
+                    -ValueName 'DODownloadMode' `
+                    -Value 99 `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
 # Set Allow Telemetry to Security [Enterprise Only]
-Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection' -ValueName 'AllowTelemetry' -Value 0 -Type DWord -Verbose | Out-Null
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection' `
+                    -ValueName 'AllowTelemetry' `
+                    -Value 0 `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
 # Turn off Application Telemetry
-Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat' -ValueName 'AITEnable' -Value 0 -Type DWord -Verbose | Out-Null
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat' `
+                    -ValueName 'AITEnable' `
+                    -Value 0 `
+                    -Type DWord `
+                    -Verbose | Out-Null
+
+# Prevent users and apps from accessing dangerous websites
+# (Enables Microsoft Defender Exploit Guard Network Protection)
+# This might block some Internet C2 traffic.
+
+# We will enable the audit mode by default
+[int] $networkProtectionState = 2
+
+if($configuration.EnableNetworkProtection) {
+    # Switch Network Protection to Block mode
+    $networkProtectionState = 1
+}
+
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
+                    -ValueName 'EnableNetworkProtection' `
+                    -Value $networkProtectionState `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
 <#
 TODO: Add more registry settings

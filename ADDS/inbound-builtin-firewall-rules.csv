@@ -42,3 +42,4 @@ Remote Scheduled Tasks Management (RPC),Remote Scheduled Tasks Management,TCP,RP
 Remote Service Management (RPC),Remote Service Management,TCP,RPC,,%SystemRoot%\system32\services.exe,,Management,Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP.
 Remote Volume Management - Virtual Disk Service (RPC),Remote Volume Management,TCP,RPC,,%SystemRoot%\system32\vds.exe,vds,Management,Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP.
 Remote Volume Management - Virtual Disk Service Loader (RPC),Remote Volume Management,TCP,RPC,,%SystemRoot%\system32\vdsldr.exe,,Management,Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP.
+OpenSSH SSH Server (sshd),OpenSSH Server,TCP,22,,%SystemRoot%\system32\OpenSSH\sshd.exe,,Management,Inbound rule for OpenSSH SSH Server (sshd)

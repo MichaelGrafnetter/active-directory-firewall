@@ -1,3 +1,32 @@
+Arc/Windows Admin Center Outbound?
+SmeOutboundOpenException from any process to 20.66.2.1,20.62.128.152,20.187.196.201,20.191.160.120,52.146.131.56,20.61.98.73
+
+# TODO: DNS over HTTPS (DoH) must be disabled for dynamic keywords to work
+<#
+Work or school account:
+Package : S-1-15-2-1910091885-1573563583-1104941280-2418270861-3411158377-2822700936-2990310272
+Name                          : {11EE8354-1B68-472A-88CD-ED9082BF2424}
+DisplayName                   : Work or school account
+Description                   : Work or school account
+DisplayGroup                  : Work or school account
+Group                         : @{Microsoft.AAD.BrokerPlugin_1000.19580.1000.0_neutral_neutral_cw5n1h2txyewy?ms-resource://Microsoft.AAD.BrokerPlugin/resources/PackageDisplayName}
+Enabled                       : True
+#>
+
+# TODO: Azure VM token (Managed Identity, Arc, Automation): "http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01" -Headers @{Metadata = "true"} -NoProxy -TimeoutSec 1 -ErrorAction 
+
+<#
+Arc: PowerShell scripts, config tool,...
+<add key="ArcAgentExecutable" value="azcmagent.exe" />
+<add key="DefaultArcTelemetryEndpoint" value="https://gbl.his.arc.azure.com/log" />
+ $hisEndpoint = "https://gbl.his.arc.azure.com"
+    if ($Show.cloud -eq "AzureUSGovernment") {
+        $hisEndpoint = "https://gbl.his.arc.azure.us"
+    } elseif ($Show.cloud -eq "AzureChinaCloud") {
+        $hisEndpoint = "https://gbl.his.arc.azure.cn"
+
+#>
+
 https://*.smartscreen.microsoft.com URLs are used by Windows Defender Antivirus Network Inspection Service (NisSrv.exe), Windows Defender SmartScreen (smartscreen.exe), and Windows Defender Exploit Guard Network Protection (wdnsfltr.exe).
 
 $fqdn = 'contoso.com'

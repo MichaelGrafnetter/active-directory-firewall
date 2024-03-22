@@ -337,6 +337,16 @@
 
 | <!-- -->    | <!-- --> |
 |-------------|----------|
+| Name        | **OpenSSH SSH Server (sshd)** |
+| Group       | OpenSSH Server |
+| Protocol    | TCP |
+| Port        | 22 |
+| Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
+| Description | Inbound rule for OpenSSH SSH Server (sshd) |
+| Notes       | - |
+
+| <!-- -->    | <!-- --> |
+|-------------|----------|
 | Name        | **DFS Management (TCP-In)** |
 | Group       | DFS Management |
 | Protocol    | TCP |

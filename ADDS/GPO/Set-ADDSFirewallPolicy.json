@@ -18,6 +18,7 @@
     "EnableScheduledTaskManagement": true,
     "EnableWindowsRemoteManagement": true,
     "EnablePerformanceLogAccess": true,
+    "EnableOpenSSHServer": false,
     "EnableRemoteDesktop": true,
     "EnableDiskManagement": true,
     "EnableBackupManagement": true,
@@ -27,5 +28,7 @@
     "EnableNetbiosNameService": false,
     "EnableNetbiosDatagramService": false,
     "EnableNetbiosSessionService": false,
-    "EnableWINS": false
+    "EnableWINS": false,
+    "EnableNetworkProtection": true,
+    "EnableInternetTraffic": true
 }
