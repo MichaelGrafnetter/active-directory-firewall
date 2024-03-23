@@ -24,7 +24,7 @@ pandock \
   --variable=caption-justification:centering \
   --variable=listings-disable-line-numbers:true \
   --metadata date="`date '+%B %e, %Y'`" \
-  --resource-path=ADDS \
+  --resource-path=.:ADDS \
   ADDS/README.md
 
 # Convert the Markdown file to Word document using Pandoc
