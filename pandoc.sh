@@ -6,6 +6,8 @@ alias pandock='docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/ext
 # (This action is also performed automatically by GitHub actions when the README file is changed.)
 pandock \
   --output='Domain_Controller_Firewall.pdf' \
+  --from=markdown \
+  --to=pdf \
   --shift-heading-level-by=-1 \
   --top-level-division=section \
   --table-of-contents \
