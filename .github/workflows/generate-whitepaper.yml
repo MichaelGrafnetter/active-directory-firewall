@@ -15,30 +15,29 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Pandoc
-        uses: pandoc/actions/setup@v1
-      
-      - name: Install pdflatex
-        shell: bash
-        run: sudo apt install -y texlive-latex-recommended texlive-fonts-recommended
-
       - name: Generate the whitepaper using Pandoc
-        shell: bash
-        run: |
-          pandoc \
-          --output='Domain_Controller_Firewall.pdf' \
-          --shift-heading-level-by=-1 \
-          --top-level-division=section \
-          --table-of-contents \
-          --toc-depth=2 \
-          --number-sections \
-          --variable=lof:true \
-          --variable=classoption:oneside \
-          --variable=papersize:a4 \
-          --variable=geometry:margin=2cm \
-          --variable=colorlinks:true \
-          --resource-path=ADDS \
-          ADDS/README.md
+        uses: docker://pandoc/extra
+        with:
+          args: |
+            --output='Domain_Controller_Firewall.pdf' \
+            --shift-heading-level-by=-1 \
+            --top-level-division=section \
+            --table-of-contents \
+            --toc-depth=2 \
+            --number-sections \
+            --variable=lof:true \
+            --variable=classoption:oneside \
+            --variable=geometry:a4paper,margin=2cm \
+            --variable=colorlinks:true \
+            --variable=linkcolor:'[HTML]{4077C0}' \
+            --variable=titlepage:true \
+            --template=eisvogel \
+            --variable=header-includes:'\usepackage[export]{adjustbox} \let\includegraphicsbak\includegraphics \renewcommand*{\includegraphics}[2][]{\includegraphicsbak[frame,#1]{#2}} \usepackage{sectsty} \sectionfont{\clearpage}' \
+            --variable=caption-justification:centering \
+            --variable=listings-disable-line-numbers:true \
+            --metadata date="`date '+%B %e, %Y'`" \
+            --resource-path=ADDS \
+            ADDS/README.md
 
       - name: Publish the whitepaper as artifact
         uses: actions/upload-artifact@v4

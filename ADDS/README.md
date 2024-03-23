@@ -3,8 +3,7 @@ subtitle: ​​Deployment Documentation​
 author:
   - Pavel Formanek
   - Michael Grafnetter
-date: March 23, 2024
-lang: en-US
+lang: en
 keywords:
   - Active Directory
   - Firewall
@@ -12,12 +11,6 @@ keywords:
   - PowerShell
   - Group Policy
   - Security
-header-includes:
-- |
-  ```{=latex}
-  \let\oldsection\section
-  \renewcommand{\section}{\clearpage\oldsection}
-  ```
 ---
 
 # Domain Controller Firewall
