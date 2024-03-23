@@ -17,10 +17,10 @@ pandock \
   --variable=classoption:oneside \
   --variable=geometry:a4paper,margin=2cm \
   --variable=colorlinks:true \
-  --variable=linkcolor:'[HTML]{4077C0}' \
+  --variable=linkcolor:"[HTML]{4077C0}" \
   --variable=titlepage:true \
-  --template=/.pandoc/templates/eisvogel.latex \
-  --variable=header-includes:'\usepackage[export]{adjustbox} \let\includegraphicsbak\includegraphics \renewcommand*{\includegraphics}[2][]{\includegraphicsbak[frame,#1]{#2}} \usepackage{sectsty} \sectionfont{\clearpage}' \
+  --template=eisvogel \
+  --variable=header-includes:"\usepackage[export]{adjustbox} \let\includegraphicsbak\includegraphics \renewcommand*{\includegraphics}[2][]{\includegraphicsbak[frame,#1]{#2}} \usepackage{sectsty} \sectionfont{\clearpage}" \
   --variable=caption-justification:centering \
   --variable=listings-disable-line-numbers:true \
   --metadata date="`date '+%B %e, %Y'`" \

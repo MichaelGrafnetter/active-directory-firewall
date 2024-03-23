@@ -12,14 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout Repository
+      - name: Checkout the repository
         uses: actions/checkout@v4
+
+      - name: Get the current date
+        id: get_date
+        run: echo "date=$(date '+%B %e, %Y')" > $GITHUB_OUTPUT
 
       - name: Generate the whitepaper using Pandoc
         uses: docker://pandoc/extra
         with:
           args: >-
-            --output='Domain_Controller_Firewall.pdf'
+            --output=Domain_Controller_Firewall.pdf
             --from=markdown
             --to=pdf
             --shift-heading-level-by=-1
@@ -31,14 +35,14 @@ jobs:
             --variable=classoption:oneside
             --variable=geometry:a4paper,margin=2cm
             --variable=colorlinks:true
-            --variable=linkcolor:'[HTML]{4077C0}'
+            --variable=linkcolor:"[HTML]{4077C0}"
             --variable=titlepage:true
-            --template=/.pandoc/templates/eisvogel.latex
-            --variable=header-includes:'\usepackage[export]{adjustbox} \let\includegraphicsbak\includegraphics \renewcommand*{\includegraphics}[2][]{\includegraphicsbak[frame,#1]{#2}} \usepackage{sectsty} \sectionfont{\clearpage}'
+            --template=eisvogel
+            --variable=header-includes:"\usepackage[export]{adjustbox} \let\includegraphicsbak\includegraphics \renewcommand*{\includegraphics}[2][]{\includegraphicsbak[frame,#1]{#2}} \usepackage{sectsty} \sectionfont{\clearpage}"
             --variable=caption-justification:centering
             --variable=listings-disable-line-numbers:true
-            --metadata date="`date '+%B %e, %Y'`"
-            --resource-path=.:ADDS
+            --metadata date="${{ steps.get_date.outputs.date }}"
+            --resource-path="ADDS:/.pandoc/templates"
             ADDS/README.md
 
       - name: Publish the whitepaper as artifact
@@ -46,3 +50,4 @@ jobs:
         with:
           name: Whitepaper
           path: Domain_Controller_Firewall.pdf
+          if-no-files-found: error
