@@ -12,23 +12,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Install Pandoc
+        uses: pandoc/actions/setup@v1
+
       - name: Generate the whitepaper using Pandoc
-        uses: docker://pandoc/latex:latest-ubuntu
-        with:
-          args: >-
-            --output='Domain_Controller_Firewall.pdf'
-            --shift-heading-level-by=-1
-            --top-level-division=section
-            --table-of-contents
-            --toc-depth=2
-            --number-sections
-            --variable=lof:true
-            --variable=classoption:oneside
-            --variable=papersize:a4
-            --variable=geometry:margin=2cm
-            --variable=colorlinks:true
-            --resource-path=ADDS
-            ADDS/README.md
+        run: |
+          pandoc \
+          --output='Domain_Controller_Firewall.pdf' \
+          --shift-heading-level-by=-1 \
+          --top-level-division=section \
+          --table-of-contents \
+          --toc-depth=2 \
+          --number-sections \
+          --variable=lof:true \
+          --variable=classoption:oneside \
+          --variable=papersize:a4 \
+          --variable=geometry:margin=2cm \
+          --variable=colorlinks:true \
+          --resource-path=ADDS \
+          ADDS/README.md
+
       - name: Publish the whitepaper as artifact
         uses: actions/upload-artifact@v4
         with:
