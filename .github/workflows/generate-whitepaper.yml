@@ -17,8 +17,13 @@ jobs:
 
       - name: Install Pandoc
         uses: pandoc/actions/setup@v1
+      
+      - name: Install pdflatex
+        shell: bash
+        run: sudo apt install -y texlive-latex-recommended texlive-fonts-recommended
 
       - name: Generate the whitepaper using Pandoc
+        shell: bash
         run: |
           pandoc \
           --output='Domain_Controller_Firewall.pdf' \
