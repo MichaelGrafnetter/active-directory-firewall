@@ -18,7 +18,6 @@ jobs:
       - name: Generate the whitepaper using Pandoc
         uses: docker://pandoc/extra
         with:
-          working-directory: ADDS
           args: >-
             --output='Domain_Controller_Firewall.pdf'
             --from=markdown
@@ -34,15 +33,16 @@ jobs:
             --variable=colorlinks:true
             --variable=linkcolor:'[HTML]{4077C0}'
             --variable=titlepage:true
-            --template=eisvogel
+            --template='.pandoc/templates/eisvogel.latex'
             --variable=header-includes:'\usepackage[export]{adjustbox} \let\includegraphicsbak\includegraphics \renewcommand*{\includegraphics}[2][]{\includegraphicsbak[frame,#1]{#2}} \usepackage{sectsty} \sectionfont{\clearpage}'
             --variable=caption-justification:centering
             --variable=listings-disable-line-numbers:true
             --metadata date="`date '+%B %e, %Y'`"
-            README.md
+            --resource-path=ADDS
+            ADDS/README.md
 
       - name: Publish the whitepaper as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Whitepaper
-          path: ADDS/Domain_Controller_Firewall.pdf
+          path: Domain_Controller_Firewall.pdf

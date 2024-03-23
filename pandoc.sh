@@ -19,7 +19,7 @@ pandock \
   --variable=colorlinks:true \
   --variable=linkcolor:'[HTML]{4077C0}' \
   --variable=titlepage:true \
-  --template=eisvogel \
+  --template='.pandoc/templates/eisvogel.latex' \
   --variable=header-includes:'\usepackage[export]{adjustbox} \let\includegraphicsbak\includegraphics \renewcommand*{\includegraphics}[2][]{\includegraphicsbak[frame,#1]{#2}} \usepackage{sectsty} \sectionfont{\clearpage}' \
   --variable=caption-justification:centering \
   --variable=listings-disable-line-numbers:true \
