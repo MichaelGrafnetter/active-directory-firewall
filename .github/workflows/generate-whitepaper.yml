@@ -18,6 +18,7 @@ jobs:
       - name: Generate the whitepaper using Pandoc
         uses: docker://pandoc/extra
         with:
+          working-directory: ADDS
           args: >-
             --output='Domain_Controller_Firewall.pdf'
             --from=markdown
@@ -38,11 +39,10 @@ jobs:
             --variable=caption-justification:centering
             --variable=listings-disable-line-numbers:true
             --metadata date="`date '+%B %e, %Y'`"
-            --resource-path=ADDS
-            ADDS/README.md
+            README.md
 
       - name: Publish the whitepaper as artifact
         uses: actions/upload-artifact@v4
         with:
           name: Whitepaper
-          path: Domain_Controller_Firewall.pdf
+          path: ADDS/Domain_Controller_Firewall.pdf
