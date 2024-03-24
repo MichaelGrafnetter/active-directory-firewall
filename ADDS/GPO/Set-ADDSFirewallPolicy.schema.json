@@ -65,28 +65,56 @@
         "description": ""
       },
       "NtdsStaticPort": {
-        "type": "integer",
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          {
+            "type": "null"
+          }
+        ],
         "default": null,
-        "minimum": 0,
-        "maximum": 65535,
         "description": ""
       },
       "NetlogonStaticPort": {
-        "type": "integer",
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          {
+            "type": "null"
+          }
+        ],
         "default": null,
-        "minimum": 0,
-        "maximum": 65535,
         "description": ""
       },
       "DfsrStaticPort": {
-        "type": "integer",
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          },
+          {
+            "type": "null"
+          }
+        ],
         "default": null,
-        "minimum": 0,
-        "maximum": 65535,
         "description": ""
       },
       "WmiStaticPort": {
-        "type": "boolean",
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "default": null,
         "description": ""
       },
@@ -96,7 +124,14 @@
         "description": ""
       },
       "DisableMDNS": {
-        "type": "boolean",
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "default": null,
         "description": ""
       },
