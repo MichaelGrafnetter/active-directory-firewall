@@ -50,6 +50,8 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 
 ![Windows Firewall with Advanced Security](../Screenshots/windows-firewall.png)
 
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](../LICENSE)
+
 ## Design
 
 - Tested specifically on Windows Server 2022 and Windows 11 but should work on all current supported versions of Windows Server and Windows clients.
@@ -71,11 +73,11 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 ## Prerequisites
 
 - Domain administrator role or adequate role, allowing for creation of a GPO, creation of folders and files in SYSVOL and linking the GPO to Domain Controllers OU.
-- PowerShell version 5.1
-- PowerShell modules
-  - GroupPolicy
-  - ActiveDirectory
-- Supported OS: Windows 2016 / Windows 10
+- PowerShell version 5.1 [![PowerShell 5](https://img.shields.io/badge/PowerShell-5+-0000FF.svg?logo=PowerShell)](#)
+- PowerShell modules (RSAT)
+  - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
+  - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
+- Supported OS: [![Windows Server 2016 | 2019 | 2022 | 2025](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.svg?logo=Windows%2011)](#) / Windows 10
 
 ## Configuration
 
@@ -468,6 +470,46 @@ netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfil
 ## Troubleshooting
 
 `Show-WindowsFirewallLog.ps1`
+
+```powershell
+<#
+.SYNOPSIS
+Parses Windows Firewall log file.
+
+.PARAMETER LogFilePath
+Path to the log file.
+
+.PARAMETER Live
+Indicates that the log file should be monitored for new entries.
+
+.NOTES
+Author:  Michael Grafnetter
+Version: 1.2
+
+#>
+
+#Requires -Version 3
+#Requires -RunAsAdministrator
+
+Param(
+    [Parameter(Mandatory = $false, Position = 0)]
+    [ValidateNotNullOrEmpty()]
+    [string] $LogFilePath = "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log",
+
+    [Parameter()]
+    [switch] $Live
+)
+
+[string[]] $columnsToShow = @('date','time','path','action','pid',
+    'src-ip','src-port','dst-ip','dst-port','icmptype','icmpcode')
+
+Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
+    Select-Object -Skip 3 |
+    ForEach-Object { $PSItem -replace '^#Fields: ' } |
+    ConvertFrom-Csv -Delimiter ' ' |
+    Select-Object -Property $columnsToShow |
+    Out-GridView -Title 'Windows Firewall Log' -Wait
+```
 
 ![Parsing firewall log files](../Screenshots/firewall-log-parser.png)
 

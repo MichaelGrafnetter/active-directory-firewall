@@ -5,9 +5,12 @@ Parses Windows Firewall log file.
 .PARAMETER LogFilePath
 Path to the log file.
 
+.PARAMETER Live
+Indicates that the log file should be monitored for new entries.
+
 .NOTES
 Author:  Michael Grafnetter
-Version: 1.1
+Version: 1.2
 
 #>
 
@@ -23,9 +26,12 @@ Param(
     [switch] $Live
 )
 
+[string[]] $columnsToShow = @('date','time','path','action','pid',
+    'src-ip','src-port','dst-ip','dst-port','icmptype','icmpcode')
+
 Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
     Select-Object -Skip 3 |
     ForEach-Object { $PSItem -replace '^#Fields: ' } |
     ConvertFrom-Csv -Delimiter ' ' |
-    Select-Object -Property date,time,path,action,pid,src-ip,src-port,dst-ip,dst-port |
+    Select-Object -Property $columnsToShow |
     Out-GridView -Title 'Windows Firewall Log' -Wait
