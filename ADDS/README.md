@@ -1,5 +1,5 @@
 ---
-subtitle: ​​Deployment Documentation​ 
+subtitle: ​​Deployment Documentation​
 author:
   - Pavel Formanek
   - Michael Grafnetter
@@ -50,7 +50,7 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 
 ![Windows Firewall with Advanced Security](../Screenshots/windows-firewall.png)
 
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](../LICENSE)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
 
 ## Design
 
@@ -73,11 +73,11 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 ## Prerequisites
 
 - Domain administrator role or adequate role, allowing for creation of a GPO, creation of folders and files in SYSVOL and linking the GPO to Domain Controllers OU.
-- PowerShell version 5.1 [![PowerShell 5](https://img.shields.io/badge/PowerShell-5+-0000FF.svg?logo=PowerShell)](#)
+- PowerShell version 5.1 ![](https://img.shields.io/badge/PowerShell-5+-0000FF.png?logo=PowerShell)
 - PowerShell modules (RSAT)
   - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
   - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
-- Supported OS: [![Windows Server 2016 | 2019 | 2022 | 2025](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.svg?logo=Windows%2011)](#) / Windows 10
+- Supported OS: ![](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.png?logo=Windows%2011) / Windows 10
 
 ## Configuration
 
