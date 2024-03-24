@@ -1,4 +1,5 @@
 {
+    "$schema": "Set-ADDSFirewallPolicy.schema.json",
     "GroupPolicyObjectName": "Domain Controller Firewall",
     "GroupPolicyObjectComment": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
     "EnforceOutboundRules": true,

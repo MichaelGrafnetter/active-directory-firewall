@@ -1,0 +1,194 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Domain Controller Firewall Configuration",
+    "type": "object",
+    "properties": {
+      "GroupPolicyObjectName": {
+        "type": "string",
+        "default": "Domain Controller Firewall",
+        "description": "The name of the Group Policy Object (GPO) that will be created or updated."
+      },
+      "GroupPolicyObjectComment": {
+        "type": "string",
+        "default": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
+        "description": "The comment that will be added to the Group Policy Object (GPO)."
+      },
+      "EnforceOutboundRules": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether the outbound traffic should be blocked by default."
+      },
+      "LogDroppedPackets": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether the packets dropped by the firewall should be logged."
+      },
+      "LogFilePath": {
+        "type": "string",
+        "default": "%systemroot%\\system32\\logfiles\firewall\\pfirewall.log",
+        "description": "The path to the log file that will be used to store information about the dropped packets."
+      },
+      "LogMaxSizeKilobytes": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 32767,
+        "description": ""
+      },
+      "ClientAddresses": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "uniqueItems": true
+        },
+        "default": [ "Any" ],
+        "description": ""
+      },
+      "ManagementAddresses": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "uniqueItems": true
+        },
+        "default": [ "Any" ],
+        "description": ""
+      },
+      "DomainControllerAddresses": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "uniqueItems": true
+        },
+        "default": [ "Any" ],
+        "description": ""
+      },
+      "NtdsStaticPort": {
+        "type": "integer",
+        "default": null,
+        "minimum": 0,
+        "maximum": 65535,
+        "description": ""
+      },
+      "NetlogonStaticPort": {
+        "type": "integer",
+        "default": null,
+        "minimum": 0,
+        "maximum": 65535,
+        "description": ""
+      },
+      "DfsrStaticPort": {
+        "type": "integer",
+        "default": null,
+        "minimum": 0,
+        "maximum": 65535,
+        "description": ""
+      },
+      "WmiStaticPort": {
+        "type": "boolean",
+        "default": null,
+        "description": ""
+      },
+      "DisableLLMNR": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "DisableMDNS": {
+        "type": "boolean",
+        "default": null,
+        "description": ""
+      },
+      "EnableServiceManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableEventLogManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableScheduledTaskManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableWindowsRemoteManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnablePerformanceLogAccess": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableOpenSSHServer": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableRemoteDesktop": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableDiskManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableBackupManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableFirewallManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableComPlusManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableLegacyFileReplication": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableNetbiosNameService": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableNetbiosDatagramService": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableNetbiosSessionService": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableWINS": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      },
+      "EnableNetworkProtection": {
+        "type": "boolean",
+        "default": false,
+        "description": ""
+      },
+      "EnableInternetTraffic": {
+        "type": "boolean",
+        "default": true,
+        "description": ""
+      }
+    }
+  }
