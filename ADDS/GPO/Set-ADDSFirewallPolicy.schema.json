@@ -176,7 +176,8 @@
           {
             "type": "integer",
             "minimum": 1024,
-            "maximum": 49151
+            "maximum": 49151,
+            "examples": [ 38901 ]
           },
           {
             "const": 0
@@ -193,7 +194,8 @@
           {
             "type": "integer",
             "minimum": 1024,
-            "maximum": 49151
+            "maximum": 49151,
+            "examples": [ 38902 ]
           },
           {
             "const": 0
@@ -210,7 +212,8 @@
           {
             "type": "integer",
             "minimum": 1024,
-            "maximum": 49151
+            "maximum": 49151,
+            "examples": [ 5722 ]
           },
           {
             "const": 0
