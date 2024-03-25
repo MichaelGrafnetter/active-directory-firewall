@@ -1,5 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
+    "$comment": "Schema file for the Set-ADDSFirewallPolicy.json config.",
     "title": "Domain Controller Firewall Configuration",
     "type": "object",
     "properties": {
@@ -32,44 +33,153 @@
         "type": "integer",
         "minimum": 1,
         "maximum": 32767,
+        "default": 32767,
         "description": ""
       },
       "ClientAddresses": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1,
-          "uniqueItems": true
-        },
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
         "default": [ "Any" ],
         "description": ""
       },
       "ManagementAddresses": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1,
-          "uniqueItems": true
-        },
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
         "default": [ "Any" ],
         "description": ""
       },
       "DomainControllerAddresses": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "minLength": 1,
-          "uniqueItems": true
-        },
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
         "default": [ "Any" ],
         "description": ""
       },
       "NtdsStaticPort": {
-        "anyOf": [
+        "oneOf": [
           {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 65535
+            "minimum": 1024,
+            "maximum": 49151
+          },
+          {
+            "const": 0
           },
           {
             "type": "null"
@@ -79,11 +189,14 @@
         "description": ""
       },
       "NetlogonStaticPort": {
-        "anyOf": [
+        "oneOf": [
           {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 65535
+            "minimum": 1024,
+            "maximum": 49151
+          },
+          {
+            "const": 0
           },
           {
             "type": "null"
@@ -93,11 +206,14 @@
         "description": ""
       },
       "DfsrStaticPort": {
-        "anyOf": [
+        "oneOf": [
           {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 65535
+            "minimum": 1024,
+            "maximum": 49151
+          },
+          {
+            "const": 0
           },
           {
             "type": "null"
@@ -225,5 +341,6 @@
         "default": true,
         "description": ""
       }
-    }
+    },
+    "required": ["GroupPolicyObjectName"]
   }
