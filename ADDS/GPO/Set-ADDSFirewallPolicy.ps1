@@ -936,7 +936,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort Any `
+                    -LocalPort RPC `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%systemroot%\system32\dfsfrsHost.exe' `
                     -Verbose `
@@ -971,7 +971,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort Any `
+                    -LocalPort RPC `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%systemroot%\system32\wbengine.exe' `
                     -Service 'wbengine' `
@@ -1006,7 +1006,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort Any `
+                    -LocalPort RPC `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'Eventlog' `
@@ -1024,7 +1024,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort Any `
+                    -LocalPort RPC `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'schedule' `
@@ -1042,7 +1042,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort Any `
+                    -LocalPort RPC `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\services.exe' `
                     -Verbose `
@@ -1095,7 +1095,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort Any `
+                    -LocalPort RPC `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\vds.exe' `
                     -Service 'vds' `
@@ -1113,7 +1113,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Direction Inbound `
                     -Action Allow `
                     -Protocol TCP `
-                    -LocalPort Any `
+                    -LocalPort RPC `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\vdsldr.exe' `
                     -Verbose `

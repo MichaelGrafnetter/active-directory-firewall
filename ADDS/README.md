@@ -543,8 +543,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - W32Time (NTP-UDP-In)** |
+| Name        | W32Time-NTP-UDP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 123 |
 | Program     | `%systemroot%\System32\svchost.exe` |
@@ -556,8 +557,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | Active Directory Domain Controller (RPC-EPMAP) |
+| Name        | ADDS-RPCEPMAP-TCP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 135 |
 | Program     | `%systemroot%\system32\svchost.exe` |
@@ -569,8 +571,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Kerberos Key Distribution Center - PCR (UDP-In)** |
+| Name        | ADDS-Kerberos-Password-UDP-In |
 | Group       | Kerberos Key Distribution Center |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -581,8 +584,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Kerberos Key Distribution Center - PCR (TCP-In)** |
+| Name        | ADDS-Kerberos-Password-TCP-In |
 | Group       | Kerberos Key Distribution Center |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -593,8 +597,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller (RPC)** |
+| Name        | ADDS-RPC-TCP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -605,8 +610,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - LDAP (UDP-In)** |
+| Name        | ADDS-LDAP-UDP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -617,8 +623,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - LDAP (TCP-In)** |
+| Name        | ADDS-LDAP-TCP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -629,8 +636,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - Secure LDAP (TCP-In)** |
+| Name        | ADDS-LDAPSEC-TCP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 636 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -641,8 +649,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)** |
+| Name        | ADDS-LDAPGC-TCP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 3268 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -653,8 +662,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)** |
+| Name        | ADDS-LDAPGCSEC-TCP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 3269 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -665,8 +675,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **DNS (UDP, Incoming)** |
+| Name        | DNSSrv-DNS-UDP-In |
 | Group       | DNS Service |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 53 |
 | Program     | `%systemroot%\System32\dns.exe` |
@@ -678,8 +689,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **DNS (TCP, Incoming)** |
+| Name        | DNSSrv-DNS-TCP-In |
 | Group       | DNS Service |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 53 |
 | Program     | `%systemroot%\System32\dns.exe` |
@@ -691,8 +703,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Kerberos Key Distribution Center (TCP-In)** |
+| Name        | ADDS-Kerberos-TCP-In |
 | Group       | Kerberos Key Distribution Center |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -703,8 +716,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Kerberos Key Distribution Center (UDP-In)** |
+| Name        | ADDS-Kerberos-UDP-In |
 | Group       | Kerberos Key Distribution Center |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
@@ -715,8 +729,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - SAM/LSA (NP-UDP-In)** |
+| Name        | ADDS-NP-UDP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 445 |
 | Program     | `System` |
@@ -727,8 +742,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - SAM/LSA (NP-TCP-In)** |
+| Name        | ADDS-NP-TCP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 445 |
 | Program     | `System` |
@@ -739,8 +755,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - Echo Request (ICMPv4-In)** |
+| Name        | ADDS-ICMP4-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | ICMPv4 |
 | ICMP Type   | 8 |
 | Program     | `System` |
@@ -751,8 +768,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - Echo Request (ICMPv6-In)** |
+| Name        | ADDS-ICMP6-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 128 |
 | Program     | `System` |
@@ -763,8 +781,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller - NetBIOS name resolution (UDP-In)** |
+| Name        | ADDS-NB-Datagram-UDP-In |
 | Group       | Active Directory Domain Services |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 138 |
 | Program     | `System` |
@@ -775,8 +794,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Destination Unreachable (ICMPv6-In)** |
+| Name        | CoreNet-ICMP6-DU-In |
 | Group       | Core Networking |
+| Direction   | Inbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 1 |
 | Program     | `System` |
@@ -787,8 +807,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)** |
+| Name        | CoreNet-ICMP4-DUFRAG-In |
 | Group       | Core Networking |
+| Direction   | Inbound |
 | Protocol    | ICMPv4 |
 | ICMP Type   | 3:4 |
 | Program     | `System` |
@@ -799,8 +820,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)** |
+| Name        | CoreNet-ICMP6-NDA-In |
 | Group       | Core Networking |
+| Direction   | Inbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 136 |
 | Program     | `System` |
@@ -811,8 +833,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)** |
+| Name        | CoreNet-ICMP6-NDS-In |
 | Group       | Core Networking |
+| Direction   | Inbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 135 |
 | Program     | `System` |
@@ -823,8 +846,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Packet Too Big (ICMPv6-In)** |
+| Name        | CoreNet-ICMP6-PTB-In |
 | Group       | Core Networking |
+| Direction   | Inbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 2 |
 | Program     | `System` |
@@ -835,8 +859,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Parameter Problem (ICMPv6-In)** |
+| Name        | CoreNet-ICMP6-PP-In |
 | Group       | Core Networking |
+| Direction   | Inbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 4 |
 | Program     | `System` |
@@ -847,12 +872,67 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Time Exceeded (ICMPv6-In)** |
+| Name        | CoreNet-ICMP6-TE-In |
 | Group       | Core Networking |
+| Direction   | Inbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 3 |
 | Program     | `System` |
 | Description | Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path. |
+| Notes       | - |
+
+#### Windows Internet Naming Service (WINS) (TCP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-In-TCP |
+| Group       | Windows Internet Naming Service (WINS) |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 42 |
+| Program     | `%SystemRoot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42] |
+| Notes       | - |
+
+#### Windows Internet Naming Service (WINS) (UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-In-UDP |
+| Group       | Windows Internet Naming Service (WINS) |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 42 |
+| Program     | `%SystemRoot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42] |
+| Notes       | - |
+
+#### File and Printer Sharing (NB-Name-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | FPS-NB_Name-In-UDP |
+| Group       | File and Printer Sharing |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 137 |
+| Program     | `System` |
+| Description | Inbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137] |
+| Notes       | - |
+
+#### File and Printer Sharing (NB-Session-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | FPS-NB_Session-In-TCP |
+| Group       | File and Printer Sharing |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 139 |
+| Program     | `System` |
+| Description | Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139] |
 | Notes       | - |
 
 ### Management Traffic
@@ -861,8 +941,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Web Services (TCP-In)** |
+| Name        | ADWS-TCP-In |
 | Group       | Active Directory Web Services |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 9389 |
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
@@ -874,20 +955,35 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Windows Remote Management (HTTP-In)** |
+| Name        | WINRM-HTTP-In-TCP-PUBLIC |
 | Group       | Windows Remote Management |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 5985 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5985] |
 | Notes       | - |
 
+#### Windows Remote Management (HTTPS-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINRM-HTTPS-In-TCP-PUBLIC |
+| Group       | Windows Remote Management |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 5986 |
+| Program     | `System` |
+| Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5986] |
+| Notes       | - |
+
 #### Windows Management Instrumentation (WMI-In)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Windows Management Instrumentation (WMI-In)** |
+| Name        | WMI-WINMGMT-In-TCP |
 | Group       | Windows Management Instrumentation (WMI) |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | Any |
 | Program     | `%SystemRoot%\system32\svchost.exe` |
@@ -899,8 +995,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Remote Desktop - User Mode (UDP-In)** |
+| Name        | RemoteDesktop-UserMode-In-UDP |
 | Group       | Remote Desktop |
+| Direction   | Inbound |
 | Protocol    | UDP |
 | Port        | 3389 |
 | Program     | `%SystemRoot%\system32\svchost.exe` |
@@ -912,8 +1009,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Remote Desktop - User Mode (TCP-In)** |
+| Name        | RemoteDesktop-UserMode-In-TCP |
 | Group       | Remote Desktop |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 3389 |
 | Program     | `%SystemRoot%\system32\svchost.exe` |
@@ -925,8 +1023,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **OpenSSH SSH Server (sshd)** |
+| Name        | OpenSSH-Server-In-TCP |
 | Group       | OpenSSH Server |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | 22 |
 | Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
@@ -937,8 +1036,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **DFS Management (TCP-In)** |
+| Name        | DfsMgmt-In-TCP |
 | Group       | DFS Management |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%systemroot%\system32\dfsfrsHost.exe` |
@@ -949,8 +1049,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **RPC (TCP, Incoming)** |
+| Name        | DNSSrv-RPC-TCP-In |
 | Group       | DNS Service |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%systemroot%\System32\dns.exe` |
@@ -962,8 +1063,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Windows Backup (RPC)** |
+| Name        | WindowsServerBackup-wbengine-In-TCP-NoScope |
 | Group       | Windows Backup |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%systemroot%\system32\wbengine.exe` |
@@ -971,36 +1073,40 @@ TODO: Rationale
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
 | Notes       | - |
 
-#### DFS Management (TCP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | **DFS Management (TCP-In)** |
-| Group       | DFS Management |
-| Protocol    | TCP |
-| Port        | RPC |
-| Program     | `%systemroot%\system32\dfsfrsHost.exe` |
-| Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
-| Notes       | - |
-
 #### Performance Logs and Alerts (TCP-In)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Performance Logs and Alerts (TCP-In)** |
+| Name        | PerfLogsAlerts-PLASrv-In-TCP-NoScope |
 | Group       | Performance Logs and Alerts |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | Any |
 | Program     | `%systemroot%\system32\plasrv.exe` |
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
 | Notes       | - |
 
+#### COM+ Remote Administration (DCOM-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | ComPlusRemoteAdministration-DCOM-In |
+| Group       | COM+ Remote Administration |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\dllhost.exe` |
+| Service     | `COMSysApp` |
+| Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
+| Notes       | - |
+
 #### Remote Event Log Management (RPC)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Remote Event Log Management (RPC)** |
+| Name        | RemoteEventLogSvc-In-TCP |
 | Group       | Remote Event Log Management |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\svchost.exe` |
@@ -1012,8 +1118,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Remote Scheduled Tasks Management (RPC)** |
+| Name        | RemoteTask-In-TCP |
 | Group       | Remote Scheduled Tasks Management |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\svchost.exe` |
@@ -1025,8 +1132,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Remote Service Management (RPC)** |
+| Name        | RemoteSvcAdmin-In-TCP |
 | Group       | Remote Service Management |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\services.exe` |
@@ -1037,8 +1145,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Remote Volume Management - Virtual Disk Service (RPC)** |
+| Name        | RVM-VDS-In-TCP |
 | Group       | Remote Volume Management |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\vds.exe` |
@@ -1050,12 +1159,41 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Remote Volume Management - Virtual Disk Service Loader (RPC)** |
+| Name        | RVM-VDSLDR-In-TCP |
 | Group       | Remote Volume Management |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\vdsldr.exe` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
+| Notes       | - |
+
+#### Windows Internet Naming Service (WINS) - Remote Management (RPC)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-In-RPC |
+| Group       | Windows Internet Naming Service (WINS) - Remote Management |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
+| Notes       | - |
+
+#### Windows Defender Firewall Remote Management (RPC)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | RemoteFwAdmin-In-TCP |
+| Group       | Windows Defender Firewall Remote Management |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `policyagent` |
+| Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
 | Notes       | - |
 
 ### DC Replication Traffic
@@ -1064,8 +1202,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **DFS Replication (RPC-In)** |
+| Name        | DFSR-DFSRSvc-In-TCP |
 | Group       | DFS Replication |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\dfsrs.exe` |
@@ -1077,8 +1216,9 @@ TODO: Rationale
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **File Replication (RPC)** |
+| Name        | NTFRS-NTFRSSvc-In-TCP |
 | Group       | File Replication |
+| Direction   | Inbound |
 | Protocol    | TCP |
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\NTFRS.exe` |
@@ -1088,51 +1228,90 @@ TODO: Rationale
 
 ## Outbound Rules
 
+#### Active Directory Domain Controller - Echo Request (ICMPv4-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller -  Echo Request (ICMPv4-Out)** |
+| Name        | ADDS-ICMP4-Out |
 | Group       | Active Directory Domain Services |
+| Direction   | Outbound |
 | Protocol    | ICMPv4 |
 | ICMP Type   | 8 |
 | Program     | `System` |
 | Description | Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
 | Notes       | - |
 
+#### Active Directory Domain Controller - Echo Request (ICMPv6-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller -  Echo Request (ICMPv6-Out)** |
+| Name        | ADDS-ICMP6-Out |
 | Group       | Active Directory Domain Services |
+| Direction   | Outbound |
 | Protocol    | ICMPv6 |
 | ICMP Type   | 128 |
 | Program     | `System` |
-
 | Description | Outbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
 | Notes       | - |
 
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller (TCP-Out)** |
-| Group       | Active Directory Domain Services |
-| Protocol    | TCP |
-| Port        | Any |
-| Program     | `%systemroot%\System32\lsass.exe` |
-| Description | Outbound rule for the Active Directory Domain Controller service. [TCP] |
-| Notes       | - |
+#### Active Directory Domain Controller - Forest DC Connectivity (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Domain Controller (UDP-Out)** |
+| Name        | ADDS-RemoteDC-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `Any` |
+| Description | Outbound rule to allow DC-DC management. |
+| Notes       | - |
+
+#### Active Directory Domain Controller - W32Time (NTP-UDP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | W32Time-NTP-UDP-Out |
+| Direction   | Outbound |
+| Protocol    | UDP |
+| Port        | 123 |
+| Program     | `%systemroot%\System32\svchost.exe` |
+| Service     | `w32time` |
+| Description | Outbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123] |
+| Notes       | - |
+
+#### Active Directory Domain Controller (UDP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | ADDS-UDP-Out |
 | Group       | Active Directory Domain Services |
+| Direction   | Outbound |
 | Protocol    | UDP |
 | Port        | Any |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Outbound rule for the Active Directory Domain Controller service. [UDP] |
 | Notes       | - |
 
+#### Active Directory Domain Controller (TCP-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Active Directory Web Services (TCP-Out)** |
+| Name        | ADDS-TCP-Out |
+| Group       | Active Directory Domain Services |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%systemroot%\System32\lsass.exe` |
+| Description | Outbound rule for the Active Directory Domain Controller service. [TCP] |
+| Notes       | - |
+
+#### Active Directory Web Services (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | ADWS-TCP-Out |
 | Group       | Active Directory Web Services |
+| Direction   | Outbound |
 | Protocol    | TCP |
 | Port        | Any |
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
@@ -1140,92 +1319,349 @@ TODO: Rationale
 | Description | Outbound rule for the Active Directory Web Services. [TCP] |
 | Notes       | - |
 
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | **Core Networking - DNS (UDP-Out)** |
-| Group       | Core Networking |
-| Protocol    | UDP |
-| Port        | 53 |
-| Program     | `%SystemRoot%\system32\svchost.exe` |
-| Service     | `dnscache` |
-| Description | Outbound rule to allow DNS requests. DNS responses based on requests that matched this rule will be permitted regardless of source address.  This behavior is classified as loose source mapping. [LSM] [UDP 53] |
-| Notes       | - |
+#### Administrative Tools - Active Directory Administrative Center (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Group Policy (NP-Out)** |
-| Group       | Core Networking |
-| Protocol    | TCP |
-| Port        | 445 |
-| Program     | `System` |
-| Description | Core Networking - Group Policy (NP-Out) |
-| Notes       | - |
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | **Core Networking - Group Policy (TCP-Out)** |
-| Group       | Core Networking |
+| Name        | AdminTools-Dsac-TCP-Out |
+| Direction   | Outbound |
 | Protocol    | TCP |
 | Port        | Any |
-| Program     | `%SystemRoot%\system32\svchost.exe` |
-| Service     | `gpsvc` |
-| Description | Outbound rule to allow remote RPC traffic for Group Policy updates. [TCP] |
+| Program     | `%SystemRoot%\system32\dsac.exe` |
+| Description | Outbound rule to allow AD management using the Active Directory Administrative Center. |
 | Notes       | - |
+
+#### Administrative Tools - Certreq (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Neighbor Discovery Advertisement (ICMPv6-Out)** |
-| Group       | Core Networking |
-| Protocol    | ICMPv6 |
-| ICMP Type   | 136 |
-| Program     | `System` |
-| Description | Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request. |
+| Name        | AdminTools-Certreq-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\certreq.exe` |
+| Description | Outbound rule to allow certificate request submission using the Certreq tool. |
 | Notes       | - |
+
+#### Administrative Tools - Certutil (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Neighbor Discovery Solicitation (ICMPv6-Out)** |
-| Group       | Core Networking |
-| Protocol    | ICMPv6 |
-| ICMP Type   | 135 |
-| Program     | `System` |
-| Description | Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node. |
+| Name        | AdminTools-Certutil-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\certutil.exe` |
+| Description | Outbound rule to allow certificate and CA management using the Certutil tool. |
 | Notes       | - |
+
+#### Administrative Tools - Csvde (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Packet Too Big (ICMPv6-Out)** |
-| Group       | Core Networking |
-| Protocol    | ICMPv6 |
-| ICMP Type   | 2 |
-| Program     | `System` |
-| Description | Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link. |
+| Name        | AdminTools-Csvde-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\csvde.exe` |
+| Description | Outbound rule to allow AD management using the Csvde tool. |
 | Notes       | - |
+
+#### Administrative Tools - Dcdiag (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Parameter Problem (ICMPv6-Out)** |
-| Group       | Core Networking |
-| Protocol    | ICMPv6 |
-| ICMP Type   | 4 |
-| Program     | `System` |
-| Description | Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets. |
+| Name        | AdminTools-Dcdiag-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dcdiag.exe` |
+| Description | Outbound rule to allow AD management using the Dcdiag tool. |
 | Notes       | - |
+
+#### Administrative Tools - Dcpromo (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Core Networking - Time Exceeded (ICMPv6-Out)** |
-| Group       | Core Networking |
-| Protocol    | ICMPv6 |
-| ICMP Type   | 3 |
-| Program     | `System` |
-| Description | Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path. |
+| Name        | AdminTools-Dcpromo-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dcpromo.exe` |
+| Description | Outbound rule to allow AD management using the Dcpromo tool. |
 | Notes       | - |
+
+#### Administrative Tools - Dfsrdiag (TCP-Out)
 
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **All Outgoing (TCP)** |
+| Name        | AdminTools-Dfsrdiag-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dfsrdiag.exe` |
+| Description | Outbound rule to allow AD management using the Dfsrdiag tool. |
+| Notes       | - |
+
+#### Administrative Tools - Dsacls (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Dsacls-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dsacls.exe` |
+| Description | Outbound rule to allow AD management using the Dsacls tool. |
+| Notes       | - |
+
+#### Administrative Tools - Dsadd (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Dsadd-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dsadd.exe` |
+| Description | Outbound rule to allow AD management using the Dsadd tool. |
+| Notes       | - |
+
+#### Administrative Tools - Dsget (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Dsget-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dsget.exe` |
+| Description | Outbound rule to allow AD management using the Dsget tool. |
+| Notes       | - |
+
+#### Administrative Tools - Dsmod (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Dsmod-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dsmod.exe` |
+| Description | Outbound rule to allow AD management using the Dsmod tool. |
+| Notes       | - |
+
+#### Administrative Tools - Dsmove (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Dsmove-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dsmove.exe` |
+| Description | Outbound rule to allow AD management using the Dsmove tool. |
+| Notes       | - |
+
+#### Administrative Tools - Dsquery (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Dsquery-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dsquery.exe` |
+| Description | Outbound rule to allow AD management using the Dsquery tool. |
+| Notes       | - |
+
+#### Administrative Tools - Dsrm (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Dsrm-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dsrm.exe` |
+| Description | Outbound rule to allow AD management using the Dsrm tool. |
+| Notes       | - |
+
+#### Administrative Tools - Ldifde (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Ldifde-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\ldifde.exe` |
+| Description | Outbound rule to allow AD management using the Ldifde tool. |
+| Notes       | - |
+
+#### Administrative Tools - Ldp (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Ldp-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\ldp.exe` |
+| Description | Outbound rule to allow AD management using the Ldp tool. |
+| Notes       | - |
+
+#### Administrative Tools - Microsoft Management Console (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-MMC-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%systemroot%\system32\mmc.exe` |
+| Description | Outbound rule for the MMC console to allow AD management, certificate requests, and other administrative actions. |
+| Notes       | - |
+
+#### Administrative Tools - Net (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Net-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\net.exe` |
+| Description | Outbound rule to allow AD management using the Net tool. |
+| Notes       | - |
+
+#### Administrative Tools - Netdom (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Netdom-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\netdom.exe` |
+| Description | Outbound rule to allow AD management using the Netdom tool. |
+| Notes       | - |
+
+#### Administrative Tools - Nltest (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Nltest-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\nltest.exe` |
+| Description | Outbound rule to allow AD management using the Nltest tool. |
+| Notes       | - |
+
+#### Administrative Tools - Nslookup (UDP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Nslookup-UDP-Out |
+| Direction   | Outbound |
+| Protocol    | UDP |
+| Port        | 53 |
+| Program     | `%SystemRoot%\system32\nslookup.exe` |
+| Description | Outbound rule to allow DNS queries using the Nslookup tool. |
+| Notes       | - |
+
+#### Administrative Tools - Ntdsutil (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Ntdsutil-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\ntdsutil.exe` |
+| Description | Outbound rule to allow AD management using the Ntdsutil tool. |
+| Notes       | - |
+
+#### Administrative Tools - Redircmp (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Redircmp-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\redircmp.exe` |
+| Description | Outbound rule to allow AD management using the Redircmp tool. |
+| Notes       | - |
+
+#### Administrative Tools - Redirusr (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Redirusr-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\redirusr.exe` |
+| Description | Outbound rule to allow AD management using the Redirusr tool. |
+| Notes       | - |
+
+#### Administrative Tools - Repadmin (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Repadmin-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\repadmin.exe` |
+| Description | Outbound rule to allow AD management using the Repadmin tool. |
+| Notes       | - |
+
+#### Administrative Tools - Server Manager (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-ServerManager-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\ServerManager.exe` |
+| Description | Outbound rule to allow AD management using the Server Manager. |
+| Notes       | - |
+
+#### Administrative Tools - Setspn (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-Setspn-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\setspn.exe` |
+| Description | Outbound rule to allow AD management using the Setspn tool. |
+| Notes       | - |
+
+#### Administrative Tools - W32tm (UDP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | AdminTools-W32tm-UDP-Out |
+| Direction   | Outbound |
+| Protocol    | UDP |
+| Port        | 123 |
+| Program     | `%SystemRoot%\system32\w32tm.exe` |
+| Description | Outbound rule to allow Windows Time service configuration and monitoring. |
+| Notes       | - |
+
+#### All Outgoing (TCP)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DNSSrv-TCP-Out |
 | Group       | DNS Service |
+| Direction   | Outbound |
 | Protocol    | TCP |
 | Port        | Any |
 | Program     | `%systemroot%\System32\dns.exe` |
@@ -1233,10 +1669,13 @@ TODO: Rationale
 | Description | Outbound rule to allow all TCP traffic from the DNS service. |
 | Notes       | - |
 
+#### All Outgoing (UDP)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **All Outgoing (UDP)** |
+| Name        | DNSSrv-UDP-Out |
 | Group       | DNS Service |
+| Direction   | Outbound |
 | Protocol    | UDP |
 | Port        | Any |
 | Program     | `%systemroot%\System32\dns.exe` |
@@ -1244,40 +1683,467 @@ TODO: Rationale
 | Description | Outbound rule to allow all UDP traffic from the DNS service. |
 | Notes       | - |
 
+#### Core Networking - DNS (TCP-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **File and Printer Sharing (NB-Datagram-Out)** |
+| Name        | CoreNet-DNS-Out-TCP |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 53 |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `dnscache` |
+| Description | Outbound rule to allow DNS requests. |
+| Notes       | - |
+
+#### Core Networking - DNS (UDP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-DNS-Out-UDP |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | UDP |
+| Port        | 53 |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `dnscache` |
+| Description | Outbound rule to allow DNS requests. DNS responses based on requests that matched this rule will be permitted regardless of source address.  This behavior is classified as loose source mapping. [LSM] [UDP 53] |
+| Notes       | - |
+
+#### Core Networking - Group Policy (NP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-GP-NP-Out-TCP |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 445 |
+| Program     | `System` |
+| Description | Core Networking - Group Policy (NP-Out) |
+| Notes       | - |
+
+#### Core Networking - Group Policy (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-GP-Out-TCP |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `gpsvc` |
+| Description | Outbound rule to allow remote RPC traffic for Group Policy updates. [TCP] |
+| Notes       | - |
+
+#### Core Networking - Neighbor Discovery Advertisement (ICMPv6-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-ICMP6-NDA-Out |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 136 |
+| Program     | `System` |
+| Description | Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request. |
+| Notes       | - |
+
+#### Core Networking - Neighbor Discovery Solicitation (ICMPv6-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-ICMP6-NDS-Out |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 135 |
+| Program     | `System` |
+| Description | Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node. |
+| Notes       | - |
+
+#### Core Networking - Network Location Awareness (HTTP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-NlaSvc-HTTP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 80 |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `NlaSvc` |
+| Description | Collects and stores configuration information for the network and notifies programs when this information is modified. |
+| Notes       | - |
+
+#### Core Networking - Packet Too Big (ICMPv6-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-ICMP6-PTB-Out |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 2 |
+| Program     | `System` |
+| Description | Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link. |
+| Notes       | - |
+
+#### Core Networking - Parameter Problem (ICMPv6-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-ICMP6-PP-Out |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 4 |
+| Program     | `System` |
+| Description | Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets. |
+| Notes       | - |
+
+#### Core Networking - Time Exceeded (ICMPv6-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CoreNet-ICMP6-TE-Out |
+| Group       | Core Networking |
+| Direction   | Outbound |
+| Protocol    | ICMPv6 |
+| ICMP Type   | 3 |
+| Program     | `System` |
+| Description | Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path. |
+| Notes       | - |
+
+#### Cryptographic Service (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | CryptSvc-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 80 |
+| Program     | `Any` |
+| Description | Provides Catalog Database Service, Protected Root Service, and Automatic Root Certificate Update Service. |
+| Notes       | - |
+
+#### DFS Replication (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DFSR-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\dfsrs.exe` |
+| Service     | `Dfsr` |
+| Description | Outbound rule to allow DFS Replication RPC traffic. |
+| Notes       | - |
+
+#### File and Printer Sharing (NB-Datagram-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | FPS-NB_Datagram-Out-UDP |
 | Group       | File and Printer Sharing |
+| Direction   | Outbound |
 | Protocol    | UDP |
 | Port        | 138 |
 | Program     | `System` |
 | Description | Outbound rule for File and Printer Sharing to allow NetBIOS Datagram transmission and reception. [UDP 138] |
 | Notes       | - |
 
+#### File and Printer Sharing (NB-Name-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **File and Printer Sharing (NB-Name-Out)** |
+| Name        | FPS-NB_Name-Out-UDP |
 | Group       | File and Printer Sharing |
+| Direction   | Outbound |
 | Protocol    | UDP |
 | Port        | 137 |
 | Program     | `System` |
 | Description | Outbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137] |
 | Notes       | - |
 
+#### File and Printer Sharing (NB-Session-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **File and Printer Sharing (NB-Session-Out)** |
+| Name        | FPS-NB_Session-Out-TCP |
 | Group       | File and Printer Sharing |
+| Direction   | Outbound |
 | Protocol    | TCP |
 | Port        | 139 |
 | Program     | `System` |
 | Description | Outbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139] |
 | Notes       | - |
 
+#### Internet Traffic (HTTP-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **Windows Management Instrumentation (WMI-Out)** |
+| Name        | Internet-HTTP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 80 |
+| Program     | `Any` |
+| Description | Outbound rule to allow unlimited HTTP traffic to the Internet. Required by cloud-enabled components, including Windows Update for Business and Azure Arc. |
+| Notes       | - |
+
+#### iSCSI Service (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | MsiScsi-Out-TCP |
+| Group       | iSCSI Service |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Service     | `Msiscsi` |
+| Description | Outbound rule for the iSCSI Service to allow communications with an iSCSI server or device. [TCP] |
+| Notes       | - |
+
+#### Microsoft Defender Antivirus - Command-Line Utility (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-MpCmdRun-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender\MpCmdRun.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender Antivirus - Core Service (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-MpDefenderCoreService-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender\MpDefenderCoreService.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender Antivirus - Network Realtime Inspection (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-NisSrv-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 80 |
+| Program     | `%ProgramFiles%\Windows Defender\NisSrv.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender Antivirus - Policy Configuration Tool (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-ConfigSecurityPolicy-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender\ConfigSecurityPolicy.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender Antivirus - Service Executable (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-MsMpEng-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender\MsMpEng.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Classification Engine Module (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseCE-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\Classification\SenseCE.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Communication Module (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseCnCProxy-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseCnCProxy.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Configuration Management (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseCM-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseCM.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Incident Response Module (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseIR-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseIR.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Network Detection and Response Module (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseNdr-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseNdr.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Sample Upload Module (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseSampleUploader-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseSampleUploader.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Screenshot Capture Module (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseSC-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseSC.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Service Executable (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-MsSense-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\MsSense.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Defender for Endpoint - Threat Vulnerability Management (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-SenseTVM-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender Advanced Threat Protection\SenseTVM.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Endpoint DLP - Command-Line Utility (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-MpDlpCmd-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender\MpDlpCmd.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Microsoft Endpoint DLP - Data Loss Prevention Service (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | DefenderAV-MpDlpService-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%ProgramFiles%\Windows Defender\MpDlpService.exe` |
+| Description | Outbound rule . |
+| Notes       | - |
+
+#### Windows Activation - KMS Connection Broker (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | KMS-Client-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 1688 |
+| Program     | `%SystemRoot%\system32\SppExtComObj.exe` |
+| Description | Outbound rule to allow Windows activation against a KMS server. |
+| Notes       | - |
+
+#### Windows Internet Naming Service (WINS) (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-Out-TCP |
+| Group       | Windows Internet Naming Service (WINS) |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | Any |
+| Program     | `%systemroot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Outbound rule for the Windows Internet Naming Service. [TCP] |
+| Notes       | - |
+
+#### Windows Internet Naming Service (WINS) (UDP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-Out-UDP |
+| Group       | Windows Internet Naming Service (WINS) |
+| Direction   | Outbound |
+| Protocol    | UDP |
+| Port        | Any |
+| Program     | `%systemroot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Outbound rule for the Windows Internet Naming Service. [UDP] |
+| Notes       | - |
+
+#### Windows Management Instrumentation (WMI-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WMI-WINMGMT-Out-TCP |
 | Group       | Windows Management Instrumentation (WMI) |
+| Direction   | Outbound |
 | Protocol    | TCP |
 | Port        | Any |
 | Program     | `%SystemRoot%\system32\svchost.exe` |
@@ -1285,13 +2151,38 @@ TODO: Rationale
 | Description | Outbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
 | Notes       | - |
 
+#### Windows Update - Internet (TCP-Out)
+
 | Property    | Value |
 |-------------|---------------------------------------------------|
-| Name        | **iSCSI Service (TCP-Out)** |
-| Group       | iSCSI Service |
+| Name        | WindowsUpdate-TCP-Out |
+| Direction   | Outbound |
 | Protocol    | TCP |
-| Port        | Any |
+| Port        | 80 |
 | Program     | `%SystemRoot%\system32\svchost.exe` |
-| Service     | `Msiscsi` |
-| Description | Outbound rule for the iSCSI Service to allow communications with an iSCSI server or device. [TCP] |
+| Description | Outbound rule to allow the Windows Update client to communicate with Microsoft public IP addresses. |
+| Notes       | - |
+
+#### Windows Update - Update Session Orchestrator (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WindowsUpdate-USO-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `%SystemRoot%\system32\MoUsoCoreWorker.exe` |
+| Description | A Windows OS component that orchestrates the sequence of downloading and installing various update types from Windows Update. |
+| Notes       | - |
+
+#### Windows Update - Windows Server Update Services (TCP-Out)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WSUS-Client-TCP-Out |
+| Direction   | Outbound |
+| Protocol    | TCP |
+| Port        | 8530 |
+| Program     | `%SystemRoot%\system32\svchost.exe` |
+| Description | Outbound rule for the detection, download and installation of device-related software from WSUS. |
 | Notes       | - |
