@@ -127,9 +127,13 @@ The following settings are contained in the configuration file:
 
 ### GroupPolicyObjectName
 
-Default value: "Domain Controller Firewall"
+The name of the Group Policy Object (GPO) that will be created or updated. Feel free to change it so that it complies with your naming policy.
 
-Description: Name of the GPO, that will be created in your environment, feel free to change it so it complies with your naming policy.
+```yaml
+Type: String
+Required: true
+Default value: Domain Controller Firewall
+```
 
 ### GroupPolicyObjectComment
 
@@ -247,19 +251,25 @@ Description: If null, this setting is not managed through GPO. If true, multicas
 
 ### EnableServiceManagement
 
+If `true`, corresponding ports are open and remote services management will be available. If `false`, services cannot be managed remotely.
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote services management will be available. If false, services cannot be managed remotely.
+```
 
 ### EnableEventLogManagement
 
+Indicates whether remote event log management should be enabled. If `true`, the corresponding port is open and remote Event Log management will be available. If `false`, Event Log cannot be managed remotely.  The script achieves this by enabling or disabling the [Remote Event Log Management (RPC)](#remote-event-log-management-rpc) firewall rule.
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote Event Log management will be available. If false, Event Log cannot be managed remotely.
+```
 
 ### EnableScheduledTaskManagement
 
@@ -1113,6 +1123,8 @@ TODO: Rationale
 | Service     | `Eventlog` |
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
 | Notes       | - |
+
+This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.
 
 #### Remote Scheduled Tasks Management (RPC)
 
