@@ -237,9 +237,21 @@
         "default": null,
         "description": "Indicates whether WMI traffic should use a static port."
       },
+      "DisableNetbiosBroadcasts": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point)."
+      },
       "DisableLLMNR": {
         "type": "boolean",
-        "default": true,
+        "default": false,
         "description": "Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled."
       },
       "DisableMDNS": {

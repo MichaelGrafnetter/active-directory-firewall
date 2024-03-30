@@ -138,6 +138,7 @@ Note, that “Default value” in the configuration items below, refers to defau
   "NetlogonStaticPort": 38902,
   "DfsrStaticPort": 5722,
   "WmiStaticPort": true,
+  "DisableNetbiosBroadcasts": true,
   "DisableLLMNR": true,
   "DisableMDNS": true,
   "EnableServiceManagement": true,
@@ -175,25 +176,37 @@ Default value: Domain Controller Firewall
 
 ### GroupPolicyObjectComment
 
-Default value: "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script."
+The comment text that will be visible on the GPO object.  
 
-Description: Comment that will be visible on the GPO object.  
+```yaml
+Type: String
+Required: false
+Default value: "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script."
+```
 
 ### EnforceOutboundRules
 
-Default value: true
+If true, enforces the firewall outbound rules. If false, only inbound firewall rules are enforced.
 
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: true
 Possible values: true / false
-
-Description: If true, enforces the firewall outbound rules. If false, only inbound firewall rules are enforced.
+```
 
 ### LogDroppedPackets
 
-Default value: true
+If true, all dropped packets will be logged into the [firewall text log](#logfilepath). If false, no packets are logged.  
 
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: true
 Possible values: true / false
-
-Description: If true, all dropped packets will be logged into the [firewall text log](#logfilepath). If false, no packets are logged.  
+```
 
 ### LogFilePath
 
@@ -220,6 +233,7 @@ Sets the size of the [firewall log](#logfilepath) in KB. The file won't grow bey
 Type: Integer
 Required: false
 Default value: 128
+Recommended value: 32767
 Possible values: 1 - 32767
 ```
 
@@ -273,10 +287,6 @@ Restart the computer for the new setting to become effective.
 
 ### NetlogonStaticPort
 
-Default value: 38902
-
-Possible values: null / 0 / 1024 - 49151
-
 Description: By default, the RPC is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure `NtdsStaticPort` value.
@@ -288,9 +298,17 @@ If this is configured, you also need to configure `NtdsStaticPort` value.
 
 Restart the Netlogon service for the new setting to become effective.
 
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 38902
+Possible values: null / 0 / 1024 - 49151
+```
+
 ### DfsrStaticPort
 
-Default value: 5722
+Default value: null
+Recommended value: 5722
 
 Possible values: null / 0 / 1024 - 49151
 
@@ -327,7 +345,7 @@ null: not present
 
 ### WmiStaticPort
 
-Default value: true
+Default value: null
 
 Possible values: null / true / false
 
@@ -353,9 +371,21 @@ winmgmt.exe /sharedhost
 
 null: not present
 
+### DisableNetbiosBroadcasts
+
+Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point).
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
 ### DisableLLMNR
 
-Default value: true
+Default value: false
 
 Possible values: true / false
 
@@ -363,7 +393,7 @@ Description: If true, Link Local Multicast Name Resolution (LLMNR) is disabled. 
 
 ### DisableMDNS
 
-Default value: true
+Default value: null
 
 Possible values: null / true / false
 
@@ -377,6 +407,7 @@ If `true`, corresponding ports are open and remote services management will be a
 Type: Boolean
 Required: false
 Default value: true
+Recommended value: false
 Possible values: true / false
 ```
 
@@ -388,6 +419,7 @@ Indicates whether remote event log management should be enabled. If `true`, the 
 Type: Boolean
 Required: false
 Default value: true
+Recommended value: true
 Possible values: true / false
 ```
 
@@ -445,7 +477,7 @@ Description: If true, corresponding ports are open and remote Windows Backup man
 
 ### EnableFirewallManagement
 
-Default value: false
+Default value: true
 
 Possible values: true / false
 
@@ -461,7 +493,7 @@ Description: If true, corresponding ports are open and remote DCOM traffic for C
 
 ### EnableLegacyFileReplication
 
-Default value: false
+Default value: true
 
 Possible values: true / false
 
@@ -469,7 +501,7 @@ Description: If true, corresponding ports are open for NTFRS replication. If you
 
 ### EnableNetbiosNameService
 
-Default value: false
+Default value: true
 
 Possible values: true / false
 
@@ -477,7 +509,7 @@ Description: If true, corresponding ports (UDP 137) are open and NetBIOS will be
 
 ### EnableNetbiosDatagramService
 
-Default value: false
+Default value: true
 
 Possible values: true / false
 
@@ -493,7 +525,7 @@ Description: If true, corresponding ports (TCP 139) are open and NetBIOS will be
 
 ### EnableWINS
 
-Default value: false
+Default value: true
 
 Possible values: true / false
 

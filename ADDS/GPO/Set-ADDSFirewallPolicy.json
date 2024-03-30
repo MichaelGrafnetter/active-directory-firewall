@@ -13,6 +13,7 @@
     "NetlogonStaticPort": 38902,
     "DfsrStaticPort": 5722,
     "WmiStaticPort": true,
+    "DisableNetbiosBroadcasts": true,
     "DisableLLMNR": true,
     "DisableMDNS": true,
     "EnableServiceManagement": true,

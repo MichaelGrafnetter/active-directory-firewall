@@ -47,6 +47,7 @@ class ScriptSettings
     [Nullable[uint16]] $NetlogonStaticPort            = $null
     [Nullable[uint16]] $DfsrStaticPort                = $null
     [Nullable[bool]]   $WmiStaticPort                 = $null
+    [Nullable[bool]]   $DisableNetbiosBroadcasts      = $null
     [bool]             $DisableLLMNR                  = $false
     [Nullable[bool]]   $DisableMDNS                   = $null
     [bool]             $EnableServiceManagement       = $true
@@ -2560,6 +2561,67 @@ MSS: (DisableIPSourceRouting) IP source routing protection level (protects again
 MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)
 MSS: (SynAttackProtect) Syn attack protection level (protects against DoS)
 
+MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)	Enabled	
+DisableIPSourceRoutingIPv6	Highest protection, source routing is completely disabled
+Policy	Setting	Comment
+MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)	Enabled	
+DisableIPSourceRouting	Highest protection, source routing is completely disabled
+Policy	Setting	Comment
+MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes	Disabled	
+MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers	Enabled
+
+NetBT NodeType configuration	Enabled	
+Configure NetBT NodeType	P-node (recommended)
+SYSTEM\CurrentControlSet\Services\NetBT\Parameters" valueName="NodeType ´2
+
+Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters
+
+There, create a REG_DWORD called ‘EnableNetbios’ 
+
+key="System\CurrentControlSet\Services\Tcpip\Parameters" valueName="EnableICMPRedirect">
+      <parentCategory ref="Cat_MSS" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+key="System\CurrentControlSet\Services\Tcpip\Parameters" valueName="PerformRouterDiscovery">
+      <parentCategory ref="Cat_MSS" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <enabledValue>
+        <decimal value="1" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="0" />
+      </disabledValue>
+
+      key="System\CurrentControlSet\Services\Tcpip\Parameters">
+      <parentCategory ref="Cat_MSS" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <enum id="DisableIPSourceRouting" valueName="DisableIPSourceRouting" required="true">
+          <item displayName="$(string.DisableIPSourceRouting0)"> <value> <decimal value="0"/> </value> </item>
+          <item displayName="$(string.DisableIPSourceRouting1)"> <value> <decimal value="1"/> </value> </item>
+          <item displayName="$(string.DisableIPSourceRouting2)"> <value> <decimal value="2"/> </value> </item>
+
+          explainText="$(string.DisableIPSourceRoutingIPv6_Help)" presentation="$(presentation.DisableIPSourceRoutingIPv6)" key="System\CurrentControlSet\Services\Tcpip6\Parameters">
+      <parentCategory ref="Cat_MSS" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <enum id="DisableIPSourceRoutingIPv6" valueName="DisableIPSourceRouting" required="true">
+          <item displayName="$(string.DisableIPSourceRouting0)"> <value> <decimal value="0"/> </value> </item>
+          <item displayName="$(string.DisableIPSourceRouting1)"> <value> <decimal value="1"/> </value> </item>
+          <item displayName="$(string.DisableIPSourceRouting2)"> <value> <decimal value="2"/> </value> </item>
+
+          key="System\CurrentControlSet\Services\Tcpip\Parameters">
+      <parentCategory ref="Cat_MSS" />
+      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
+      <elements>
+        <enum id="SynAttackProtect" valueName="SynAttackProtect" required="true">
+          <item displayName="$(string.SynAttackProtect0)"> <value> <decimal value="0"/> </value> </item>
+          <item displayName="$(string.SynAttackProtect1)"> <value> <decimal value="1"/> </value> </item>
+        </enum>
 
 #>
 
