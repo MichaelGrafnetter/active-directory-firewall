@@ -79,6 +79,43 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
   - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
 - Supported OS: ![](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.png?logo=Windows%2011) / Windows 10
 
+## Group Policy Object Contents
+
+### Firewall Configuration
+
+### Inbound and Outbound Firewall Rules
+
+### Registry Settings
+
+Managed/Unmanaged
+
+### Startup Script
+
+Automatically generated based on the config
+
+FirewallConfiguration.bat
+
+Example:
+
+```shell
+@ECHO OFF
+REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.
+
+echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
+winmgmt.exe /standalonehost 6
+
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set static RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:5722
+
+echo Create the firewall log file and configure its DACL.
+netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+```
+
 ## Configuration
 
 All settings that are configurable are stored in `Set-ADDSFirewallPolicy.json`, it is essential to review them and change as necessary for your environment. Improper configuration can cause network outages in your environment!
@@ -92,6 +129,7 @@ Note, that “Default value” in the configuration items below, refers to defau
   "GroupPolicyObjectComment": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
   "EnforceOutboundRules": true,
   "LogDroppedPackets": true,
+  "LogFilePath": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
   "LogMaxSizeKilobytes": 128,
   "ClientAddresses": [ "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "10.220.6.0/24" ],
   "ManagementAddresses": [ "10.220.3.0/24" ],
@@ -155,15 +193,35 @@ Default value: true
 
 Possible values: true / false
 
-Description: If true, all dropped packets will be logged into the firewall text log. If false, no packets are logged.  
+Description: If true, all dropped packets will be logged into the [firewall text log](#logfilepath). If false, no packets are logged.  
+
+### LogFilePath
+
+Specifies the path to the log file that will be used to store information about the dropped packets, if [logging is enabled](#logdroppedpackets).
+
+[Startup script](#startup-script)
+
+```shell
+echo Create the firewall log file and configure its DACL.
+netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+```
+
+```yaml
+Type: String
+Required: false
+Default value: %systemroot%\\system32\\logfiles\\firewall\\pfirewall.log
+```
 
 ### LogMaxSizeKilobytes
 
+Sets the size of the [firewall log](#logfilepath) in KB. The file won't grow beyond this size; when the limit is reached, old log entries are deleted to make room for the newly created ones.
+
+```yaml
+Type: Integer
+Required: false
 Default value: 128
-
 Possible values: 1 - 32767
-
-Description: Size of the firewall log in KB.  The file won't grow beyond this size; when the limit is reached, old log entries are deleted to make room for the newly created ones.
+```
 
 ### ClientAddresses
 
@@ -206,6 +264,13 @@ Description: By default, the RPC is using dynamic ports 49152 – 65535. If null
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure the `NetlogonStaticPort` value.
 
+> HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters
+> Registry value: TCP/IP Port
+> Value type: REG_DWORD
+> Value data: (available port)
+
+Restart the computer for the new setting to become effective.
+
 ### NetlogonStaticPort
 
 Default value: 38902
@@ -216,6 +281,13 @@ Description: By default, the RPC is using dynamic ports 49152 – 65535. If null
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure `NtdsStaticPort` value.
 
+> HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters  
+> Registry value: DCTcpipPort  
+> Value type: REG_DWORD  
+> Value data: (available port)
+
+Restart the Netlogon service for the new setting to become effective.
+
 ### DfsrStaticPort
 
 Default value: 5722
@@ -225,6 +297,34 @@ Possible values: null / 0 / 1024 - 49151
 Description: By default, the DFSR is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic, for more info, see the [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746) article.
 If set to 0 (zero), the port is set to dynamic.
 
+[Startup script](#startup-script)
+
+1024 - 49151:
+
+```shell
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set static RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:5722
+```
+
+0:
+
+```shell
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set dynamic RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:0
+```
+
+null: not present
+
 ### WmiStaticPort
 
 Default value: true
@@ -232,6 +332,26 @@ Default value: true
 Possible values: null / true / false
 
 Description: By default, the WMI is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If true, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
+
+[Startup script](#startup-script)
+
+true:
+
+The [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73) setting prevents replay attacks, verifies that none of the data transferred between the client and server has been modified and ensures that the data transferred can only be seen unencrypted by the client and the server.
+
+```shell
+echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
+winmgmt.exe /standalonehost 6
+```
+
+false:
+
+```shell
+echo Move the WMI service into the shared Svchost process.
+winmgmt.exe /sharedhost
+```
+
+null: not present
 
 ### DisableLLMNR
 
@@ -546,6 +666,24 @@ TODO: Rationale
 
 - [How to configure a firewall for Active Directory domains and trusts](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/config-firewall-for-ad-domains-and-trusts)
 - [Service overview and network port requirements for Windows](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/service-overview-and-network-port-requirements)
+
+TODO: Needs splitting, extending, and mapping to the default rules.
+
+|Port|Service|
+|---|---|
+|123/UDP|W32Time|
+|135/TCP|RPC Endpoint Mapper|
+|464/TCP/UDP|Kerberos password change|
+|49152-65535/TCP|RPC for LSA, SAM, NetLogon (*)|
+|389/TCP/UDP|LDAP|
+|636/TCP|LDAP SSL|
+|3268/TCP|LDAP GC|
+|3269/TCP|LDAP GC SSL|
+|53/TCP/UDP|DNS|
+|49152-65535/TCP|FRS RPC (*)|
+|88/TCP/UDP|Kerberos|
+|445/TCP|SMB (**)|
+|49152-65535/TCP|DFSR RPC (*)|
 
 ### Client Traffic
 

@@ -26,7 +26,7 @@
       },
       "LogFilePath": {
         "type": "string",
-        "default": "%systemroot%\\system32\\logfiles\firewall\\pfirewall.log",
+        "default": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
         "description": "The path to the log file that will be used to store information about the dropped packets."
       },
       "LogMaxSizeKilobytes": {
