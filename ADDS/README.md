@@ -89,6 +89,10 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 
 Managed/Unmanaged
 
+### Administrative Templates
+
+ADMX/ADML, copied to Central Store if exists
+
 ### Startup Script
 
 Automatically generated based on the config
@@ -136,6 +140,7 @@ Note, that “Default value” in the configuration items below, refers to defau
   "DomainControllerAddresses": [ "10.220.1.0/24" ],
   "NtdsStaticPort": 38901,
   "NetlogonStaticPort": 38902,
+  "FrsStaticPort": 38903,
   "DfsrStaticPort": 5722,
   "WmiStaticPort": true,
   "DisableNetbiosBroadcasts": true,
@@ -304,6 +309,10 @@ Default value: null
 Recommended value: 38902
 Possible values: null / 0 / 1024 - 49151
 ```
+
+### FrsStaticPort
+
+**TODO**
 
 ### DfsrStaticPort
 

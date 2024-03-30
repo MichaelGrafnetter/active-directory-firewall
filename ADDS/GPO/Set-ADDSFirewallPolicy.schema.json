@@ -225,6 +225,24 @@
         "default": null,
         "description": "Static port to be used for DFSR traffic."
       },
+      "FrsStaticPort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 49151,
+            "examples": [ 38903 ]
+          },
+          {
+            "const": 0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Static port to be used for legacy FRS traffic."
+      },
       "WmiStaticPort": {
         "anyOf": [
           {

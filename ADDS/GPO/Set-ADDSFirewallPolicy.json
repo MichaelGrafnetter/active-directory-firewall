@@ -11,6 +11,7 @@
     "DomainControllerAddresses": [ "10.220.1.0/24" ],
     "NtdsStaticPort": 38901,
     "NetlogonStaticPort": 38902,
+    "FrsStaticPort": 38903,
     "DfsrStaticPort": 5722,
     "WmiStaticPort": true,
     "DisableNetbiosBroadcasts": true,

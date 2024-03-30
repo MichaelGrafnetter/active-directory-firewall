@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--  (c) 2024 Michael Grafnetter  -->
+<policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0"
+  xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" xsi:schemaLocation="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions ../../../Schema/PolicyDefinitionFiles.xsd">
+  <displayName>RPC Static Ports</displayName>
+  <description>Remote Procedure Call Static Port Number Settings</description>
+  <resources>
+    <stringTable>
+      <string id="RPCStaticPorts">RPC Static Ports</string>
+      <string id="RPCStaticPorts_NTDS">Domain Controller: Active Directory RPC Static Port</string>
+      <string id="RPCStaticPorts_NTDS_Help">XXX If you configure Active Directory and Netlogon to run at port x as in the following entry, it becomes the ports that are registered with the endpoint mapper in addition to the standard dynamic port. Restart the computer for the new setting to become effective.</string>
+      <string id="RPCStaticPorts_NETLOGON">Domain Controller: Netlogon Static Port</string>
+      <string id="RPCStaticPorts_NETLOGON_Help">XXX If you configure Active Directory and Netlogon to run at port x as in the following entry, it becomes the ports that are registered with the endpoint mapper in addition to the standard dynamic port. Restart the Netlogon service for the new setting to become effective.</string>
+      <string id="RPCStaticPorts_NTFRS">Domain Controller: File Replication Service (FRS) Static Port</string>
+      <string id="RPCStaticPorts_NTFRS_Help">XXX</string>
+    </stringTable>
+    <presentationTable>
+      <presentation id="RPCStaticPorts_NTDS">
+        <decimalTextBox refId="RPCStaticPorts_NTDS_Value" defaultValue="38901">Static port number:</decimalTextBox>
+      </presentation>
+      <presentation id="RPCStaticPorts_NETLOGON">
+        <decimalTextBox refId="RPCStaticPorts_NETLOGON_Value" defaultValue="38902">Static port number:</decimalTextBox>
+      </presentation>
+      <presentation id="RPCStaticPorts_NTFRS">
+        <decimalTextBox refId="RPCStaticPorts_NTFRS_Value" defaultValue="38903">Static port number:</decimalTextBox>
+      </presentation>
+    </presentationTable>
+  </resources>
+</policyDefinitionResources>

@@ -17,7 +17,7 @@ Version: 1.0
 #Requires -Version 5
 
 [CmdletBinding()]
-Param(
+param(
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
     [string] $ConfigurationFileName = 'Set-ADDSFirewallPolicy.json'
@@ -32,8 +32,7 @@ Import-Module -Name NetSecurity,GroupPolicy,ActiveDirectory -ErrorAction Stop
 #region Configuration
 
 # Set the default configuration values, which can be overridden by an external JSON file
-class ScriptSettings
-{
+class ScriptSettings {
     [string]           $GroupPolicyObjectName         = 'Domain Controller Firewall'
     [string]           $GroupPolicyObjectComment      = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
     [bool]             $EnforceOutboundRules          = $false
@@ -46,6 +45,7 @@ class ScriptSettings
     [Nullable[uint16]] $NtdsStaticPort                = $null
     [Nullable[uint16]] $NetlogonStaticPort            = $null
     [Nullable[uint16]] $DfsrStaticPort                = $null
+    [Nullable[uint16]] $FrsStaticPort                 = $null
     [Nullable[bool]]   $WmiStaticPort                 = $null
     [Nullable[bool]]   $DisableNetbiosBroadcasts      = $null
     [bool]             $DisableLLMNR                  = $false
@@ -77,17 +77,14 @@ class ScriptSettings
 
 [System.Runtime.Serialization.Json.DataContractJsonSerializer] $serializer = [System.Runtime.Serialization.Json.DataContractJsonSerializer]::new([ScriptSettings])
 [System.IO.FileStream] $stream = [System.IO.File]::Open($configurationFilePath, [System.IO.FileMode]::Open)
-try
-{
+try {
     $configuration = $serializer.ReadObject($stream)
 }
-catch
-{
+catch {
     # Do not continue if there is any issue reading the configuration file
     throw
 }
-finally
-{
+finally {
     $stream.Close()
 }
 
@@ -97,21 +94,18 @@ finally
 # Try to fetch the target GPO
 [Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $configuration.GroupPolicyObjectName -ErrorAction SilentlyContinue
 
-if($null -eq $gpo)
-{
+if($null -eq $gpo) {
     # Create the GPO if it does not exist
     $gpo = New-GPO -Name $configuration.GroupPolicyObjectName -Comment $configuration.GroupPolicyObjectComment -Verbose -ErrorAction Stop
 }
 
-if($gpo.GpoStatus -ne [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled)
-{
+if($gpo.GpoStatus -ne [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled) {
     # Fix the GPO status
     # TODO: Verbose
     $gpo.GpoStatus = [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled
 }
 
-if($gpo.Description -ne $configuration.GroupPolicyObjectComment)
-{
+if($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
     # Fix the GPO description
     # TODO: Verbose
     $gpo.Description = $configuration.GroupPolicyObjectComment
@@ -140,20 +134,17 @@ $cimOperationOptions.SetCustomOption('GPOSession', $gpoSession, $false)
 # Open a temporary local CIM session
 [CimSession] $localSession = New-CimSession -ErrorAction Stop
 
-try
-{
+try {
     # Fetch all firewall rules from the GPO
     [ciminstance[]] $gpoFirewallRules = $localSession.EnumerateInstances('ROOT\StandardCimv2','MSFT_NetFirewallRule', $cimOperationOptions)
 
     # Remove all firewall rules from the GPO
-    foreach($rule in $gpoFirewallRules)
-    {
+    foreach($rule in $gpoFirewallRules) {
         Write-Verbose -Message ('Deleting firewall rule {0}.' -f $rule.Name) -Verbose
         $localSession.DeleteInstance('ROOT\StandardCimv2', $rule, $cimOperationOptions)
     }
 }
-finally
-{
+finally {
     # Close the temporary local CIM session
     Remove-CimSession -CimSession $localSession -ErrorAction SilentlyContinue
 }
@@ -161,22 +152,19 @@ finally
 # Determine the default outbound action
 [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action] $defaultOutboundAction = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action]::Allow
 
-if($configuration.EnforceOutboundRules)
-{
+if($configuration.EnforceOutboundRules) {
     $defaultOutboundAction = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Action]::Block
 }
 
 # Determine the dropped packet logging settings
 [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
 
-if($configuration.LogDroppedPackets)
-{
+if($configuration.LogDroppedPackets) {
     $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
 }
 
 # Sanitize the maximum log file size
-if($configuration.LogMaxSizeKilobytes -gt [int16]::MaxValue -or $configuration.LogMaxSizeKilobytes -le 0)
-{
+if($configuration.LogMaxSizeKilobytes -gt [int16]::MaxValue -or $configuration.LogMaxSizeKilobytes -le 0) {
     # Windows only accepts 1KB-32MB as the maximum log file size.
     $configuration.LogMaxSizeKilobytes = [int16]::MaxValue # = 32MB
 }
@@ -203,8 +191,7 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
     ($configuration.ClientAddresses + $configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
     Sort-Object -Unique
 
-if($allAddresses -contains 'Any')
-{
+if($allAddresses -contains 'Any') {
     # Consolidate the remote addresses
     $allAddresses = @('Any')
 }
@@ -213,8 +200,7 @@ if($allAddresses -contains 'Any')
     ($configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
     Sort-Object -Unique
 
-if($dcAndManagementAddresses -contains 'Any')
-{
+if($dcAndManagementAddresses -contains 'Any') {
     # Consolidate the remote addresses
     $dcAndManagementAddresses = @('Any')
 }
@@ -230,8 +216,7 @@ Converts a boolean value to a NetSecurity.Enabled enumeration value, which is ac
 The boolean value to convert.
 
 #>
-function ConvertTo-NetSecurityEnabled
-{
+function ConvertTo-NetSecurityEnabled {
     [OutputType([Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled])]
     param(
         [Parameter(Mandatory = $true, Position = 0)]
@@ -2743,4 +2728,19 @@ if(-not $gpoContainer.gPCMachineExtensionNames.Contains($machineScriptsExtension
 
 #endregion Startup Script
 
-# TODO: Disable Print Spooler
+#region Administrative Templates
+
+# Resolve the paths to the ADMX files
+[string] $policiesDirectory = Split-Path -Path $gpoContainer.gPCFileSysPath -Parent -ErrorAction Stop
+[string] $admxTargetDirectory = Join-Path -Path $policiesDirectory -ChildPath 'PolicyDefinitions' -ErrorAction Stop
+[string] $admxSourceDirectory = Join-Path -Path $PSScriptRoot -ChildPath 'PolicyDefinitions' -ErrorAction Stop
+
+# Check if the ADMX Central Store exists
+if(Test-Path -Path $admxTargetDirectory -PathType Container) {
+    # Copy the ADMX and ADML files to the Central Store
+    Copy-Item -Path $admxSourceDirectory -Destination $admxTargetDirectory -Container -Recurse -Force -Verbose -ErrorAction Stop | Out-Null
+}
+else {
+    Write-Warning -Message 'The ADMX Central Store does not exist. ADMX files have not been copied.'
+}
+#endregion Administrative Templates
