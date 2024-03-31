@@ -364,10 +364,29 @@
         "default": true,
         "description": "Indicates whether inbound and outbound Windows Internet Name Service (WINS) traffic should be allowed."
       },
-      "EnableNetworkProtection": {
-        "type": "boolean",
-        "default": false,
+      "EnforceNetworkProtection": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
         "description": "Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled."
+      },
+      "BlockRemoteCommandExecution": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR."
       },
       "EnableInternetTraffic": {
         "type": "boolean",

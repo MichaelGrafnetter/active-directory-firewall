@@ -162,7 +162,8 @@ Note, that “Default value” in the configuration items below, refers to defau
   "EnableNetbiosDatagramService": false,
   "EnableNetbiosSessionService": false,
   "EnableWINS": false,
-  "EnableNetworkProtection": true,
+  "EnforceNetworkProtection": true,
+  "BlockRemoteCommandExecution": true,
   "EnableInternetTraffic": true
 }
 ```
@@ -540,9 +541,29 @@ Possible values: true / false
 
 Description: If true, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If false, WINS ports are not open.  
 
-### EnableNetworkProtection
+### EnforceNetworkProtection
 
-TODO
+true - Block
+false - Audit
+null - Not configured
+Default: null
+Recommended: true
+
+[Overview of network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection)
+
+### BlockRemoteCommandExecution
+
+Possible values: true / false / null
+Default value: null
+Recommended value: true
+
+Dependencies: Microsoft Defender Antivirus
+
+[Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
+
+true - Block (Enable the attack surface reduction rule)
+false - Audit (Evaluate how the attack surface reduction rule would impact your organization if enabled)
+null - Not configured / Disable (Disable the attack surface reduction rule)
 
 ### EnableInternetTraffic
 

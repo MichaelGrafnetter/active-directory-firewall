@@ -33,6 +33,7 @@
     "EnableNetbiosDatagramService": false,
     "EnableNetbiosSessionService": false,
     "EnableWINS": false,
-    "EnableNetworkProtection": true,
+    "EnforceNetworkProtection": true,
+    "BlockRemoteCommandExecution": true,
     "EnableInternetTraffic": true
 }

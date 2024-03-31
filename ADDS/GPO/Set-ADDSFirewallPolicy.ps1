@@ -133,7 +133,10 @@ class ScriptSettings {
     [bool]             $EnableWINS                    = $true
 
     # Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled.
-    [bool]             $EnableNetworkProtection       = $false
+    [Nullable[bool]]   $EnforceNetworkProtection      = $null
+
+    # Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR.
+    [Nullable[bool]]   $BlockRemoteCommandExecution   = $null
 
     # Indicates whether outbound internet traffic (HTTP/HTTPS) should be enabled for all processes.
     [bool]             $EnableInternetTraffic         = $true
@@ -2595,21 +2598,68 @@ Administrative Template > Windows Components > Data Collection and Preview Build
 # Prevent users and apps from accessing dangerous websites
 # (Enables Microsoft Defender Exploit Guard Network Protection)
 # This might block some Internet C2 traffic.
+if($null -ne $configuration.EnforceNetworkProtection) {
+    # We will enable the audit mode by default
+    [int] $networkProtectionState = 2
 
-# We will enable the audit mode by default
-[int] $networkProtectionState = 2
+    if($configuration.EnforceNetworkProtection) {
+        # Switch Network Protection to Block mode
+        $networkProtectionState = 1
+    }
 
-if($configuration.EnableNetworkProtection) {
-    # Switch Network Protection to Block mode
-    $networkProtectionState = 1
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
+                        -ValueName 'EnableNetworkProtection' `
+                        -Value $networkProtectionState `
+                        -Type DWord `
+                        -Verbose | Out-Null
+} else {
+    # Remove the Network Protection setting
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
+                           -ValueName 'EnableNetworkProtection' `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
 }
 
-Set-GPRegistryValue -Guid $gpo.Id `
-                    -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
-                    -ValueName 'EnableNetworkProtection' `
-                    -Value $networkProtectionState `
-                    -Type DWord `
-                    -Verbose | Out-Null
+# Block process creations originating from PSExec and WMI commands
+# Uses Microsoft Defender Exploit Guard Attack Surface Reduction
+if($null -ne $configuration.BlockRemoteCommandExecution) {
+    # Audit (Evaluate how the attack surface reduction rule would impact your organization if enabled)
+    [int] $blockPsExecAndWmi = 2
+
+    if($configuration.BlockRemoteCommandExecution -eq $true) {
+        # Block (Enable the attack surface reduction rule)
+        $blockPsExecAndWmi = 1
+    }
+
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR' `
+                        -ValueName 'ExploitGuard_ASR_Rules' `
+                        -Value 1 `
+                        -Type DWord `
+                        -Verbose | Out-Null
+
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
+                        -ValueName 'd1e49aac-8f56-4280-b9ba-993a6d77406c' `
+                        -Value $blockPsExecAndWmi.ToString() `
+                        -Type String `
+                        -Verbose | Out-Null
+} else {
+    # Remove the ASR settings
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR' `
+                           -ValueName 'ExploitGuard_ASR_Rules' `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
+
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
+                           -ValueName 'd1e49aac-8f56-4280-b9ba-993a6d77406c' `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
+}
 
 # Disable MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes
 # Note: This is not a managed GPO setting.
