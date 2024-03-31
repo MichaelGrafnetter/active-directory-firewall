@@ -7,13 +7,37 @@
   <description>Remote Procedure Call Static Port Number Settings</description>
   <resources>
     <stringTable>
-      <string id="RPCStaticPorts">RPC Static Ports</string>
-      <string id="RPCStaticPorts_NTDS">Domain Controller: Active Directory RPC Static Port</string>
-      <string id="RPCStaticPorts_NTDS_Help">XXX If you configure Active Directory and Netlogon to run at port x as in the following entry, it becomes the ports that are registered with the endpoint mapper in addition to the standard dynamic port. Restart the computer for the new setting to become effective.</string>
-      <string id="RPCStaticPorts_NETLOGON">Domain Controller: Netlogon Static Port</string>
-      <string id="RPCStaticPorts_NETLOGON_Help">XXX If you configure Active Directory and Netlogon to run at port x as in the following entry, it becomes the ports that are registered with the endpoint mapper in addition to the standard dynamic port. Restart the Netlogon service for the new setting to become effective.</string>
-      <string id="RPCStaticPorts_NTFRS">Domain Controller: File Replication Service (FRS) Static Port</string>
-      <string id="RPCStaticPorts_NTFRS_Help">XXX</string>
+        <string id="RPCStaticPorts">RPC Static Ports</string>
+        <string id="RPCStaticPorts_NTDS">Domain Controller: Active Directory RPC static port</string>
+        <string id="RPCStaticPorts_NTDS_Help">This policy setting allows you to configure a static port number for Active Directory RPC (includes MS-DRSR) on a domain controller.
+
+If you enable this policy setting and specify a static port number, Active Directory RPC will use that port for communication.
+
+If you disable or do not configure this policy setting, Active Directory RPC will use a dynamic port for communication.
+
+Note that the NTDS service must be restarted for the new setting to become effective.</string>
+        <string id="RPCStaticPorts_NETLOGON">Domain Controller: Netlogon static port</string>
+        <string id="RPCStaticPorts_NETLOGON_Help">This policy setting allows you to configure a static port number for the Netlogon service on a domain controller.
+
+If you enable this policy setting and specify a static port number, the Netlogon service will use that port for communication.
+
+If you disable or do not configure this policy setting, the Netlogon service will use a dynamic port for communication.
+
+Note that the NTDS service must be restarted for the new setting to become effective.</string>
+        <string id="RPCStaticPorts_NTFRS">Domain Controller: File Replication Service (FRS) static port</string>
+        <string id="RPCStaticPorts_NTFRS_Help">This policy setting allows you to configure a static port number for the File Replication Service (FRS) on a domain controller.
+
+If you enable this policy setting and specify a static port number, the FRS will use that port for communication.
+
+If you disable or do not configure this policy setting, the FRS will use a dynamic port for communication.
+
+Note that the File Replication Service must be restarted for the new setting to become effective.</string>
+      <string id="DNS_Turn_Off_MulticastDNS">Turn off Multicast DNS (mDNS) client</string>
+      <string id="DNS_Turn_Off_MulticastDNS_Help">This policy setting allows you to turn off the Multicast DNS (mDNS) client.
+      
+If you enable this policy setting, the Multicast DNS (mDNS) client will be turned off.
+
+If you disable or do not configure this policy setting, the Multicast DNS (mDNS) client will be allowed.</string>
     </stringTable>
     <presentationTable>
       <presentation id="RPCStaticPorts_NTDS">

@@ -2642,6 +2642,9 @@ if($configuration.NetlogonStaticPort -ge 1) {
 } elseif($configuration.NetlogonStaticPort -eq 0) {
     Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Delete -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Value 0 -Type DWord -Verbose | Out-Null
 }
+
+# TODO: Legacy FRS
+
 #endregion Registry Settings
 
 #region Startup Script
@@ -2732,13 +2735,12 @@ if(-not $gpoContainer.gPCMachineExtensionNames.Contains($machineScriptsExtension
 
 # Resolve the paths to the ADMX files
 [string] $policiesDirectory = Split-Path -Path $gpoContainer.gPCFileSysPath -Parent -ErrorAction Stop
-[string] $admxTargetDirectory = Join-Path -Path $policiesDirectory -ChildPath 'PolicyDefinitions' -ErrorAction Stop
 [string] $admxSourceDirectory = Join-Path -Path $PSScriptRoot -ChildPath 'PolicyDefinitions' -ErrorAction Stop
 
 # Check if the ADMX Central Store exists
 if(Test-Path -Path $admxTargetDirectory -PathType Container) {
     # Copy the ADMX and ADML files to the Central Store
-    Copy-Item -Path $admxSourceDirectory -Destination $admxTargetDirectory -Container -Recurse -Force -Verbose -ErrorAction Stop | Out-Null
+    Copy-Item -Path $admxSourceDirectory -Destination $policiesDirectory -Container -Recurse -Force -Verbose -ErrorAction Stop | Out-Null
 }
 else {
     Write-Warning -Message 'The ADMX Central Store does not exist. ADMX files have not been copied.'
