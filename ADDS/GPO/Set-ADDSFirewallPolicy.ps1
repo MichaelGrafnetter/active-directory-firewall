@@ -33,40 +33,109 @@ Import-Module -Name NetSecurity,GroupPolicy,ActiveDirectory -ErrorAction Stop
 
 # Set the default configuration values, which can be overridden by an external JSON file
 class ScriptSettings {
+    # The name of the Group Policy Object (GPO) that will be created or updated.
     [string]           $GroupPolicyObjectName         = 'Domain Controller Firewall'
+
+    # The comment that will be added to the Group Policy Object (GPO).
     [string]           $GroupPolicyObjectComment      = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
+
+    # Indicates whether the outbound traffic should be blocked by default.
     [bool]             $EnforceOutboundRules          = $false
+
+    # Indicates whether the packets dropped by the firewall should be logged.
     [bool]             $LogDroppedPackets             = $false
+
+    # The path to the log file that will be used to store information about the dropped packets.
     [string]           $LogFilePath                   = '%systemroot%\system32\logfiles\firewall\pfirewall.log'
+
+    # The maximum size of the firewall log file in kilobytes.
     [uint16]           $LogMaxSizeKilobytes           = [int16]::MaxValue
+
+    # List of client IP adresses from which inbound traffic should be allowed.
     [string[]]         $ClientAddresses               = 'Any'
+
+    # List of IP addresses from which inbound management traffic should be allowed.
     [string[]]         $ManagementAddresses           = 'Any'
+
+    # List of domain controller IP addresses, between which replication and management traffic will be allowed.
     [string[]]         $DomainControllerAddresses     = 'Any'
+
+    # Static port to be used for inbound Active Directory RPC traffic.
     [Nullable[uint16]] $NtdsStaticPort                = $null
+
+    # Static port to be used for inbound Netlogon traffic.
     [Nullable[uint16]] $NetlogonStaticPort            = $null
+
+    # Static port to be used for DFSR traffic.
     [Nullable[uint16]] $DfsrStaticPort                = $null
+
+    # Static port to be used for legacy FRS traffic.
     [Nullable[uint16]] $FrsStaticPort                 = $null
+
+    # Indicates whether WMI traffic should use a static port.
     [Nullable[bool]]   $WmiStaticPort                 = $null
+
+    # Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point).
     [Nullable[bool]]   $DisableNetbiosBroadcasts      = $null
+
+    # "Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled.
     [bool]             $DisableLLMNR                  = $false
+
+    # Indicates whether the Multicast DNS (mDNS) client should be disabled.
     [Nullable[bool]]   $DisableMDNS                   = $null
+
+    # Indicates whether remote service management should be enabled.
     [bool]             $EnableServiceManagement       = $true
+
+    # Indicates whether remote event log management should be enabled.
     [bool]             $EnableEventLogManagement      = $true
+
+    # Indicates whether remote scheduled task management should be enabled.
     [bool]             $EnableScheduledTaskManagement = $true
+
+    # Indicates whether inbound Windows Remote Management traffic should be enabled.
     [bool]             $EnableWindowsRemoteManagement = $true
+
+    # Indicates whether remote performance log access should be enabled.
     [bool]             $EnablePerformanceLogAccess    = $true
+
+    # Indicates whether inbound OpenSSH traffic should be enabled.
     [bool]             $EnableOpenSSHServer           = $true
+
+    # Indicates whether inbound Remote Desktop traffic should be enabled.
     [bool]             $EnableRemoteDesktop           = $true
+
+    # Indicates whether remote disk management should be enabled.
     [bool]             $EnableDiskManagement          = $true
+
+    # Indicates whether remote backup management should be enabled.
     [bool]             $EnableBackupManagement        = $true
+
+    # Indicates whether remote firewall management should be enabled.
     [bool]             $EnableFirewallManagement      = $true
+
+    # Indicates whether inbound COM+ management traffic should be enabled.
     [bool]             $EnableComPlusManagement       = $true
+
+    # Indicates whether inbound legacy file replication traffic should be enabled.
     [bool]             $EnableLegacyFileReplication   = $true
+
+    # Indicates whether inbound and outbound NetBIOS Name Service should be allowed.
     [bool]             $EnableNetbiosNameService      = $true
+
+    # Indicates whether inbound and outbound NetBIOS Datagram Service traffic should be allowed.
     [bool]             $EnableNetbiosDatagramService  = $true
+
+    # Indicates whether inbound and outbound NetBIOS Session Service (NBSS) traffic should be allowed.
     [bool]             $EnableNetbiosSessionService   = $true
+
+    # Indicates whether inbound and outbound Windows Internet Name Service (WINS) traffic should be allowed.
     [bool]             $EnableWINS                    = $true
+
+    # Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled.
     [bool]             $EnableNetworkProtection       = $false
+
+    # Indicates whether outbound internet traffic (HTTP/HTTPS) should be enabled for all processes.
     [bool]             $EnableInternetTraffic         = $true
 }
 
@@ -2514,6 +2583,15 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Type DWord `
                     -Verbose | Out-Null
 
+<#
+TODO: Add more registry settings
+OneSettings
+
+ Allow Diagnostic Data to Disabled.
+Administrative Template > Windows Components > Data Collection and Preview Builds
+
+#>
+
 # Prevent users and apps from accessing dangerous websites
 # (Enables Microsoft Defender Exploit Guard Network Protection)
 # This might block some Internet C2 traffic.
@@ -2533,117 +2611,133 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Type DWord `
                     -Verbose | Out-Null
 
-<#
-TODO: Add more registry settings
-OneSettings
+# Disable MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes
+# Note: This is not a managed GPO setting.
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\System\CurrentControlSet\Services\Tcpip\Parameters' `
+                    -ValueName 'EnableICMPRedirect' `
+                    -Value 0 `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
- Allow Diagnostic Data to Disabled.
-Administrative Template > Windows Components > Data Collection and Preview Builds
+# MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
+# Note: This is not a managed GPO setting.
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\System\CurrentControlSet\Services\Tcpip\Parameters' `
+                    -ValueName 'DisableIPSourceRouting' `
+                    -Value 2 `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
-7 Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)' is set to 'Disabled'
-MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes
-MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
-MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)
-MSS: (SynAttackProtect) Syn attack protection level (protects against DoS)
+# MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)	
+# Note: This is not a managed GPO setting.
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\System\CurrentControlSet\Services\Tcpip6\Parameters' `
+                    -ValueName 'DisableIPSourceRouting' `
+                    -Value 2 `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
-MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)	Enabled	
-DisableIPSourceRoutingIPv6	Highest protection, source routing is completely disabled
-Policy	Setting	Comment
-MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)	Enabled	
-DisableIPSourceRouting	Highest protection, source routing is completely disabled
-Policy	Setting	Comment
-MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes	Disabled	
-MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers	Enabled
+# Disable MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)
+# Note: This is not a managed GPO setting.
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\System\CurrentControlSet\Services\Tcpip\Parameters' `
+                    -ValueName 'PerformRouterDiscovery' `
+                    -Value 0 `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
-NetBT NodeType configuration	Enabled	
-Configure NetBT NodeType	P-node (recommended)
-SYSTEM\CurrentControlSet\Services\NetBT\Parameters" valueName="NodeType ´2
+# MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers
+# Note: This is not a managed GPO setting.
+Set-GPRegistryValue -Guid $gpo.Id `
+                    -Key 'HKLM\System\CurrentControlSet\Services\NetBT\Parameters' `
+                    -ValueName 'NoNameReleaseOnDemand' `
+                    -Value 1 `
+                    -Type DWord `
+                    -Verbose | Out-Null
 
-Computer\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters
+if($null -ne $configuration.DisableNetbiosBroadcasts) {
+    # NetBT NodeType configuration
+    [int] $nodeType = 8 # Default to H-node (use WINS servers first, then use broadcast)
 
-There, create a REG_DWORD called ‘EnableNetbios’ 
+    if($configuration.DisableNetbiosBroadcasts) {
+        $nodeType = 2 # P-node (use WINS servers only, recommended)
+    }
 
-key="System\CurrentControlSet\Services\Tcpip\Parameters" valueName="EnableICMPRedirect">
-      <parentCategory ref="Cat_MSS" />
-      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
-      <enabledValue>
-        <decimal value="1" />
-      </enabledValue>
-      <disabledValue>
-        <decimal value="0" />
-key="System\CurrentControlSet\Services\Tcpip\Parameters" valueName="PerformRouterDiscovery">
-      <parentCategory ref="Cat_MSS" />
-      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
-      <enabledValue>
-        <decimal value="1" />
-      </enabledValue>
-      <disabledValue>
-        <decimal value="0" />
-      </disabledValue>
+    # Note: This is not a managed GPO setting.
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\System\CurrentControlSet\Services\NetBT\Parameters' `
+                        -ValueName 'NodeType' `
+                        -Value $nodeType `
+                        -Type DWord `
+                        -Verbose | Out-Null
 
-      key="System\CurrentControlSet\Services\Tcpip\Parameters">
-      <parentCategory ref="Cat_MSS" />
-      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
-      <elements>
-        <enum id="DisableIPSourceRouting" valueName="DisableIPSourceRouting" required="true">
-          <item displayName="$(string.DisableIPSourceRouting0)"> <value> <decimal value="0"/> </value> </item>
-          <item displayName="$(string.DisableIPSourceRouting1)"> <value> <decimal value="1"/> </value> </item>
-          <item displayName="$(string.DisableIPSourceRouting2)"> <value> <decimal value="2"/> </value> </item>
+    # Configure NetBIOS settings
+    [int] $enableNetbios = 3 # Default to learning mode
 
-          explainText="$(string.DisableIPSourceRoutingIPv6_Help)" presentation="$(presentation.DisableIPSourceRoutingIPv6)" key="System\CurrentControlSet\Services\Tcpip6\Parameters">
-      <parentCategory ref="Cat_MSS" />
-      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
-      <elements>
-        <enum id="DisableIPSourceRoutingIPv6" valueName="DisableIPSourceRouting" required="true">
-          <item displayName="$(string.DisableIPSourceRouting0)"> <value> <decimal value="0"/> </value> </item>
-          <item displayName="$(string.DisableIPSourceRouting1)"> <value> <decimal value="1"/> </value> </item>
-          <item displayName="$(string.DisableIPSourceRouting2)"> <value> <decimal value="2"/> </value> </item>
+    if($configuration.DisableNetbiosBroadcasts) {
+        $enableNetbios = 0 # Disable NetBIOS
+    }
 
-          key="System\CurrentControlSet\Services\Tcpip\Parameters">
-      <parentCategory ref="Cat_MSS" />
-      <supportedOn ref="windows:SUPPORTED_WindowsVista" />
-      <elements>
-        <enum id="SynAttackProtect" valueName="SynAttackProtect" required="true">
-          <item displayName="$(string.SynAttackProtect0)"> <value> <decimal value="0"/> </value> </item>
-          <item displayName="$(string.SynAttackProtect1)"> <value> <decimal value="1"/> </value> </item>
-        </enum>
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
+                        -ValueName 'EnableNetbios' `
+                        -Value $enableNetbios `
+                        -Type DWord `
+                        -Verbose | Out-Null
+} else {
+    # Remove the NetBIOS-related settings
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\System\CurrentControlSet\Services\NetBT\Parameters' `
+                           -ValueName 'NodeType' `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
 
-#>
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
+                           -ValueName 'EnableNetbios' `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
+}
 
 # Turn off Link-Local Multicast Name Resolution (LLMNR)
-if($configuration.DisableLLMNR) {
+if($configuration.DisableLLMNR -eq $true) {
     Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -Value 0 -Type DWord -Verbose | Out-Null
 } else {
     Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -ErrorAction SilentlyContinue -Verbose | Out-Null
 }
 
-# Delete any previous GP Preferences registry values, so that we do not create duplicates.
-Remove-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Verbose -ErrorAction SilentlyContinue | Out-Null
-Remove-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Verbose -ErrorAction SilentlyContinue | Out-Null
-Remove-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Verbose -ErrorAction SilentlyContinue | Out-Null
-
 # Turn off Multicast DNS (mDNS)
-if($configuration.DisableMDNS -eq $true) {
-    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Update -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value 0 -Type DWord -Verbose | Out-Null
-} elseif($configuration.DisableMDNS -eq $false) {
-    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Delete -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value 0 -Type DWord -Verbose | Out-Null
+# Note: This is not a managed GPO setting.
+if($null -ne $configuration.DisableMDNS) {
+    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value ([int](-not $configuration.DisableMDNS)) -Type DWord -Verbose | Out-Null
+} else {
+    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -ErrorAction SilentlyContinue -Verbose | Out-Null
 }
 
 # Configure the DRS-R protocol to use a specific port
-if($configuration.NtdsStaticPort -ge 1) {
-    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Update -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Value ([int] $configuration.NtdsStaticPort) -Type DWord -Verbose | Out-Null
-} elseif($configuration.NtdsStaticPort -eq 0) {
-    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Delete -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Value 0 -Type DWord -Verbose | Out-Null
+# Note: This is not a managed GPO setting.
+if($null -ne $configuration.NtdsStaticPort) {
+    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Value ([int] $configuration.NtdsStaticPort) -Type DWord -Verbose | Out-Null
+} else {
+    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -ErrorAction SilentlyContinue -Verbose | Out-Null
 }
 
 # Configure the NETLOGON protocol to use a specific port
-if($configuration.NetlogonStaticPort -ge 1) {
-    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Update -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Value ([int] $configuration.NetlogonStaticPort) -Type DWord -Verbose | Out-Null
-} elseif($configuration.NetlogonStaticPort -eq 0) {
-    Set-GPPrefRegistryValue -Guid $gpo.Id -Context Computer -Action Delete -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Value 0 -Type DWord -Verbose | Out-Null
+# Note: This is not a managed GPO setting.
+if($null -ne $configuration.NetlogonStaticPort) {
+    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Value ([int] $configuration.NetlogonStaticPort) -Type DWord -Verbose | Out-Null
+} else {
+    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -ErrorAction SilentlyContinue -Verbose | Out-Null
 }
 
-# TODO: Legacy FRS
+# Configure the FRS protocol to use a specific port
+# Note: This is not a managed GPO setting.
+if($null -ne $configuration.FrsStaticPort) {
+    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTFRS\Parameters' -ValueName 'RPC TCP/IP Port Assignment' -Value ([int] $configuration.FrsStaticPort) -Type DWord -Verbose | Out-Null
+} else {
+    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTFRS\Parameters' -ValueName 'RPC TCP/IP Port Assignment' -ErrorAction SilentlyContinue -Verbose | Out-Null
+}
 
 #endregion Registry Settings
 

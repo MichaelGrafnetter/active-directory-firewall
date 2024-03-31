@@ -59,10 +59,10 @@
       <parentCategory ref="dnsclient:DNS_Client" />
       <supportedOn ref="windows:SUPPORTED_Windows_10_0_RS1" />
       <enabledValue>
-        <decimal value="1" />
+        <decimal value="0" />
       </enabledValue>
       <disabledValue>
-        <decimal value="0" />
+        <decimal value="1" />
       </disabledValue>
     </policy>
   </policies>
