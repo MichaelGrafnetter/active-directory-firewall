@@ -2623,6 +2623,7 @@ if($null -ne $configuration.EnforceNetworkProtection) {
 }
 
 # Block process creations originating from PSExec and WMI commands
+# Block persistence through WMI event subscription
 # Uses Microsoft Defender Exploit Guard Attack Surface Reduction
 if($null -ne $configuration.BlockRemoteCommandExecution) {
     # Audit (Evaluate how the attack surface reduction rule would impact your organization if enabled)
@@ -2646,6 +2647,13 @@ if($null -ne $configuration.BlockRemoteCommandExecution) {
                         -Value $blockPsExecAndWmi.ToString() `
                         -Type String `
                         -Verbose | Out-Null
+    
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
+                        -ValueName 'e6db77e5-3df2-4cf1-b95a-636979351e5b' `
+                        -Value $blockPsExecAndWmi.ToString() `
+                        -Type String `
+                        -Verbose | Out-Null
 } else {
     # Remove the ASR settings
     Remove-GPRegistryValue -Guid $gpo.Id `
@@ -2657,6 +2665,12 @@ if($null -ne $configuration.BlockRemoteCommandExecution) {
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
                            -ValueName 'd1e49aac-8f56-4280-b9ba-993a6d77406c' `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
+
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
+                           -ValueName 'e6db77e5-3df2-4cf1-b95a-636979351e5b' `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 }
