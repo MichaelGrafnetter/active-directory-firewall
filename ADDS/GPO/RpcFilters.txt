@@ -1,5 +1,5 @@
 # This is NETSH script is part of the Domain Controller Firewall project.
-# Usage: netsh.exe -f RpcFilters.txt
+# Usage: netsh.exe -f RpcNamedPipesFilters.txt
 
 # Switch the NETSH context to RPC filters
 rpc filter
@@ -51,7 +51,10 @@ add condition field=if_uuid matchtype=equal data=378E52B0-C0A9-11CF-822D-00AA005
 add filter
 
 # Block [MS-RPRN]: Print System Remote Protocol,Named pipe: \PIPE\spoolss
+# This rule only blocks RPC over Named Pipes,
+# while RPC over TCP is still allowed on Windows 11, version 22H2 and later versions of Windows.
 add rule layer=um actiontype=block persistence=volatile filterkey=7966512a-f2f4-4cb1-812d-d967ab83d28a
+add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=12345678-1234-ABCD-EF00-0123456789AB
 add filter
 
