@@ -109,4 +109,6 @@ add filter
 # add condition field=if_uuid matchtype=equal data=9556dc99-828c-11cf-a37e-00aa003240c7
 # add filter
 
+# TODO: Block command execution over DCOM over named pipes (ShellWindows, ShellBrowserWindow, and MMC20 objects)
+
 # TODO: Block RDP-related protocols over named pipes

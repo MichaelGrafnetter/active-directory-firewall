@@ -14,11 +14,6 @@
         "default": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
         "description": "The comment that will be added to the Group Policy Object (GPO)."
       },
-      "EnforceOutboundRules": {
-        "type": "boolean",
-        "default": false,
-        "description": "Indicates whether the outbound traffic should be blocked by default."
-      },
       "LogDroppedPackets": {
         "type": "boolean",
         "default": false,
@@ -347,24 +342,24 @@
       "EnableNetbiosNameService": {
         "type": "boolean",
         "default": true,
-        "description": "Indicates whether inbound and outbound NetBIOS Name Service should be allowed."
+        "description": "Indicates whether inbound NetBIOS Name Service should be allowed."
       },
       "EnableNetbiosDatagramService": {
         "type": "boolean",
         "default": true,
-        "description": "Indicates whether inbound and outbound NetBIOS Datagram Service traffic should be allowed."
+        "description": "Indicates whether inbound NetBIOS Datagram Service traffic should be allowed."
       },
       "EnableNetbiosSessionService": {
         "type": "boolean",
         "default": true,
-        "description": "Indicates whether inbound and outbound NetBIOS Session Service (NBSS) traffic should be allowed."
+        "description": "Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed."
       },
       "EnableWINS": {
         "type": "boolean",
         "default": true,
-        "description": "Indicates whether inbound and outbound Windows Internet Name Service (WINS) traffic should be allowed."
+        "description": "Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed."
       },
-      "EnforceNetworkProtection": {
+      "EnableNetworkProtection": {
         "anyOf": [
           {
             "type": "boolean"
@@ -376,7 +371,7 @@
         "default": null,
         "description": "Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled."
       },
-      "BlockRemoteCommandExecution": {
+      "BlockWmiCommandExecution": {
         "anyOf": [
           {
             "type": "boolean"
@@ -388,10 +383,17 @@
         "default": null,
         "description": "Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR."
       },
-      "EnableInternetTraffic": {
-        "type": "boolean",
-        "default": true,
-        "description": "Indicates whether outbound internet traffic (HTTP/HTTPS) should be enabled for all processes."
+      "EnableRpcFilters": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether additional filtering of RPC over Named Pipes should be applied."
       }
     },
     "required": [
