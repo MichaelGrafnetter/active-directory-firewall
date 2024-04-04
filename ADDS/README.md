@@ -124,6 +124,9 @@ dfsrdiag.exe StaticRPC /Port:5722
 
 echo Create the firewall log file and configure its DACL.
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+
+echo Register the RPC filters.
+netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85-D29FEBDFF6D6}\Machine\Scripts\Startup\RpcNamedPipesFilters.txt"
 ```
 
 ## Configuration

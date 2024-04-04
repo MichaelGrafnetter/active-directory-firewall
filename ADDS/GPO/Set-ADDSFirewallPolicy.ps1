@@ -1491,10 +1491,11 @@ if($configuration.DfsrStaticPort -ge 1) {
 $startupScript.AppendLine() | Out-Null
 $startupScript.AppendLine('echo Create the firewall log file and configure its DACL.') | Out-Null
 $startupScript.AppendFormat('netsh.exe advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) | Out-Null
+$startupScript.AppendLine() | Out-Null
 
 # Register RPC filters
 [string] $rpcFilterScriptName = 'RpcNamedPipesFilters.txt'
-[string] $rpcFilterScriptSourcePath = Join-Path -Path $PSItem -ChildPath $rpcFilterScriptName -ErrorAction Stop
+[string] $rpcFilterScriptSourcePath = Join-Path -Path $PSScriptRoot -ChildPath $rpcFilterScriptName -ErrorAction Stop
 [string] $rpcFilterScriptTargetPath = Join-Path -Path $startupScriptDirectory -ChildPath $rpcFilterScriptName -ErrorAction Stop
 
 if($configuration.EnableRpcFilters -eq $true) {
