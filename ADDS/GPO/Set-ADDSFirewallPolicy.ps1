@@ -136,7 +136,7 @@ class ScriptSettings {
     [Nullable[bool]]   $BlockWmiCommandExecution      = $null
 
     # Indicates whether additional filtering of RPC over Named Pipes should be applied.
-    [Nullable[bool]]   $EnableRpcFilters              = $true
+    [Nullable[bool]]   $EnableRpcFilters              = $null
 }
 
 [ScriptSettings] $configuration = [ScriptSettings]::new()
@@ -1444,7 +1444,7 @@ if($null -ne $configuration.FrsStaticPort) {
 # Fetch the GPO info from the PDC emulator
 [Microsoft.ActiveDirectory.Management.ADObject] $gpoContainer = Get-ADObject -Identity $gpo.Path -Properties 'gPCFileSysPath','gPCMachineExtensionNames' -Server $domain.PDCEmulator -ErrorAction Stop
 [string] $startupScriptDirectory = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\Startup' -ErrorAction Stop
-[string] $scriptPath = Join-Path -Path $startupScriptDirectory -ChildPath 'FirewallConfiguration.bat' -ErrorAction Stop
+[string] $startupScriptPath = Join-Path -Path $startupScriptDirectory -ChildPath 'FirewallConfiguration.bat' -ErrorAction Stop
 [string] $scriptsIniPath = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\scripts.ini' -ErrorAction Stop
 
 # Create the directory for startup scripts if it does not exist
@@ -1490,10 +1490,27 @@ if($configuration.DfsrStaticPort -ge 1) {
 # Create the firewall log file
 $startupScript.AppendLine() | Out-Null
 $startupScript.AppendLine('echo Create the firewall log file and configure its DACL.') | Out-Null
-$startupScript.AppendFormat('netsh advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) | Out-Null
+$startupScript.AppendFormat('netsh.exe advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) | Out-Null
 
-# Overwrite the script file
-Set-Content -Path $scriptPath -Value $startupScript.ToString() -Encoding Ascii -Force -ErrorAction Stop -Verbose
+# Register RPC filters
+[string] $rpcFilterScriptName = 'RpcNamedPipesFilters.txt'
+[string] $rpcFilterScriptSourcePath = Join-Path -Path $PSItem -ChildPath $rpcFilterScriptName -ErrorAction Stop
+[string] $rpcFilterScriptTargetPath = Join-Path -Path $startupScriptDirectory -ChildPath $rpcFilterScriptName -ErrorAction Stop
+
+if($configuration.EnableRpcFilters -eq $true) {
+    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine('echo Register the RPC filters.') | Out-Null
+    $startupScript.AppendFormat('netsh.exe -f "{0}"', $rpcFilterScriptTargetPath) | Out-Null
+    $startupScript.AppendLine() | Out-Null
+} elseif($null -ne $configuration.EnableRpcFilters) {
+    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine('echo Remove all RPC filters.') | Out-Null
+    $startupScript.AppendLine('netsh.exe rpc filter delete filter filterkey=all') | Out-Null
+}
+
+# Overwrite the script files
+Set-Content -Path $startupScriptPath -Value $startupScript.ToString() -Encoding Ascii -Force -ErrorAction Stop -Verbose
+Copy-Item -Path $rpcFilterScriptSourcePath -Destination $rpcFilterScriptTargetPath -Verbose -Force -Confirm:$false -ErrorAction Stop
 
 # Register the startup script in the scripts.ini file
 [string] $scriptsIni = @'

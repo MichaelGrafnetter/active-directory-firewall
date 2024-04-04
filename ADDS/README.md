@@ -123,7 +123,7 @@ echo Set static RPC port for DFS Replication.
 dfsrdiag.exe StaticRPC /Port:5722
 
 echo Create the firewall log file and configure its DACL.
-netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
 ## Configuration
@@ -215,7 +215,7 @@ Specifies the path to the log file that will be used to store information about 
 
 ```shell
 echo Create the firewall log file and configure its DACL.
-netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
 ```yaml
@@ -650,7 +650,7 @@ Any process
 ![Firewall log file configuration](../Screenshots/firewall-log-config.png)
 
 ```bat
-netsh advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
 ## Troubleshooting
