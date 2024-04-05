@@ -36,6 +36,22 @@ keywords:
 | SCOM         | [System Center Operations Manager]                    |
 | NLA          | [Network Location Awareness]                          |
 | PAW          | [Privileged Access Workstation]                       |
+| FW           | Firewall                                              |
+| WINS         |                                                       |
+| ASR          |                                                       |
+| WMI          |                                                       |
+| RPC          |                                                       |
+| DCOM         |                                                       |
+| SMB          |                                                       |
+| TCP          |                                                       |
+| UDP          |                                                       |
+| NTP          |                                                       |
+| SNMP         |                                                       |
+| RSAT         |                                                       |
+| ICMP         |                                                       |
+| DHCP         |                                                       |
+| LLMNR        |                                                       |
+| mDNS         |                                                       |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Operations Manager]: https://learn.microsoft.com/en-us/system-center/scom/get-started
@@ -54,6 +70,8 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 
 ## Design
 
+### Key Design Decisions
+
 - Tested specifically on Windows Server 2022 and Windows 11 but should work on all current supported versions of Windows Server and Windows clients.
 - The firewall rules design assumes you can define the following groups of IP addresses or network ranges:
   - Client network (servers and client computers)
@@ -70,7 +88,24 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 - All rules are configured for all 3 profiles (Domain, Private and Public), to avoid DC unavailability in case of incorrect network type detection by NLA.
 - Many of the services, which normally use dynamic ports, are configured with static port by the tool, to allow easier tracing and troubleshooting on the network level and to simplify rule configuration for network firewalls.
 
-## Security Standards Compliance
+### Firewall Rule Deduplication
+
+TODO
+
+### Issues with Predefined Address Sets
+
+![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
+
+- Internet
+- Intranet
+- DNS Servers
+
+### Avoiding Localized Rule Names
+
+TODO
+depend on RSAT
+
+### Security Standards Compliance
 
 - [DoD: Windows Firewall with Advanced Security Security Technical Implementation Guide (STIG)](https://www.stigviewer.com/stig/windows_firewall_with_advanced_security/)
 - [CIS: Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
@@ -101,6 +136,20 @@ ADMX/ADML, copied to Central Store if exists
 
 ### Startup Script
 
+#### Settings Without GPO Support
+
+##### Firewall Log File
+
+![Firewall log file configuration](../Screenshots/firewall-log-config.png)
+
+Log file not created by GPO, ACLs need to be configured.
+
+```bat
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+```
+
+#### Sample Startup Script
+
 Automatically generated based on the config
 
 FirewallConfiguration.bat
@@ -130,6 +179,8 @@ netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85
 ```
 
 ## Configuration
+
+### Configuration File
 
 All settings that are configurable are stored in `Set-ADDSFirewallPolicy.json`, it is essential to review them and change as necessary for your environment. Improper configuration can cause network outages in your environment!
 
@@ -176,7 +227,7 @@ Note, that “Default value” in the configuration items below, refers to defau
 }
 ```
 
-The following settings are contained in the configuration file:
+The remainder of this chapter contains documentation to all the available settings.
 
 ### GroupPolicyObjectName
 
@@ -199,6 +250,8 @@ Default value: "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell
 ```
 
 ### LogDroppedPackets
+
+Indicates whether the packets dropped by the firewall should be logged.
 
 If true, all dropped packets will be logged into the [firewall text log](#logfilepath). If false, no packets are logged.  
 
@@ -229,7 +282,7 @@ Default value: %systemroot%\\system32\\logfiles\\firewall\\pfirewall.log
 
 ### LogMaxSizeKilobytes
 
-Sets the size of the [firewall log](#logfilepath) in KB. The file won't grow beyond this size; when the limit is reached, old log entries are deleted to make room for the newly created ones.
+Sets the maximum size of the [firewall log](#logfilepath) in kilobytes (KB). The file won't grow beyond this size; when the limit is reached, old log entries are deleted to make room for the newly created ones.
 
 ```yaml
 Type: Integer
@@ -241,42 +294,58 @@ Possible values: 1 - 32767
 
 ### ClientAddresses
 
-Default value: N/A
+List of client IP adresses from which inbound traffic should be allowed.
 
 Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "10.220.6.0/24".
 
-Description: Specify IPv4 address, IPv4 subnet or address range of all your clients. Anything what acts as a client from a DC perspective is considered client here, so you should specify all your server and user/client subnets.  
+Specify IPv4 address, IPv4 subnet or address range of all your clients. Anything what acts as a client from a DC perspective is considered client here, so you should specify all your server and user/client subnets.  
 Everything that needs to interact with your DCs should be included here, except other DCs and secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.
 
 **This is a critical configuration setting!** With improper configuration, this could cause network outage for your clients.
 
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
+
 ### ManagementAddresses
 
-Default value: N/A
+List of IP addresses from which inbound management traffic should be allowed.
 
 Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.3.0/24"
 
-Description: Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.  
+Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.  
 
 **This is a critical configuration setting!** With improper configuration, this could cause network outage for your management workstations.
 
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
+
 ### DomainControllerAddresses
 
-Default value: N/A
+List of domain controller IP addresses, between which replication and management traffic will be allowed.
 
 Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.1.0/24"
 
-Description: Specify IPv4 address, IPv4 subnet or address range of all your Domain Controllers in the forest.
+Specify IPv4 address, IPv4 subnet or address range of all your Domain Controllers in the forest.
 
 **This is a critical configuration setting!** With improper configuration, this could cause network outage for your DCs.
 
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
+
 ### NtdsStaticPort
 
-Default value: 38901
+Static port to be used for inbound Active Directory RPC traffic.
 
-Possible values: null / 0 / 1024 - 49151
-
-Description: By default, the RPC is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
+By default, the RPC is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure the `NetlogonStaticPort` value.
 
@@ -286,6 +355,13 @@ If this is configured, you also need to configure the `NetlogonStaticPort` value
 > Value data: (available port)
 
 Restart the computer for the new setting to become effective.
+
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 38901
+Possible values: null / 0 / 1024 - 49151
+```
 
 ### NetlogonStaticPort
 
@@ -309,16 +385,20 @@ Possible values: null / 0 / 1024 - 49151
 
 ### FrsStaticPort
 
-**TODO**
+Static port to be used for legacy FRS traffic.
+
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 38903
+Possible values: null / 0 / 1024 - 49151
+```
 
 ### DfsrStaticPort
 
-Default value: null
-Recommended value: 5722
+Static port to be used for DFSR traffic.
 
-Possible values: null / 0 / 1024 - 49151
-
-Description: By default, the DFSR is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic, for more info, see the [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746) article.
+By default, the DFSR is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic, for more info, see the [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746) article.
 If set to 0 (zero), the port is set to dynamic.
 
 [Startup script](#startup-script)
@@ -349,13 +429,18 @@ dfsrdiag.exe StaticRPC /Port:0
 
 null: not present
 
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 5722
+Possible values: null / 0 / 1024 - 49151
+```
+
 ### WmiStaticPort
 
-Default value: null
+Indicates whether inbound Windows Management Instrumentation (WMI) traffic should use a static port.
 
-Possible values: null / true / false
-
-Description: By default, the WMI is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If true, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
+By default, the WMI is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If true, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
 
 [Startup script](#startup-script)
 
@@ -377,9 +462,17 @@ winmgmt.exe /sharedhost
 
 null: not present
 
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
 ### DisableNetbiosBroadcasts
 
-Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point).
+Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode.
 
 ```yaml
 Type: Boolean
@@ -391,21 +484,35 @@ Possible values: true / false / null
 
 ### DisableLLMNR
 
+Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled.
+
+If true, Link Local Multicast Name Resolution (LLMNR) is disabled. If false, LLMNR is enabled. For more info, please refer to the *AZ-WIN-00145* configuration item in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows).
+
+```yaml
+Type: Boolean
+Required: false
 Default value: false
-
+Recommended value: true
 Possible values: true / false
-
-Description: If true, Link Local Multicast Name Resolution (LLMNR) is disabled. If false, LLMNR is enabled. For more info, please refer to the *AZ-WIN-00145* configuration item in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows).
+```
 
 ### DisableMDNS
 
+Indicates whether the Multicast DNS (mDNS) client should be disabled.
+
+If null, this setting is not managed through GPO. If true, mDNS is disabled. If false, mDNS is enabled. For more info, see the following [Microsoft article](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777).
+
+```yaml
+Type: Boolean
+Required: false
 Default value: null
-
-Possible values: null / true / false
-
-Description: If null, this setting is not managed through GPO. If true, multicast DNS (mDNS) is disabled. If false, mDNS is enabled. For more info, see the following [Microsoft article](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777).
+Recommended value: true
+Possible values: true / false / null
+```
 
 ### EnableServiceManagement
+
+Indicates whether remote service management should be enabled.
 
 If `true`, corresponding ports are open and remote services management will be available. If `false`, services cannot be managed remotely.
 
@@ -431,139 +538,242 @@ Possible values: true / false
 
 ### EnableScheduledTaskManagement
 
+Indicates whether remote scheduled task management should be enabled.
+
+If true, corresponding ports are open and remote scheduled tasks management will be available. If false, scheduled tasks cannot be managed remotely.
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote scheduled tasks management will be available. If false, scheduled tasks cannot be managed remotely.
+```
 
 ### EnableWindowsRemoteManagement
 
+Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled. This protocol is used by PowerShell Remoting, Server Manager, and [PowerShell CIM cmdlets](https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/?view=powershell-7.4).
+
+If true, corresponding ports are open and WinRM will be available. If false, WinRM ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: true
 Possible values: true / false
-
-Description: If true, corresponding ports are open and Windows Remote Management (WinRM) will be available. If false, WinRM ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
+```
 
 ### EnablePerformanceLogAccess
 
+Indicates whether remote performance log access should be enabled.
+
+If true, corresponding ports are open and remote Performance Log management will be available. If false, Performance Log cannot be managed remotely.  
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote Performance Log management will be available. If false, Performance Log cannot be managed remotely.  
+```
 
 ### EnableOpenSSHServer
 
-TODO
+Indicates whether inbound OpenSSH traffic should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
 
 ### EnableRemoteDesktop
 
+Indicates whether inbound Remote Desktop Protocol (RDP) traffic should be enabled.
+
+If true, corresponding ports are open and remote desktop connection (RDP) will be available. If false, RDP is not available.  
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: true
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote desktop connection (RDP) will be available. If false, RDP is not available.  
+```
 
 ### EnableDiskManagement
 
+Indicates whether remote disk management should be enabled.
+
+If true, corresponding ports are open and remote disk management will be available. If false, disks cannot be managed remotely.  
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote disk management will be available. If false, disks cannot be managed remotely.  
+```
 
 ### EnableBackupManagement
 
+Indicates whether remote management of Windows Server Backup should be enabled.
+
+If true, corresponding ports are open and remote Windows Backup management will be available. If false, Windows Backup cannot be managed remotely.  
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote Windows Backup management will be available. If false, Windows Backup cannot be managed remotely.  
+```
 
 ### EnableFirewallManagement
 
+Indicates whether remote firewall management should be enabled.
+
+If true, corresponding ports are open and remote Windows Defender Firewall management will be available. If false, Windows Defender Firewall cannot be managed remotely.
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote Windows Defender Firewall management will be available. If false, Windows Defender Firewall cannot be managed remotely.
+```
 
 ### EnableComPlusManagement
 
-Default value: false
+Indicates whether inbound COM+ management traffic should be enabled.
 
+If true, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed. If false, COM+ System Application cannot be managed remotely. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed. If false, COM+ System Application cannot be managed remotely. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
+```
 
 ### EnableLegacyFileReplication
 
+Indicates whether inbound legacy file replication traffic should be enabled.
+
+If true, corresponding ports are open for NTFRS replication. If you still haven’t migrated your SYSVOL replication to modern DFSR, you need to enable this setting. If false, NTFRS ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open for NTFRS replication. If you still haven’t migrated your SYSVOL replication to modern DFSR, you need to enable this setting. If false, NTFRS ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
+```
 
 ### EnableNetbiosNameService
 
+Indicates whether inbound NetBIOS Name Service should be allowed.
+
+If true, corresponding ports (UDP 137) are open and NetBIOS will be available. If false, NetBIOS ports are not open.
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports (UDP 137) are open and NetBIOS will be available. If false, NetBIOS ports are not open.
+```
 
 ### EnableNetbiosDatagramService
 
+Indicates whether inbound NetBIOS Datagram Service traffic should be allowed.
+
+If true, corresponding ports (UDP 138) are open and NetBIOS will be available. If false, NetBIOS ports are not open.
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports (UDP 138) are open and NetBIOS will be available. If false, NetBIOS ports are not open.
+```
 
 ### EnableNetbiosSessionService
 
-Default value: false
+Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed.
 
+If true, corresponding ports (TCP 139) are open and NetBIOS will be available. If false, NetBIOS ports are not open.  
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports (TCP 139) are open and NetBIOS will be available. If false, NetBIOS ports are not open.  
+```
 
 ### EnableWINS
 
+If true, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If false, WINS ports are not open.  
+
+```yaml
+Type: Boolean
+Required: false
 Default value: true
-
+Recommended value: false
 Possible values: true / false
-
-Description: If true, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If false, WINS ports are not open.  
+```
 
 ### EnableNetworkProtection
+
+Indicates whether the [Network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection) feature of Microsoft Defender Antivirus should be enabled.
 
 true - Block
 false - Audit
 null - Not configured
-Default: null
-Recommended: true
 
-[Overview of network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection)
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
 
 ### BlockWmiCommandExecution
 
-Possible values: true / false / null
-Default value: null
-Recommended value: true
+Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR. This is achieved by enforcing the following Microsoft Defender Antivirus Attack Surface Reduction (ASR) rules:
 
-Dependencies: Microsoft Defender Antivirus
-
-[Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
+- [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
+- [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-persistence-through-wmi-event-subscription)
 
 true - Block (Enable the attack surface reduction rule)
 false - Audit (Evaluate how the attack surface reduction rule would impact your organization if enabled)
 null - Not configured / Disable (Disable the attack surface reduction rule)
 
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
 ### EnableRpcFilters
 
-TODO
+Indicates whether additional [filtering of RPC over Named Pipes](#rpc-filters) should be applied.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
 
 ## Deployment
 
@@ -602,59 +812,6 @@ Once done, link the GPO to Domain Controllers OU.
 ![Group Policy link](../Screenshots/deploy-gpo-link.png)
 
 By default, GPO is refreshed every 5 minutes for DCs, so all your DCs should have the firewall configuration applied within maximum of 5 minutes.
-
-## Rollback
-
-If you need to rollback the changes, simply unlink the GPO from Domain Controllers OU and either wait 5 minutes or do gpupdate /force on the DCs.
-
-## Issues
-
-### Services with User Impersonation
-
-- Windows Update (wuauserv)
-- Cryptographic Services (CryptSvc)
-- Microsoft Account Sign-in Assistant (wlidsvc)
-- Background Intelligent Transfer Service (BITS)
-
-### Dynamic Keywords
-
-https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
-
-### taskhostw.exe
-
-![Scheduled task with a custom handler](../Screenshots/scheduled-task-custom-handler.png)
-
-### Azure Arc
-
-PowerShell, msiexec
-
-![Azure Arc binaries](../Screenshots/azure-arc-binaries.png)
-
-Any process
-
-![Azure Arc built-in firewall rule](../Screenshots/azure-arc-firewall.png)
-
-### Predefined Address Sets
-
-![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
-
-- Internet
-- Intranet
-- DNS Servers
-
-### Proxy
-
-![Listing the advanced WinHTTP proxy configuration](../Screenshots/proxy-config.png)
-
-![WinHTTP proxy configuration error](../Screenshots/proxy-error.png)
-
-### Log File Not Created
-
-![Firewall log file configuration](../Screenshots/firewall-log-config.png)
-
-```bat
-netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
-```
 
 ## Troubleshooting
 
@@ -701,6 +858,55 @@ Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
 ```
 
 ![Parsing firewall log files](../Screenshots/firewall-log-parser.png)
+
+## Rollback
+
+If you need to rollback the changes, simply unlink the GPO from Domain Controllers OU and either wait 5 minutes or do gpupdate /force on the DCs.
+
+## Infeasibility of Outbound Traffic Filtering
+
+### Reasons for Blocking Outbound Traffic
+
+NTLM relay to workstations, lateral movement, C2 channel to the Internet
+
+### Services with User Impersonation
+
+- Windows Update (wuauserv)
+- Cryptographic Services (CryptSvc)
+- Microsoft Account Sign-in Assistant (wlidsvc)
+- Background Intelligent Transfer Service (BITS)
+
+### Dynamic Keywords
+
+https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
+
+### Scheduled Tasks with Custom Handlers
+
+taskhostw.exe
+
+![Scheduled task with a custom handler](../Screenshots/scheduled-task-custom-handler.png)
+
+### Microsoft Defender for Identity
+
+DC Sensor to Client traffic - SMB, NetBIOS?
+
+### Azure Arc
+
+PowerShell, msiexec
+
+![Azure Arc binaries](../Screenshots/azure-arc-binaries.png)
+
+Any process
+
+![Azure Arc built-in firewall rule](../Screenshots/azure-arc-firewall.png)
+
+### Installers Downloading Additional Files
+
+### WinHTTP Proxy
+
+![Listing the advanced WinHTTP proxy configuration](../Screenshots/proxy-config.png)
+
+![WinHTTP proxy configuration error](../Screenshots/proxy-error.png)
 
 ## Static RPC Ports
 
@@ -790,15 +996,15 @@ coercer coerce --target-ip contoso-dc --listener-ip hacker-pc --username john --
 
 TODO
 
-### References
+### Additional Reading on RPC
 
 - [MSRPC-To-ATT&CK](https://github.com/jsecurity101/MSRPC-to-ATTACK)
 - [A Definitive Guide to the Remote Procedure Call (RPC) Filter](https://www.akamai.com/blog/security/guide-rpc-filter#using)
 - [server22_rpc_servers_scrape.csv](https://github.com/akamai/akamai-security-research/blob/main/rpc_toolkit/rpc_interface_lists/server22_rpc_servers_scrape.csv)
 
-## Inbound Rules
+## Inbound Firewall Rules Reference
 
-### References
+### Microsoft's Guidelines
 
 - [How to configure a firewall for Active Directory domains and trusts](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/config-firewall-for-ad-domains-and-trusts)
 - [Service overview and network port requirements for Windows](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/service-overview-and-network-port-requirements)
@@ -835,7 +1041,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\svchost.exe` |
 | Service     | `w32time` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller (RPC-EPMAP)
 
@@ -849,7 +1055,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\system32\svchost.exe` |
 | Service     | `rpcss` |
 | Description | Inbound rule for the RPCSS service to allow RPC/TCP traffic to the Active Directory Domain Controller service. |
-| Notes       | - |
+
 
 #### Kerberos Key Distribution Center - PCR (UDP-In)
 
@@ -862,7 +1068,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [UDP 464] |
-| Notes       | - |
+
 
 #### Kerberos Key Distribution Center - PCR (TCP-In)
 
@@ -875,7 +1081,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [TCP 464] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller (RPC)
 
@@ -888,7 +1094,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | RPC |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule to allow remote RPC/TCP access to the Active Directory Domain Controller service. |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - LDAP (UDP-In)
 
@@ -901,7 +1107,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [UDP 389] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - LDAP (TCP-In)
 
@@ -914,7 +1120,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [TCP 389] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - Secure LDAP (TCP-In)
 
@@ -927,7 +1133,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 636 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure LDAP traffic. [TCP 636] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)
 
@@ -940,7 +1146,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 3268 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Global Catalog traffic. [TCP 3268] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)
 
@@ -953,7 +1159,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 3269 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure Global Catalog traffic. [TCP 3269] |
-| Notes       | - |
+
 
 #### DNS (UDP, Incoming)
 
@@ -967,7 +1173,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote UDP access to the DNS service. |
-| Notes       | - |
+
 
 #### DNS (TCP, Incoming)
 
@@ -981,7 +1187,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote TCP access to the DNS service. |
-| Notes       | - |
+
 
 #### Kerberos Key Distribution Center (TCP-In)
 
@@ -994,7 +1200,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [TCP 88] |
-| Notes       | - |
+
 
 #### Kerberos Key Distribution Center (UDP-In)
 
@@ -1007,7 +1213,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [UDP 88] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - SAM/LSA (NP-UDP-In)
 
@@ -1020,7 +1226,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 445 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [UDP 445] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
 
@@ -1033,7 +1239,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 445 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [TCP 445] |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - Echo Request (ICMPv4-In)
 
@@ -1046,7 +1252,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 8 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - Echo Request (ICMPv6-In)
 
@@ -1059,7 +1265,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 128 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
-| Notes       | - |
+
 
 #### Active Directory Domain Controller - NetBIOS name resolution (UDP-In)
 
@@ -1072,7 +1278,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 138 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NetBIOS name resolution. [UDP 138] |
-| Notes       | - |
+
 
 #### Core Networking - Destination Unreachable (ICMPv6-In)
 
@@ -1085,7 +1291,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 1 |
 | Program     | `System` |
 | Description | Destination Unreachable error messages are sent from any node that a packet traverses which is unable to forward the packet for any reason except congestion. |
-| Notes       | - |
+
 
 #### Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)
 
@@ -1098,7 +1304,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 3:4 |
 | Program     | `System` |
 | Description | Destination Unreachable Fragmentation Needed error messages are sent from any node that a packet traverses which is unable to forward the packet because fragmentation was needed and the don't fragment bit was set. |
-| Notes       | - |
+
 
 #### Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)
 
@@ -1111,7 +1317,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 136 |
 | Program     | `System` |
 | Description | Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request. |
-| Notes       | - |
+
 
 #### Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)
 
@@ -1124,7 +1330,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 135 |
 | Program     | `System` |
 | Description | Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node. |
-| Notes       | - |
+
 
 #### Core Networking - Packet Too Big (ICMPv6-In)
 
@@ -1137,7 +1343,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 2 |
 | Program     | `System` |
 | Description | Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link. |
-| Notes       | - |
+
 
 #### Core Networking - Parameter Problem (ICMPv6-In)
 
@@ -1150,7 +1356,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 4 |
 | Program     | `System` |
 | Description | Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets. |
-| Notes       | - |
+
 
 #### Core Networking - Time Exceeded (ICMPv6-In)
 
@@ -1163,7 +1369,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 3 |
 | Program     | `System` |
 | Description | Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path. |
-| Notes       | - |
+
 
 #### Windows Internet Naming Service (WINS) (TCP-In)
 
@@ -1177,7 +1383,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42] |
-| Notes       | - |
+
 
 #### Windows Internet Naming Service (WINS) (UDP-In)
 
@@ -1191,7 +1397,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42] |
-| Notes       | - |
+
 
 #### File and Printer Sharing (NB-Name-In)
 
@@ -1204,7 +1410,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 137 |
 | Program     | `System` |
 | Description | Inbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137] |
-| Notes       | - |
+
 
 #### File and Printer Sharing (NB-Session-In)
 
@@ -1217,7 +1423,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 139 |
 | Program     | `System` |
 | Description | Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139] |
-| Notes       | - |
+
 
 ### Management Traffic
 
@@ -1233,7 +1439,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
 | Service     | `adws` |
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
-| Notes       | - |
+
 
 #### Windows Remote Management (HTTP-In)
 
@@ -1246,7 +1452,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 5985 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5985] |
-| Notes       | - |
+
 
 #### Windows Remote Management (HTTPS-In)
 
@@ -1259,7 +1465,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 5986 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5986] |
-| Notes       | - |
+
 
 #### Windows Management Instrumentation (WMI-In)
 
@@ -1273,7 +1479,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `winmgmt` |
 | Description | Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
-| Notes       | - |
+
 
 #### Remote Desktop - User Mode (UDP-In)
 
@@ -1287,7 +1493,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
-| Notes       | - |
+
 
 #### Remote Desktop - User Mode (TCP-In)
 
@@ -1301,7 +1507,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
-| Notes       | - |
+
 
 #### OpenSSH SSH Server (sshd)
 
@@ -1314,7 +1520,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 22 |
 | Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
 | Description | Inbound rule for OpenSSH SSH Server (sshd) |
-| Notes       | - |
+
 
 #### DFS Management (TCP-In)
 
@@ -1327,7 +1533,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | RPC |
 | Program     | `%systemroot%\system32\dfsfrsHost.exe` |
 | Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
-| Notes       | - |
+
 
 #### RPC (TCP, Incoming)
 
@@ -1341,7 +1547,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote RPC/TCP access to the DNS service. |
-| Notes       | - |
+
 
 #### Windows Backup (RPC)
 
@@ -1355,7 +1561,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\system32\wbengine.exe` |
 | Service     | `wbengine` |
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
-| Notes       | - |
+
 
 #### Performance Logs and Alerts (TCP-In)
 
@@ -1368,7 +1574,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | Any |
 | Program     | `%systemroot%\system32\plasrv.exe` |
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
-| Notes       | - |
+
 
 #### COM+ Remote Administration (DCOM-In)
 
@@ -1382,7 +1588,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\system32\dllhost.exe` |
 | Service     | `COMSysApp` |
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
-| Notes       | - |
+
 
 #### Remote Event Log Management (RPC)
 
@@ -1396,7 +1602,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `Eventlog` |
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
-| Notes       | - |
+
 
 This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.
 
@@ -1412,7 +1618,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `schedule` |
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
-| Notes       | - |
+
 
 #### Remote Service Management (RPC)
 
@@ -1425,7 +1631,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\services.exe` |
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
-| Notes       | - |
+
 
 #### Remote Volume Management - Virtual Disk Service (RPC)
 
@@ -1439,7 +1645,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\vds.exe` |
 | Service     | `vds` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
-| Notes       | - |
+
 
 #### Remote Volume Management - Virtual Disk Service Loader (RPC)
 
@@ -1452,7 +1658,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\vdsldr.exe` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
-| Notes       | - |
+
 
 #### Windows Internet Naming Service (WINS) - Remote Management (RPC)
 
@@ -1466,7 +1672,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
-| Notes       | - |
+
 
 #### Windows Defender Firewall Remote Management (RPC)
 
@@ -1480,7 +1686,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `policyagent` |
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
-| Notes       | - |
+
 
 ### DC Replication Traffic
 
@@ -1496,7 +1702,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\dfsrs.exe` |
 | Service     | `Dfsr` |
 | Description | Inbound rule to allow DFS Replication RPC traffic. |
-| Notes       | - |
+
 
 #### File Replication (RPC)
 
@@ -1510,4 +1716,4 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\NTFRS.exe` |
 | Service     | `NTFRS` |
 | Description | Inbound rule to allow File Replication RPC traffic. |
-| Notes       | - |
+

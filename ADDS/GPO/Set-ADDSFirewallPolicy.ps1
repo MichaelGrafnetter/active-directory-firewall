@@ -72,10 +72,10 @@ class ScriptSettings {
     # Indicates whether WMI traffic should use a static port.
     [Nullable[bool]]   $WmiStaticPort                 = $null
 
-    # Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point).
+    # Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode.
     [Nullable[bool]]   $DisableNetbiosBroadcasts      = $null
 
-    # "Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled.
+    # Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled.
     [bool]             $DisableLLMNR                  = $false
 
     # Indicates whether the Multicast DNS (mDNS) client should be disabled.
@@ -99,7 +99,7 @@ class ScriptSettings {
     # Indicates whether inbound OpenSSH traffic should be enabled.
     [bool]             $EnableOpenSSHServer           = $true
 
-    # Indicates whether inbound Remote Desktop traffic should be enabled.
+    # Indicates whether inbound Remote Desktop Protocol traffic should be enabled.
     [bool]             $EnableRemoteDesktop           = $true
 
     # Indicates whether remote disk management should be enabled.
