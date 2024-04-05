@@ -1,5 +1,7 @@
-# This is NETSH script is part of the Domain Controller Firewall project.
-# Usage: netsh.exe -f RpcNamedPipesFilters.txt
+# Synopsis: This NETSH script is part of the Domain Controller Firewall project.
+# Author:   Michael Grafnetter
+# Version:  1.0
+# Usage:    netsh.exe -f RpcNamedPipesFilters.txt
 
 # Switch the NETSH context to RPC filters
 rpc filter
@@ -108,7 +110,3 @@ add filter
 # add condition field=local_port matchtype=equal data=24158
 # add condition field=if_uuid matchtype=equal data=9556dc99-828c-11cf-a37e-00aa003240c7
 # add filter
-
-# TODO: Block command execution over DCOM over named pipes (ShellWindows, ShellBrowserWindow, and MMC20 objects)
-
-# TODO: Block RDP-related protocols over named pipes

