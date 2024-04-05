@@ -968,7 +968,7 @@ impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 ```
 
-Named pipe: [\PIPE\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) , Protocol UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
+Named pipe: [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) , Protocol UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
 
 ```txt
 # Block [MS-SCMR]: Service Control Manager Remote Protocol, Named pipe: \PIPE\svcctl
@@ -989,7 +989,7 @@ schtasks.exe /query /s contoso-dc
 impacket-atexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 ```
 
-Named pipe: [\PIPE\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+Named pipe: [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
 
 Interface UUID: [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
 
