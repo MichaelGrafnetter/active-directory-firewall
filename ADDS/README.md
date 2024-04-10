@@ -105,9 +105,16 @@ TODO: Explain Dedup/consolidation
 
 ![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
 
+There's no Microsoft documentation explaining how the keywords are defined, the only documentation briefly mentioning the keywords is [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f)
+
 - Internet
 - Intranet
+    - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules. 
+    - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after server restart. This is the reason why we haven't used it in the definitions.
+    ![Subnets - source for Intranet keyword](../Screenshots/firewall-keyword-Intranet.png)
 - DNS Servers
+    - this keyword is functional and respects all DNS servers defined in the properties of a network adapter. If new DNS server is defined it will be honored by the keyword only after change of network adapter state (disable / enable, server restart, etc.)
+    ![Network adapter DNS configuration](../Screenshots/firewall-keyword-DNS.png)
 
 ### Avoiding Localized Rule Names
 
