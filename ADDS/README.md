@@ -103,14 +103,17 @@ TODO: Explain Dedup/consolidation
 
 ### Issues with Predefined Address Sets
 
+Configuration of remote or local IP address in a rule contains predefined sets of computers.
+
 ![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
 
 There's no Microsoft documentation explaining how the keywords are defined, the only documentation briefly mentioning the keywords is [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f)
 
 - Internet
 - Intranet
-    - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules. 
-    - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after server restart. This is the reason why we haven't used it in the definitions.
+    - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules.
+    - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after multiple server restarts.
+    - this unreliability is the reason why we haven't used it in the definitions.
     ![Subnets - source for Intranet keyword](../Screenshots/firewall-keyword-Intranet.png)
 - DNS Servers
     - this keyword is functional and respects all DNS servers defined in the properties of a network adapter. If new DNS server is defined it will be honored by the keyword only after change of network adapter state (disable / enable, server restart, etc.)
@@ -335,7 +338,7 @@ Possible values: 1 - 32767
 
 List of client IP adresses from which inbound traffic should be allowed.
 
-Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "10.220.6.0/24".
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10". Supports also "Any" as an input.
 
 Specify IPv4 address, IPv4 subnet or address range of all your clients. Anything what acts as a client from a DC perspective is considered client here, so you should specify all your server and user/client subnets.  
 Everything that needs to interact with your DCs should be included here, except other DCs and secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.
@@ -352,7 +355,7 @@ Default value: [ "Any" ]
 
 List of IP addresses from which inbound management traffic should be allowed.
 
-Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.3.0/24"
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
 
 Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.  
 
@@ -368,7 +371,7 @@ Default value: [ "Any" ]
 
 List of domain controller IP addresses, between which replication and management traffic will be allowed.
 
-Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.1.0/24"
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
 
 Specify IPv4 address, IPv4 subnet or address range of all your Domain Controllers in the forest.
 
@@ -425,6 +428,16 @@ Possible values: null / 0 / 1024 - 49151
 ### FrsStaticPort
 
 Static port to be used for legacy FRS traffic.
+
+By default, the FSR is using dynamic RPC ports. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic.
+If set to 0 (zero), the port is set to dynamic.
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTFRS\\Parameters  
+> Registry value: RPC TCP/IP Port Assignment  
+> Value type: REG_DWORD  
+> Value data: (available port)
+
+Restart the File Replication service for the new setting to become effective.
 
 ```yaml
 Type: Integer
@@ -900,7 +913,21 @@ Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
 
 ## Rollback
 
-If you need to rollback the changes, simply unlink the GPO from Domain Controllers OU and either wait 5 minutes or do gpupdate /force on the DCs.
+If you need to rollback the changes, unlink the GPO from Domain Controllers OU and either wait 5 minutes or do gpupdate /force on the DCs. This should remove the firewall configuration.
+If you've configured static ports for WMI and/or DFSR, you'll need to the following commands, in order to revert them back to dynamic ports.
+
+For DFSR:
+```shell
+dfsrdiag staticrpc /port:0
+```
+
+For WMI
+```shell
+winmgmt /sharedhost
+```
+
+> [!IMPORTANT]
+> TODO: zbytek static portu
 
 ## Infeasibility of Outbound Traffic Filtering
 
@@ -949,7 +976,7 @@ Any process
 
 ## Static RPC Ports
 
-TODO: Rationale
+TODO
 
 - [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
 - [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
