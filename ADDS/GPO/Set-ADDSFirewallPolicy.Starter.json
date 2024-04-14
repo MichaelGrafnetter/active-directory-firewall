@@ -1,0 +1,7 @@
+{
+    "$schema": "Set-ADDSFirewallPolicy.schema.json",
+    "GroupPolicyObjectName": "Domain Controller Firewall",
+    "DomainControllerAddresses": [ "Any" ],
+    "ManagementAddresses": [ "Any" ],
+    "ClientAddresses": [ "Any" ]
+}
