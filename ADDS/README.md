@@ -863,9 +863,7 @@ Possible values: true / false / null
 
 ## Deployment
 
-If you finished with modifying all required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the set of rules that will be deployed by the GPO.  
-
-Curated list of firewall rules is available at GitHub: **TODO**
+If you finished with modifying all required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the [set of rules](#inbound-firewall-rules-reference) that will be deployed by the GPO.  
 
 Once the review is completed, you can begin with the deployment.
 
@@ -966,7 +964,7 @@ winmgmt /sharedhost
 > [!IMPORTANT]
 > TODO: zbytek static portu
 
-If you've enabled RPC filters in the `Set-ADDSFirewallPolicy.json`, you need to manually run the following command to delete them:
+If you've enabled [RPC filters](#rpc-filters) in the `Set-ADDSFirewallPolicy.json`, you need to manually run the following command to delete them:
 ```shell
 netsh rpc filter delete filter filterkey=all
 ```
