@@ -170,17 +170,49 @@ Managed/Unmanaged
 
 ### Administrative Templates
 
-ADMX/ADML, copied to Central Store if exists
+The following ADMX and their respective ADML (in English) are copied to Central Store if it exists:
+
+`DomainControllerFirewall.admx`  
+- Contains template for configuration of the following settings:
+  - [NTDS Static Port](#ntdsstaticport)  
+  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Active Directory RPC static port 
+  - [Netlogon Static Port](#netlogonstaticport)  
+  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Netlogon static port
+  - [FRS Static Port](#frsstaticport)  
+  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: File Replication Service (FRS) static port
+  - [mDNS Configuration](#disablemdns)  
+Computer Configuration / Administrative Templates / Network / DNS Client / Turn off Multicast DNS (mDNS) client
+
+`MSS-legacy.admx`  
+- Contains template for configuration of all the settings stored in:  
+Computer Configuration / Administrative Templates / MSS (Legacy) 
+
+`SecGuide.admx`
+- Contains template for configuration of all the settings stored in:  
+Computer Configuration / Administrative Templates / MS Security Guide
 
 ### Startup Script
 
+Startup script is used to configure some of the required settings, that are not easily configurable through Group Policy.  
+"FirewallConfiguration.bat" script, is automatically generated, based on the configuration defined in `Set-ADDSFirewallPolicy.json`.  
+If enabled in the .json file, the script will execute the following actions:
+
+- Configure WMI static port
+- Installs DFS Management tools, if not already present on the machine
+- Configure DFSR static port
+- Creates firewall log and sets the permissions on it
+- Registers RPC filters, defined in `RpcNamedPipesFilters.txt`
+
 #### Settings Without GPO Support
+
+> [!IMPORTANT]
+TODO - co ma prijit sem?
 
 ##### Firewall Log File
 
 ![Firewall log file configuration](../Screenshots/firewall-log-config.png)
 
-Log file not created by GPO, ACLs need to be configured.
+Log file is not created by the GPO, ACLs need to be configured through command line.
 
 ```bat
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
@@ -188,11 +220,6 @@ netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\lo
 
 #### Sample Startup Script
 
-Automatically generated based on the config
-
-FirewallConfiguration.bat
-
-Example:
 
 ```shell
 @ECHO OFF
@@ -220,7 +247,10 @@ netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85
 
 ### Configuration File
 
-All settings that are configurable are stored in `Set-ADDSFirewallPolicy.json`, it is essential to review them and change as necessary for your environment. Improper configuration can cause network outages in your environment!
+All settings that are configurable are stored in `Set-ADDSFirewallPolicy.json`.  
+It is essential to review them and change as necessary for your environment.
+> [!CAUTION]
+Improper configuration can cause network outages in your environment!
 
 Note, that “Default value” in the configuration items below, refers to default value, that is set in the `Set-ADDSFirewallPolicy.json`, not Windows system defaults.
 
@@ -295,7 +325,7 @@ Default value: "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell
 
 Indicates whether the packets dropped by the firewall should be logged.
 
-If true, all dropped packets will be logged into the [firewall text log](#logfilepath). If false, no packets are logged.  
+If `true`, all dropped packets will be logged into the [firewall text log](#logfilepath). If `false`, no packets are logged.  
 
 ```yaml
 Type: Boolean
@@ -342,7 +372,7 @@ Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a
 
 Specify IPv4 address, IPv4 subnet or address range of all your clients. Anything what acts as a client from a DC perspective is considered client here, so you should specify all your server and user/client subnets.  
 Everything that needs to interact with your DCs should be included here, except other DCs and secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.
-
+> [!WARNING]
 **This is a critical configuration setting!** With improper configuration, this could cause network outage for your clients.
 
 ```yaml
@@ -358,7 +388,7 @@ List of IP addresses from which inbound management traffic should be allowed.
 Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
 
 Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.  
-
+> [!WARNING]
 **This is a critical configuration setting!** With improper configuration, this could cause network outage for your management workstations.
 
 ```yaml
@@ -374,7 +404,7 @@ List of domain controller IP addresses, between which replication and management
 Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
 
 Specify IPv4 address, IPv4 subnet or address range of all your Domain Controllers in the forest.
-
+> [!WARNING]
 **This is a critical configuration setting!** With improper configuration, this could cause network outage for your DCs.
 
 ```yaml
@@ -387,7 +417,7 @@ Default value: [ "Any" ]
 
 Static port to be used for inbound Active Directory RPC traffic.
 
-By default, the RPC is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
+By default, the RPC is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure the `NetlogonStaticPort` value.
 
@@ -407,7 +437,7 @@ Possible values: null / 0 / 1024 - 49151
 
 ### NetlogonStaticPort
 
-Description: By default, the RPC is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
+Description: By default, the RPC is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
 If set to 0 (zero), the port is set to dynamic.
 If this is configured, you also need to configure `NtdsStaticPort` value.
 
@@ -429,7 +459,7 @@ Possible values: null / 0 / 1024 - 49151
 
 Static port to be used for legacy FRS traffic.
 
-By default, the FSR is using dynamic RPC ports. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic.
+By default, the FSR is using dynamic RPC ports. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic.
 If set to 0 (zero), the port is set to dynamic.
 
 > HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTFRS\\Parameters  
@@ -450,7 +480,7 @@ Possible values: null / 0 / 1024 - 49151
 
 Static port to be used for DFSR traffic.
 
-By default, the DFSR is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic, for more info, see the [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746) article.
+By default, the DFSR is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic, for more info, see the [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746) article.
 If set to 0 (zero), the port is set to dynamic.
 
 [Startup script](#startup-script)
@@ -492,7 +522,7 @@ Possible values: null / 0 / 1024 - 49151
 
 Indicates whether inbound Windows Management Instrumentation (WMI) traffic should use a static port.
 
-By default, the WMI is using dynamic ports 49152 – 65535. If null, this setting is not managed through GPO. If true, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
+By default, the WMI is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If true, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
 
 [Startup script](#startup-script)
 
@@ -523,8 +553,10 @@ Possible values: true / false / null
 ```
 
 ### DisableNetbiosBroadcasts
+> [!IMPORTANT]
+doplnit "false"  
 
-Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode.
+Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode. If `true` NetBIOS node type is set to P-node. If `false` NetBIOS node type is set to ??? If `null` NetBIOS node type is not managed through GPO.
 
 ```yaml
 Type: Boolean
@@ -538,7 +570,7 @@ Possible values: true / false / null
 
 Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled.
 
-If true, Link Local Multicast Name Resolution (LLMNR) is disabled. If false, LLMNR is enabled. For more info, please refer to the *AZ-WIN-00145* configuration item in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows).
+If `true`, Link Local Multicast Name Resolution (LLMNR) is disabled. If `false`, LLMNR is enabled. If `null` LLMNR configuration is not managed through GPO. For more info, please refer to the *AZ-WIN-00145* configuration item in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows).
 
 ```yaml
 Type: Boolean
@@ -552,7 +584,7 @@ Possible values: true / false
 
 Indicates whether the Multicast DNS (mDNS) client should be disabled.
 
-If null, this setting is not managed through GPO. If true, mDNS is disabled. If false, mDNS is enabled. For more info, see the following [Microsoft article](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777).
+If `true`, mDNS is disabled. If `false`, mDNS is enabled. If `null`, this setting is not managed through GPO. For more info, see the following [Microsoft article](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777).
 
 ```yaml
 Type: Boolean
@@ -592,7 +624,7 @@ Possible values: true / false
 
 Indicates whether remote scheduled task management should be enabled.
 
-If true, corresponding ports are open and remote scheduled tasks management will be available. If false, scheduled tasks cannot be managed remotely.
+If `true`, corresponding ports are open and remote scheduled tasks management will be available. If `false`, scheduled tasks cannot be managed remotely.
 
 ```yaml
 Type: Boolean
@@ -606,7 +638,7 @@ Possible values: true / false
 
 Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled. This protocol is used by PowerShell Remoting, Server Manager, and [PowerShell CIM cmdlets](https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/?view=powershell-7.4).
 
-If true, corresponding ports are open and WinRM will be available. If false, WinRM ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
+If `true`, corresponding ports are open and WinRM will be available. If `false`, WinRM ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
 
 ```yaml
 Type: Boolean
@@ -620,7 +652,7 @@ Possible values: true / false
 
 Indicates whether remote performance log access should be enabled.
 
-If true, corresponding ports are open and remote Performance Log management will be available. If false, Performance Log cannot be managed remotely.  
+If `true`, corresponding ports are open and remote Performance Log management will be available. If `false`, Performance Log cannot be managed remotely.  
 
 ```yaml
 Type: Boolean
@@ -634,6 +666,8 @@ Possible values: true / false
 
 Indicates whether inbound OpenSSH traffic should be enabled.
 
+If `true`, corresponding ports are open and OpenSSH will be available. If `false`, OpenSSH won't be allowed.
+
 ```yaml
 Type: Boolean
 Required: false
@@ -646,7 +680,7 @@ Possible values: true / false
 
 Indicates whether inbound Remote Desktop Protocol (RDP) traffic should be enabled.
 
-If true, corresponding ports are open and remote desktop connection (RDP) will be available. If false, RDP is not available.  
+If `true`, corresponding ports are open and remote desktop connection (RDP) will be available. If `false`, RDP is not available.  
 
 ```yaml
 Type: Boolean
@@ -660,7 +694,7 @@ Possible values: true / false
 
 Indicates whether remote disk management should be enabled.
 
-If true, corresponding ports are open and remote disk management will be available. If false, disks cannot be managed remotely.  
+If `true`, corresponding ports are open and remote disk management will be available. If `false`, disks cannot be managed remotely.  
 
 ```yaml
 Type: Boolean
@@ -674,7 +708,7 @@ Possible values: true / false
 
 Indicates whether remote management of Windows Server Backup should be enabled.
 
-If true, corresponding ports are open and remote Windows Backup management will be available. If false, Windows Backup cannot be managed remotely.  
+If `true`, corresponding ports are open and remote Windows Backup management will be available. If `false`, Windows Backup cannot be managed remotely.  
 
 ```yaml
 Type: Boolean
@@ -688,7 +722,7 @@ Possible values: true / false
 
 Indicates whether remote firewall management should be enabled.
 
-If true, corresponding ports are open and remote Windows Defender Firewall management will be available. If false, Windows Defender Firewall cannot be managed remotely.
+If `true`, corresponding ports are open and remote Windows Defender Firewall management will be available. If `false`, Windows Defender Firewall cannot be managed remotely.
 
 ```yaml
 Type: Boolean
@@ -702,7 +736,7 @@ Possible values: true / false
 
 Indicates whether inbound COM+ management traffic should be enabled.
 
-If true, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed. If false, COM+ System Application cannot be managed remotely. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
+If `true`, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed. If `false`, COM+ System Application cannot be managed remotely. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
 
 ```yaml
 Type: Boolean
@@ -716,7 +750,7 @@ Possible values: true / false
 
 Indicates whether inbound legacy file replication traffic should be enabled.
 
-If true, corresponding ports are open for NTFRS replication. If you still haven’t migrated your SYSVOL replication to modern DFSR, you need to enable this setting. If false, NTFRS ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
+If `true`, corresponding ports are open for NTFRS replication. If you still haven’t migrated your SYSVOL replication to modern DFSR, you need to enable this setting. If `false`, NTFRS ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
 
 ```yaml
 Type: Boolean
@@ -730,7 +764,7 @@ Possible values: true / false
 
 Indicates whether inbound NetBIOS Name Service should be allowed.
 
-If true, corresponding ports (UDP 137) are open and NetBIOS will be available. If false, NetBIOS ports are not open.
+If `true`, corresponding ports (UDP 137) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open.
 
 ```yaml
 Type: Boolean
@@ -744,7 +778,7 @@ Possible values: true / false
 
 Indicates whether inbound NetBIOS Datagram Service traffic should be allowed.
 
-If true, corresponding ports (UDP 138) are open and NetBIOS will be available. If false, NetBIOS ports are not open.
+If `true`, corresponding ports (UDP 138) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open.
 
 ```yaml
 Type: Boolean
@@ -758,7 +792,7 @@ Possible values: true / false
 
 Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed.
 
-If true, corresponding ports (TCP 139) are open and NetBIOS will be available. If false, NetBIOS ports are not open.  
+If `true`, corresponding ports (TCP 139) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open.  
 
 ```yaml
 Type: Boolean
@@ -770,7 +804,9 @@ Possible values: true / false
 
 ### EnableWINS
 
-If true, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If false, WINS ports are not open.  
+Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed.
+
+If `true`, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If `false`, WINS ports are not open.  
 
 ```yaml
 Type: Boolean
@@ -784,9 +820,7 @@ Possible values: true / false
 
 Indicates whether the [Network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection) feature of Microsoft Defender Antivirus should be enabled.
 
-true - Block
-false - Audit
-null - Not configured
+If `true` MDA Network Protection will be configured in block mode. If `false` MDA Network Protection will be configured in audit mode only. If `null` MDA Network Protection will not be configured. 
 
 ```yaml
 Type: Boolean
@@ -803,9 +837,7 @@ Indicates whether to block process creations originating from PSExec and WMI com
 - [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
 - [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-persistence-through-wmi-event-subscription)
 
-true - Block (Enable the attack surface reduction rule)
-false - Audit (Evaluate how the attack surface reduction rule would impact your organization if enabled)
-null - Not configured / Disable (Disable the attack surface reduction rule)
+If `true` MDA Attack Surface Reduction rules (mentioned above) will be configured in block mode. If `false` MDA Attack Surface Reduction rules (mentioned above) will be configured in audit mode only, allowing you to evaluate the possible impact if the rules were enabled in block mode. If `null` MDA ASR rules are not configured, effectively disabling the rules. 
 
 ```yaml
 Type: Boolean
@@ -819,6 +851,8 @@ Possible values: true / false / null
 
 Indicates whether additional [filtering of RPC over Named Pipes](#rpc-filters) should be applied.
 
+If `true`, RPC filters defined in `RpcNamedPipesFilters.txt` will be enabled. If `false`, RPC filters are not enabled. If `null` this setting is not managed.
+
 ```yaml
 Type: Boolean
 Required: false
@@ -829,11 +863,11 @@ Possible values: true / false / null
 
 ## Deployment
 
-If you are finished with modifying all required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the set of rules that will be deployed by the GPO.  
+If you finished with modifying all required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the set of rules that will be deployed by the GPO.  
 
 Curated list of firewall rules is available at GitHub: **TODO**
 
-Once done, you can begin deployment.
+Once the review is completed, you can begin with the deployment.
 
 Open Powershell and run the `Set-ADDSFirewallPolicy.ps1` script:
 
@@ -842,6 +876,9 @@ Open Powershell and run the `Set-ADDSFirewallPolicy.ps1` script:
 You might need to adjust your Powershell execution policy to allow execution of the script:
 
 ![Changing the Script Execution Policy](../Screenshots/deploy-ps-exec-policy.png)
+
+> [!NOTE]
+  If you are using AppLocker, Device Guard or Constrained Language Mode, you might need adjust the configured restrictions in order to run the script.  
 
 Script logic:
 
@@ -914,7 +951,7 @@ Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
 ## Rollback
 
 If you need to rollback the changes, unlink the GPO from Domain Controllers OU and either wait 5 minutes or do gpupdate /force on the DCs. This should remove the firewall configuration.
-If you've configured static ports for WMI and/or DFSR, you'll need to the following commands, in order to revert them back to dynamic ports.
+If you've configured static ports for WMI and/or DFSR, you'll need to run the following commands, in order to revert them back to dynamic ports.
 
 For DFSR:
 ```shell
@@ -928,6 +965,14 @@ winmgmt /sharedhost
 
 > [!IMPORTANT]
 > TODO: zbytek static portu
+
+If you've enabled RPC filters in the `Set-ADDSFirewallPolicy.json`, you need to manually run the following command to delete them:
+```shell
+netsh rpc filter delete filter filterkey=all
+```
+
+> [!IMPORTANT]
+> TODO: GPO tattoing
 
 ## Infeasibility of Outbound Traffic Filtering
 
