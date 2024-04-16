@@ -42,30 +42,31 @@ footer-right: "\\hspace{1cm}"
 | NLA          | [Network Location Awareness]                          |
 | PAW          | [Privileged Access Workstation]                       |
 | FW           | Firewall                                              |
-| WINS         |                                                       |
-| ASR          |                                                       |
-| WMI          |                                                       |
-| RPC          |                                                       |
-| DCOM         |                                                       |
-| SMB          |                                                       |
-| TCP          |                                                       |
-| UDP          |                                                       |
-| NTP          |                                                       |
-| SNMP         |                                                       |
-| RSAT         |                                                       |
-| ICMP         |                                                       |
-| DHCP         |                                                       |
-| LLMNR        |                                                       |
-| mDNS         |                                                       |
+| WINS         | Windows Internet Name Service                         |
+| ASR          | [Attack Surface Reduction]                            |
+| WMI          | Windows Management Instrumentation                    |
+| RPC          | Remote Procedure Call                                 |
+| DCOM         | Distributed Component Object Model                    |
+| SMB          | Server Message Block                                  |
+| TCP          | Transmission Control Protocol                         |
+| UDP          | User Datagram Protocol                                |
+| NTP          | Network Time Protocol                                 |
+| SNMP         | Simple Network Management Protocol                    |
+| RSAT         | Remote Server Administration Tools                    |
+| ICMP         | Internet Control Message Protocol                     |
+| DHCP         | Dynamic Host Configuration Protocol                   |
+| LLMNR        | Link-Local Multicast Name Resolution                  |
+| mDNS         | multicast DNS                                         |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Operations Manager]: https://learn.microsoft.com/en-us/system-center/scom/get-started
 [Network Location Awareness]: https://learn.microsoft.com/en-us/windows/win32/winsock/network-location-awareness-service-provider-nla--2
 [Privileged Access Workstation]: https://learn.microsoft.com/en-us/security/privileged-access-workstations/privileged-access-devices
+[Attack Surface Reduction]: https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/overview-attack-surface-reduction?view=o365-worldwide
 
 ## Summary
 
-The goal of this tool is to simplify deployment of specific set of firewall rules and filters that can significantly decrease the Domain Controller attack surface without compromising impacting the Active Directory functionality.
+The goal of this tool is to simplify deployment of specific set of firewall rules and filters that can significantly decrease the Domain Controller attack surface without impacting the Active Directory functionality.
   
 The tool provides a flexible and repeatable way to deploy secure configuration in your environment within minutes.  
 
@@ -103,13 +104,15 @@ TODO: Explain Dedup/consolidation
 
 ### Issues with Predefined Address Sets
 
-Configuration of remote or local IP address in a rule contains predefined sets of computers.
+Configuration of remote or local IP address in a rule contains predefined sets of computers, also reffered as keywords.
 
 ![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
 
 There's no Microsoft documentation explaining how the keywords are defined, the only documentation briefly mentioning the keywords is [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f)
 
 - Internet
+    - presumably anything not defined as Intranet keyword. 
+    - based on unpredictability of the Intranet keyword application and definition, we haven't used the Internet keyword in any rules.
 - Intranet
     - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules.
     - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after multiple server restarts.
@@ -156,7 +159,8 @@ TODO: File list
 - PowerShell modules (RSAT)
   - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
   - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
-- Supported OS: ![](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.png?logo=Windows%2011) / Windows 10
+- Supported OS: ![](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.png?logo=Windows%2011)  ![](https://img.shields.io/badge/Windows-10%7C11-7bb800?logo=windows)
+
 
 ## Group Policy Object Contents
 
@@ -509,7 +513,7 @@ echo Set dynamic RPC port for DFS Replication.
 dfsrdiag.exe StaticRPC /Port:0
 ```
 
-null: not present
+`null`: not present
 
 ```yaml
 Type: Integer
@@ -522,11 +526,11 @@ Possible values: null / 0 / 1024 - 49151
 
 Indicates whether inbound Windows Management Instrumentation (WMI) traffic should use a static port.
 
-By default, the WMI is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If true, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
+By default, the WMI is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If `true`, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
 
 [Startup script](#startup-script)
 
-true:
+`true`:
 
 The [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73) setting prevents replay attacks, verifies that none of the data transferred between the client and server has been modified and ensures that the data transferred can only be seen unencrypted by the client and the server.
 
@@ -535,14 +539,14 @@ echo Move the WMI service to a standalone process listening on TCP port 24158 wi
 winmgmt.exe /standalonehost 6
 ```
 
-false:
+`false`:
 
 ```shell
 echo Move the WMI service into the shared Svchost process.
 winmgmt.exe /sharedhost
 ```
 
-null: not present
+`null`: not present
 
 ```yaml
 Type: Boolean
