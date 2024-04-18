@@ -198,7 +198,7 @@ Computer Configuration / Administrative Templates / MS Security Guide
 ### Startup Script
 
 Startup script is used to configure some of the required settings, that are not easily configurable through Group Policy.  
-"FirewallConfiguration.bat" script, is automatically generated, based on the configuration defined in `Set-ADDSFirewallPolicy.json`.  
+`FirewallConfiguration.bat` script, is automatically generated, based on the configuration defined in `Set-ADDSFirewallPolicy.json`.  
 If enabled in the .json file, the script will execute the following actions:
 
 - Configure WMI static port
@@ -207,10 +207,18 @@ If enabled in the .json file, the script will execute the following actions:
 - Creates firewall log and sets the permissions on it
 - Registers RPC filters, defined in `RpcNamedPipesFilters.txt`
 
-#### Settings Without GPO Support
+##### WMI static port
 
-> [!IMPORTANT]
-TODO - co ma prijit sem?
+The script will move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.  
+`winmgmt.exe /standalonehost 6`
+
+##### DFSR static port
+
+If the server doesn't have DFS Management tools installed, the script will istall it.  
+`if not exist "%SystemRoot%\system32\dfsrdiag.exe" (dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt)`
+
+Next, it will configure the DFSR to use static port.  
+`dfsrdiag.exe StaticRPC /Port:5722`
 
 ##### Firewall Log File
 
@@ -220,6 +228,15 @@ Log file is not created by the GPO, ACLs need to be configured through command l
 
 ```bat
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+```
+
+##### RPC Filters
+
+![RPC Filters configuration file](../Screenshots/deploy-rpcnamedpipesfilter.png)  
+
+The script will register all RPC filters defined in `RpcNamedPipesFilters.txt` file, which is located in the same path as the `FirewallConfiguration.bat`, in the "Startup" folder under the recently created firewall GPO.  
+```bat
+netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85-D29FEBDFF6D6}\Machine\Scripts\Startup\RpcNamedPipesFilters.txt"
 ```
 
 #### Sample Startup Script
@@ -560,7 +577,7 @@ Possible values: true / false / null
 > [!IMPORTANT]
 doplnit "false"  
 
-Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode. If `true` NetBIOS node type is set to P-node. If `false` NetBIOS node type is set to ??? If `null` NetBIOS node type is not managed through GPO.
+Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode. If `true` NetBIOS node type is set to P-node. If `false` NetBIOS node type is set to H-node (hybrid) If `null` NetBIOS node type is not managed through GPO.
 
 ```yaml
 Type: Boolean
