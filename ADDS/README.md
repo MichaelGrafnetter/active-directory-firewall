@@ -176,7 +176,8 @@ Managed/Unmanaged
 
 The following ADMX and their respective ADML (in English) are copied to Central Store if it exists:
 
-`DomainControllerFirewall.admx`  
+`DomainControllerFirewall.admx`
+
 - Contains template for configuration of the following settings:
   - [NTDS Static Port](#ntdsstaticport)  
   Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Active Directory RPC static port 
@@ -187,11 +188,13 @@ The following ADMX and their respective ADML (in English) are copied to Central 
   - [mDNS Configuration](#disablemdns)  
 Computer Configuration / Administrative Templates / Network / DNS Client / Turn off Multicast DNS (mDNS) client
 
-`MSS-legacy.admx`  
+`MSS-legacy.admx`
+
 - Contains template for configuration of all the settings stored in:  
 Computer Configuration / Administrative Templates / MSS (Legacy) 
 
 `SecGuide.admx`
+
 - Contains template for configuration of all the settings stored in:  
 Computer Configuration / Administrative Templates / MS Security Guide
 
@@ -207,18 +210,27 @@ If enabled in the .json file, the script will execute the following actions:
 - Creates firewall log and sets the permissions on it
 - Registers RPC filters, defined in `RpcNamedPipesFilters.txt`
 
+> [!WARNING]
+Due to the [GPO foreground processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11)) requirement, when applying a startup script, the server needs to be restarted to apply the configuration items in the script.
+
 ##### WMI static port
 
 The script will move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.  
-`winmgmt.exe /standalonehost 6`
+```bat
+winmgmt.exe /standalonehost 6
+```
 
 ##### DFSR static port
 
 If the server doesn't have DFS Management tools installed, the script will istall it.  
-`if not exist "%SystemRoot%\system32\dfsrdiag.exe" (dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt)`
+```bat
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt)
+```
 
 Next, it will configure the DFSR to use static port.  
-`dfsrdiag.exe StaticRPC /Port:5722`
+```bat
+dfsrdiag.exe StaticRPC /Port:5722
+```
 
 ##### Firewall Log File
 
