@@ -56,7 +56,7 @@ footer-right: "\\hspace{1cm}"
 | ICMP         | Internet Control Message Protocol                     |
 | DHCP         | Dynamic Host Configuration Protocol                   |
 | LLMNR        | Link-Local Multicast Name Resolution                  |
-| mDNS         | multicast DNS                                         |
+| mDNS         | Multicast DNS                                         |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Operations Manager]: https://learn.microsoft.com/en-us/system-center/scom/get-started
@@ -66,11 +66,11 @@ footer-right: "\\hspace{1cm}"
 
 ## Summary
 
-The goal of this tool is to simplify deployment of specific set of firewall rules and filters that can significantly decrease the Domain Controller attack surface without impacting the Active Directory functionality.
-  
-The tool provides a flexible and repeatable way to deploy secure configuration in your environment within minutes.  
+The purpose of this tool is to simplify the deployment of a specific set of firewall rules and filters that can significantly reduce the attack surface of Domain Controllers without impacting the functionality of Active Directory.
 
-![Windows Firewall with Advanced Security](../Screenshots/windows-firewall.png)
+This tool provides a flexible and repeatable way to deploy a secure configuration in your environment within minutes.
+
+![Windows Firewall with Advanced Security](../Screenshots/windows-firewall.png "Windows Firewall with Advanced Security")
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
 
@@ -78,56 +78,57 @@ The tool provides a flexible and repeatable way to deploy secure configuration i
 
 ### Key Design Decisions
 
-- Tested specifically on Windows Server 2022 and Windows 11 but should work on all current supported versions of Windows Server and Windows clients.
-- The firewall rules design assumes you can define the following groups of IP addresses or network ranges:
-  - Client network (servers and client computers)
-  - Management network (endpoints used for Tier 0 administration)
-  - Domain Controller network (all DCs in your forest)
-- The rules are designed for Domain Controllers only, not for servers or client machines.
-- The rules are designed for a DC configured with a static IP.
-- The rules are designed for IPv4 only, no IPv6 support.
-- The rules are designed for a DC running the recommended set of roles, i.e. ADDS, DNS and Time server, no other roles have been tested.
-- The rules are not configured for SCOM, Backup agents, Log agents (except WEF push configuration) or any other custom agents running on a DC.
-- The configuration focuses only on Firewall rules, no IPSec rules, no DC hardening settings, except disabling several multicast services like LLMNR or mDNS.
-- The configuration enforces GPO firewall rules only – no rules merging, i.e. anything configured locally on any DC will be ignored and not applied during firewall rule evaluation.
+- The tool has been tested on Windows Server 2022 and Windows 11, but it should work on all versions of Windows Server and Windows clients currently supported by Microsoft.
+- The firewall rules are designed with the assumption that you can define the following groups of IP addresses or network ranges:
+  - **Client network** (servers and client computers)
+  - **Management network** (endpoints used for Tier 0 administration)
+  - **Domain Controller network** (all DCs in your forest)
+- These rules are specifically designed for Domain Controllers and not for servers or client machines. It is expected that the DCs are only running the recommended set of roles, such as ADDS, DNS, and NTP server. No other roles have been tested.
+- The rules are intended for DCs configured with static IP addresses, as recommended by Microsoft.
+- The rules do not include configuration for SCOM, Backup agents, Log agents (except WEF push configuration), or any other custom agents running on DCs.
+- The configuration focuses solely on Firewall rules and does not include IPSec rules or DC hardening settings, except for disabling several multicast services like LLMNR or mDNS.
+- The configuration enforces GPO firewall rules only, meaning that any local configurations on individual DCs will be ignored during firewall rule evaluation.
 - Only Inbound rules are configured and enforced.
-- All rules are configured for all 3 profiles (Domain, Private and Public), to avoid DC unavailability in case of incorrect network type detection by NLA.
-- Many of the services, which normally use dynamic ports, are configured with static port by the tool, to allow easier tracing and troubleshooting on the network level and to simplify rule configuration for network firewalls.
+- The configuration does not differentiate between the Domain, Private, and Public firewall profiles to avoid potential DC unavailability in case of incorrect network type detection by NLA.
+- Many services that typically use dynamic ports are configured with static port numbers by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
 
 ### Firewall Rule Deduplication
 
 TODO: Explain Dedup/consolidation
 
-![Duplicate RPC Endpoint Mapper rules](../Screenshots/duplicate-epmap-rules.png)
+![Duplicate RPC Endpoint Mapper rules](../Screenshots/duplicate-epmap-rules.png "Duplicate RPC Endpoint Mapper rules")
 
-![Duplicate SMB rules](../Screenshots/duplicate-epmap-rules.png)
+![Duplicate SMB rules](../Screenshots/duplicate-epmap-rules.png "Duplicate SMB rules")
 
 ### Issues with Predefined Address Sets
 
 Configuration of remote or local IP address in a rule contains predefined sets of computers, also reffered as keywords.
 
-![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
+![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png "Predefined address sets in Windows Firwall")
 
 There's no Microsoft documentation explaining how the keywords are defined, the only documentation briefly mentioning the keywords is [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f)
 
 - Internet
-    - presumably anything not defined as Intranet keyword. 
-    - based on unpredictability of the Intranet keyword application and definition, we haven't used the Internet keyword in any rules.
+  - presumably anything not defined as Intranet keyword. 
+  - based on unpredictability of the Intranet keyword application and definition, we haven't used the Internet keyword in any rules.
 - Intranet
-    - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules.
-    - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after multiple server restarts.
-    - this unreliability is the reason why we haven't used it in the definitions.
-    ![Subnets - source for Intranet keyword](../Screenshots/firewall-keyword-Intranet.png)
+  - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules.
+  - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after multiple server restarts.
+  - this unreliability is the reason why we haven't used it in the definitions.
+
+    ![Subnets - source for Intranet keyword](../Screenshots/firewall-keyword-Intranet.png "Subnets - source for Intranet keyword")
+
 - DNS Servers
-    - this keyword is functional and respects all DNS servers defined in the properties of a network adapter. If new DNS server is defined it will be honored by the keyword only after change of network adapter state (disable / enable, server restart, etc.)
-    ![Network adapter DNS configuration](../Screenshots/firewall-keyword-DNS.png)
+  - this keyword is functional and respects all DNS servers defined in the properties of a network adapter. If new DNS server is defined it will be honored by the keyword only after change of network adapter state (disable / enable, server restart, etc.)
+
+    ![Network adapter DNS configuration](../Screenshots/firewall-keyword-DNS.png "Network adapter DNS configuration")
 
 ### Avoiding Localized Rule Names
 
 TODO
 Depends on RSAT, not localized to all languages
 
-![Localized rule names not displayed correctly](../Screenshots/localization-issue.png)
+![Localized rule names not displayed correctly](../Screenshots/localization-issue.png "Localized rule names not displayed correctly")
 
 ### Dealing with GPO Tattooing
 

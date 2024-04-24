@@ -1103,6 +1103,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -ErrorAction Stop | Out-Null
 
 # Create Inbound rule "COM+ Remote Administration (DCOM-In)"
+# This rule is required for remote connections using the Computer Management console.
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'ComPlusRemoteAdministration-DCOM-In' `
                     -DisplayName 'COM+ Remote Administration (DCOM-In)' `

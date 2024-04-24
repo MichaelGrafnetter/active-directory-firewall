@@ -2,6 +2,8 @@
 # Author:   Michael Grafnetter
 # Version:  1.0
 # Usage:    netsh.exe -f RpcNamedPipesFilters.txt
+# Rollback: netsh.exe rpc filter delete filter filterkey=all
+# Check:    netsh.exe rpc filter show filter
 
 # Switch the NETSH context to RPC filters
 rpc filter
@@ -9,7 +11,7 @@ rpc filter
 # Delete any pre-existing RPC filters
 delete filter filterkey=all
 
-# Sentinel: Uncomment to just delete all filters and quit.
+# Sentinel: Uncomment the next line to just delete all filters and quit.
 # exit
 
 # Block [MS-EVEN6]: EventLog Remoting Protocol Version 6.0, Named pipe: \PIPE\eventlog
