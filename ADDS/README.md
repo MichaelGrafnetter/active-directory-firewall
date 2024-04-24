@@ -57,6 +57,8 @@ footer-right: "\\hspace{1cm}"
 | DHCP         | Dynamic Host Configuration Protocol                   |
 | LLMNR        | Link-Local Multicast Name Resolution                  |
 | mDNS         | Multicast DNS                                         |
+| OS           | Operating System                                      |
+| UI           | User Interface                                        |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Operations Manager]: https://learn.microsoft.com/en-us/system-center/scom/get-started
@@ -70,7 +72,7 @@ The purpose of this tool is to simplify the deployment of a specific set of fire
 
 This tool provides a flexible and repeatable way to deploy a secure configuration in your environment within minutes.
 
-![Windows Firewall with Advanced Security](../Screenshots/windows-firewall.png "Windows Firewall with Advanced Security")
+![Windows Firewall with Advanced Security](../Screenshots/windows-firewall.png)
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
 
@@ -84,55 +86,92 @@ This tool provides a flexible and repeatable way to deploy a secure configuratio
   - **Management network** (endpoints used for Tier 0 administration)
   - **Domain Controller network** (all DCs in your forest)
 - These rules are specifically designed for Domain Controllers and not for servers or client machines. It is expected that the DCs are only running the recommended set of roles, such as ADDS, DNS, and NTP server. No other roles have been tested.
-- The rules are intended for DCs configured with static IP addresses, as recommended by Microsoft.
+- The rules are intended for DCs configured with **static IP addresses**, as recommended by Microsoft.
 - The rules do not include configuration for SCOM, Backup agents, Log agents (except WEF push configuration), or any other custom agents running on DCs.
-- The configuration focuses solely on Firewall rules and does not include IPSec rules or DC hardening settings, except for disabling several multicast services like LLMNR or mDNS.
-- The configuration enforces GPO firewall rules only, meaning that any local configurations on individual DCs will be ignored during firewall rule evaluation.
-- Only Inbound rules are configured and enforced.
+- The configuration focuses solely on Firewall rules and **does not include IPSec rules** or DC hardening settings, except for disabling several multicast services like LLMNR or mDNS.
+- The configuration enforces GPO firewall rules only, meaning that any **local configurations on individual DCs will be ignored** during firewall rule evaluation.
+- Only **Inbound rules** are configured and enforced.
 - The configuration does not differentiate between the Domain, Private, and Public firewall profiles to avoid potential DC unavailability in case of incorrect network type detection by NLA.
-- Many services that typically use dynamic ports are configured with static port numbers by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
+- Many services that typically use dynamic ports are configured with **static port numbers** by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
 
 ### Firewall Rule Deduplication
 
-TODO: Explain Dedup/consolidation
+Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports, even though their names might suggest otherwise. For example, all of the following rules open port `TCP/135` for the `rpcss` service:
 
-![Duplicate RPC Endpoint Mapper rules](../Screenshots/duplicate-epmap-rules.png "Duplicate RPC Endpoint Mapper rules")
+- RPC Endpoint Mapper (TCP, Incoming)
+- Active Directory Domain Controller (RPC-EPMAP)
+- Microsoft Key Distribution Service (RPC EPMAP)
+- DFS Replication (RPC-EPMAP)
+- File Replication (RPC-EPMAP)
+- File Server Remote Management (DCOM-In)
+- Remote Service Management (RPC-EPMAP)
+- Remote Scheduled Tasks Management (RPC-EPMAP)
+- Remote Event Log Management (RPC-EPMAP)
+- Remote Event Monitor (RPC-EPMAP)
+- Remote Volume Management (RPC-EPMAP)
+- Windows Defender Firewall Remote Management (RPC-EPMAP)
+- Windows Management Instrumentation (DCOM-In)
+- DFS Management (DCOM-In)
+- COM+ Remote Administration (DCOM-In)
+- COM+ Network Access (DCOM-In)
+- Performance Logs and Alerts (DCOM-In)
 
-![Duplicate SMB rules](../Screenshots/duplicate-epmap-rules.png "Duplicate SMB rules")
+![Duplicate RPC Endpoint Mapper rules](../Screenshots/duplicate-epmap-rules.png)
+
+Similarly, all of these firewall rules open port `TCP/445` for `System`:
+
+- File and Printer Sharing (SMB-In)
+- Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
+- Netlogon Service (NP-In)
+- File Server Remote Management (SMB-In)
+- DFS Management (SMB-In)
+- Remote Event Log Management (NP-In)
+- Remote Service Management (NP-In)
+
+![Duplicate SMB rules](../Screenshots/duplicate-epmap-rules.png)
+
+Moreover, both ports 135 and 445 need to be accessible by all Windows clients for Active Directory to function properly. To keep configuration readable, it is reasonable to consolidate the redundant rules, and to create a single firewall rule for each static port number.
 
 ### Issues with Predefined Address Sets
 
 Configuration of remote or local IP address in a rule contains predefined sets of computers, also reffered as keywords.
 
-![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png "Predefined address sets in Windows Firwall")
+![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
 
 There's no Microsoft documentation explaining how the keywords are defined, the only documentation briefly mentioning the keywords is [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f)
 
 - Internet
-  - presumably anything not defined as Intranet keyword. 
+  - presumably anything not defined as Intranet keyword.
   - based on unpredictability of the Intranet keyword application and definition, we haven't used the Internet keyword in any rules.
 - Intranet
   - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules.
   - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after multiple server restarts.
   - this unreliability is the reason why we haven't used it in the definitions.
 
-    ![Subnets - source for Intranet keyword](../Screenshots/firewall-keyword-Intranet.png "Subnets - source for Intranet keyword")
+    ![Subnets - source for Intranet keyword](../Screenshots/firewall-keyword-Intranet.png)
 
 - DNS Servers
   - this keyword is functional and respects all DNS servers defined in the properties of a network adapter. If new DNS server is defined it will be honored by the keyword only after change of network adapter state (disable / enable, server restart, etc.)
 
-    ![Network adapter DNS configuration](../Screenshots/firewall-keyword-DNS.png "Network adapter DNS configuration")
+    ![Network adapter DNS configuration](../Screenshots/firewall-keyword-DNS.png)
 
 ### Avoiding Localized Rule Names
 
-TODO
-Depends on RSAT, not localized to all languages
+All of the built-in firewall rules are localized and displayed based on the OS language. However, this feature relies on RSAT being installed on the management computer. If RSAT is absent, the UI may show references to missing DLL files instead of the actual firewall rule display names.
 
-![Localized rule names not displayed correctly](../Screenshots/localization-issue.png "Localized rule names not displayed correctly")
+![Localized rule names not displayed correctly](../Screenshots/localization-issue.png)
+
+To ensure consistent firewall rule name display regardless of RSAT or the OS locale, we have decided to use only English rule names.
 
 ### Dealing with GPO Tattooing
 
-TODO
+Some firewall-related settings are not removed from the domain controllers after they fall out of scope of the GPO. These changes are thus permanent and require manual removal. Such settings are called **unmanaged** and the resulting behavior is known as GPO tattooing. To address this issue, configuration files use ternary logic:
+
+- `true` ⇒ The setting is enabled by the GPO.
+- `false` ⇒ The setting is disabled by the GPO.
+- `null` ⇒ The local setting is not changed by the GPO.
+
+As a consequence, before the value of an unmanaged setting can be changed from `true` to `null`, it must temporarily be set to `false`.  Keep in mind that it may take time for the new settings to propagate to all domain controllers due to replication latency. Additionally, some settings may require a reboot.
 
 ### System Reboots
 
@@ -216,19 +255,22 @@ Due to the [GPO foreground processing](https://learn.microsoft.com/en-us/previou
 
 ##### WMI static port
 
-The script will move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.  
+The script will move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
+
 ```bat
 winmgmt.exe /standalonehost 6
 ```
 
 ##### DFSR static port
 
-If the server doesn't have DFS Management tools installed, the script will istall it.  
+If the server doesn't have DFS Management tools installed, the script will istall it.
+
 ```bat
 if not exist "%SystemRoot%\system32\dfsrdiag.exe" (dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt)
 ```
 
-Next, it will configure the DFSR to use static port.  
+Next, it will configure the DFSR to use static port.
+
 ```bat
 dfsrdiag.exe StaticRPC /Port:5722
 ```
@@ -247,13 +289,13 @@ netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\lo
 
 ![RPC Filters configuration file](../Screenshots/deploy-rpcnamedpipesfilter.png)  
 
-The script will register all RPC filters defined in `RpcNamedPipesFilters.txt` file, which is located in the same path as the `FirewallConfiguration.bat`, in the "Startup" folder under the recently created firewall GPO.  
+The script will register all RPC filters defined in `RpcNamedPipesFilters.txt` file, which is located in the same path as the `FirewallConfiguration.bat`, in the "Startup" folder under the recently created firewall GPO.
+
 ```bat
 netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85-D29FEBDFF6D6}\Machine\Scripts\Startup\RpcNamedPipesFilters.txt"
 ```
 
 #### Sample Startup Script
-
 
 ```shell
 @ECHO OFF
@@ -1336,7 +1378,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `w32time` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123] |
 
-
 #### Active Directory Domain Controller (RPC-EPMAP)
 
 | Property    | Value |
@@ -1350,7 +1391,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `rpcss` |
 | Description | Inbound rule for the RPCSS service to allow RPC/TCP traffic to the Active Directory Domain Controller service. |
 
-
 #### Kerberos Key Distribution Center - PCR (UDP-In)
 
 | Property    | Value |
@@ -1362,7 +1402,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [UDP 464] |
-
 
 #### Kerberos Key Distribution Center - PCR (TCP-In)
 
@@ -1376,7 +1415,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [TCP 464] |
 
-
 #### Active Directory Domain Controller (RPC)
 
 | Property    | Value |
@@ -1388,7 +1426,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | RPC |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule to allow remote RPC/TCP access to the Active Directory Domain Controller service. |
-
 
 #### Active Directory Domain Controller - LDAP (UDP-In)
 
@@ -1402,7 +1439,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [UDP 389] |
 
-
 #### Active Directory Domain Controller - LDAP (TCP-In)
 
 | Property    | Value |
@@ -1414,7 +1450,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [TCP 389] |
-
 
 #### Active Directory Domain Controller - Secure LDAP (TCP-In)
 
@@ -1428,7 +1463,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure LDAP traffic. [TCP 636] |
 
-
 #### Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)
 
 | Property    | Value |
@@ -1441,7 +1475,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Global Catalog traffic. [TCP 3268] |
 
-
 #### Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)
 
 | Property    | Value |
@@ -1453,7 +1486,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 3269 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure Global Catalog traffic. [TCP 3269] |
-
 
 #### DNS (UDP, Incoming)
 
@@ -1468,7 +1500,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `dns` |
 | Description | Inbound rule to allow remote UDP access to the DNS service. |
 
-
 #### DNS (TCP, Incoming)
 
 | Property    | Value |
@@ -1482,7 +1513,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `dns` |
 | Description | Inbound rule to allow remote TCP access to the DNS service. |
 
-
 #### Kerberos Key Distribution Center (TCP-In)
 
 | Property    | Value |
@@ -1494,7 +1524,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [TCP 88] |
-
 
 #### Kerberos Key Distribution Center (UDP-In)
 
@@ -1508,7 +1537,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [UDP 88] |
 
-
 #### Active Directory Domain Controller - SAM/LSA (NP-UDP-In)
 
 | Property    | Value |
@@ -1521,6 +1549,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [UDP 445] |
 
+Note: We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445.
 
 #### Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
 
@@ -1534,7 +1563,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [TCP 445] |
 
-
 #### Active Directory Domain Controller - Echo Request (ICMPv4-In)
 
 | Property    | Value |
@@ -1547,7 +1575,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
 
-
 #### Active Directory Domain Controller - Echo Request (ICMPv6-In)
 
 | Property    | Value |
@@ -1559,7 +1586,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | ICMP Type   | 128 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
-
 
 #### Active Directory Domain Controller - NetBIOS name resolution (UDP-In)
 
@@ -1734,7 +1760,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `adws` |
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
 
-
 #### Windows Remote Management (HTTP-In)
 
 | Property    | Value |
@@ -1747,6 +1772,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5985] |
 
+This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
 
 #### Windows Remote Management (HTTPS-In)
 
@@ -1760,6 +1786,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5986] |
 
+This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
 
 #### Windows Management Instrumentation (WMI-In)
 
@@ -1774,7 +1801,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `winmgmt` |
 | Description | Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
 
-
 #### Remote Desktop - User Mode (UDP-In)
 
 | Property    | Value |
@@ -1788,6 +1814,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
 
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
 #### Remote Desktop - User Mode (TCP-In)
 
@@ -1802,6 +1829,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
 
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
 #### OpenSSH SSH Server (sshd)
 
@@ -1815,6 +1843,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
 | Description | Inbound rule for OpenSSH SSH Server (sshd) |
 
+This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting.
 
 #### DFS Management (TCP-In)
 
@@ -1827,7 +1856,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | RPC |
 | Program     | `%systemroot%\system32\dfsfrsHost.exe` |
 | Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
-
 
 #### RPC (TCP, Incoming)
 
@@ -1842,7 +1870,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `dns` |
 | Description | Inbound rule to allow remote RPC/TCP access to the DNS service. |
 
-
 #### Windows Backup (RPC)
 
 | Property    | Value |
@@ -1856,6 +1883,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `wbengine` |
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
 
+This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting.
 
 #### Performance Logs and Alerts (TCP-In)
 
@@ -1869,6 +1897,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\system32\plasrv.exe` |
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
 
+This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting.
 
 #### COM+ Remote Administration (DCOM-In)
 
@@ -1883,6 +1912,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Service     | `COMSysApp` |
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
 
+This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting.
 
 #### Remote Event Log Management (RPC)
 
@@ -1896,7 +1926,6 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `Eventlog` |
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
-
 
 This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.
 
@@ -1913,6 +1942,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Service     | `schedule` |
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
 
+This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting.
 
 #### Remote Service Management (RPC)
 
@@ -1926,6 +1956,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\services.exe` |
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
 
+This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting.
 
 #### Remote Volume Management - Virtual Disk Service (RPC)
 
@@ -1940,6 +1971,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Service     | `vds` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
 
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 
 #### Remote Volume Management - Virtual Disk Service Loader (RPC)
 
@@ -1953,6 +1985,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\vdsldr.exe` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
 
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 
 #### Windows Internet Naming Service (WINS) - Remote Management (RPC)
 
@@ -1967,6 +2000,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
 
+This rule is governed by the [EnableWINS](#enablewins) setting.
 
 #### Windows Defender Firewall Remote Management (RPC)
 
@@ -1981,6 +2015,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Service     | `policyagent` |
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
 
+This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting.
 
 ### DC Replication Traffic
 
@@ -1997,7 +2032,6 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Service     | `Dfsr` |
 | Description | Inbound rule to allow DFS Replication RPC traffic. |
 
-
 #### File Replication (RPC)
 
 | Property    | Value |
@@ -2010,4 +2044,3 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\NTFRS.exe` |
 | Service     | `NTFRS` |
 | Description | Inbound rule to allow File Replication RPC traffic. |
-
