@@ -3,6 +3,7 @@
     "GroupPolicyObjectName": "Domain Controller Firewall",
     "GroupPolicyObjectComment": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
     "LogDroppedPackets": true,
+    "LogAllowedPackets": false,
     "LogFilePath": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
     "LogMaxSizeKilobytes": 128,
     "ClientAddresses": [ "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "10.220.6.0/24" ],

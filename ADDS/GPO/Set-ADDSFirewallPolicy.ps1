@@ -41,8 +41,11 @@ class ScriptSettings {
 
     # Indicates whether the packets dropped by the firewall should be logged.
     [bool]             $LogDroppedPackets             = $false
+    
+    # Indicates whether the packets allowed by the firewall should be logged.
+    [bool]             $LogAllowedPackets             = $false
 
-    # The path to the log file that will be used to store information about the dropped packets.
+    # The path to the log file that will be used to store information about the allowed and/or dropped packets.
     [string]           $LogFilePath                   = '%systemroot%\system32\logfiles\firewall\pfirewall.log'
 
     # The maximum size of the firewall log file in kilobytes.
@@ -221,10 +224,17 @@ finally {
 }
 
 # Determine the dropped packet logging settings
-[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
+[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocked = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
 
 if($configuration.LogDroppedPackets) {
-    $logBlocled = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
+    $logBlocked = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
+}
+
+# Determine the allowed packet logging settings
+[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logAllowed = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
+
+if($configuration.LogAllowedPackets) {
+    $logAllowed = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
 }
 
 # Sanitize the maximum log file size
@@ -245,8 +255,8 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -NotifyOnListen False `
                        -LogFileName $configuration.LogFilePath `
                        -LogMaxSizeKilobytes $configuration.LogMaxSizeKilobytes `
-                       -LogBlocked $logBlocled `
-                       -LogAllowed False `
+                       -LogBlocked $logBlocked `
+                       -LogAllowed $logAllowed `
                        -LogIgnored False `
                        -Verbose `
                        -ErrorAction Stop

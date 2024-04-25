@@ -19,10 +19,15 @@
         "default": false,
         "description": "Indicates whether the packets dropped by the firewall should be logged."
       },
+      "LogAllowedPackets": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether the packets allowed by the firewall should be logged."
+      },
       "LogFilePath": {
         "type": "string",
         "default": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
-        "description": "The path to the log file that will be used to store information about the dropped packets."
+        "description": "The path to the log file that will be used to store information about the allowed and/or dropped packets."
       },
       "LogMaxSizeKilobytes": {
         "type": "integer",
