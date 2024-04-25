@@ -171,13 +171,13 @@ if($null -eq $gpo) {
 
 if($gpo.GpoStatus -ne [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled) {
     # Fix the GPO status
-    # TODO: Verbose
+    Write-Verbose -Message ('Disabling user settings for GPO {0}.' -f $gpo.DisplayName) -Verbose
     $gpo.GpoStatus = [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled
 }
 
 if($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
     # Fix the GPO description
-    # TODO: Verbose
+    Write-Verbose -Message ('Updating the description for GPO {0}.' -f $gpo.DisplayName) -Verbose
     $gpo.Description = $configuration.GroupPolicyObjectComment
 }
 
@@ -190,7 +190,7 @@ if($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
 
 # Open the GPO
 # Note: The Open-NetGPO cmdlet by default contacts a random DC instead of PDC-E
-# TODO: Verbose
+Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName) -Verbose
 [Microsoft.ActiveDirectory.Management.ADDomain] $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
 [string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $domain.PDCEmulator -ErrorAction Stop
 
@@ -1192,7 +1192,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
-# TODO: Verbose
+Write-Verbose -Message 'Saving the GPO changes...' -Verbose
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
 
 #endregion Inbound Firewall Rules
@@ -1226,11 +1226,9 @@ Set-GPRegistryValue -Guid $gpo.Id `
 
 <#
 TODO: Add more registry settings
-OneSettings
-
- Allow Diagnostic Data to Disabled.
-Administrative Template > Windows Components > Data Collection and Preview Builds
-
+- OneSettings
+- Allow Diagnostic Data to Disabled.
+  Administrative Template > Windows Components > Data Collection and Preview Builds
 #>
 
 # Prevent users and apps from accessing dangerous websites

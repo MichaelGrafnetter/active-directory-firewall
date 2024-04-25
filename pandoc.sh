@@ -19,7 +19,7 @@ pandock \
   --variable=classoption:oneside \
   --variable=geometry:a4paper,margin=2cm \
   --variable=colorlinks:true \
-  --variable=linkcolor:"[HTML]{000000}" \
+  --variable=linkcolor:"[HTML]{4077C0}" \
   --variable=titlepage:true \
   --variable=titlepage-rule-color:de0000 \
   --variable=titlepage-rule-height:40 \
