@@ -221,8 +221,26 @@ If a full system reboot of all domain controllers is undesirable, the following 
 
 ### Security Standards Compliance
 
+#### Security Technical Implementation Guide (STIG)
+
+Microsoft Windows Defender Firewall with Advanced Security STIG
+
+[Security Technical Implementation Guide (STIG)](https://public.cyber.mil/stigs/)
+
+Developed by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) for the DOD
+
+Version 2, Release 2, 09 November 2023
+ 
+https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip
+
 - [DoD: Windows Firewall with Advanced Security Security Technical Implementation Guide (STIG)](https://www.stigviewer.com/stig/windows_firewall_with_advanced_security/)
+
+#### Center for Internet Security (CIS) Benchmark
+
 - [CIS: Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
+
+#### Microsoft Security Compliance Toolkit
+
 - [Microsoft: Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
 
 ### Infeasibility of Outbound Traffic Filtering
@@ -1443,7 +1461,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\svchost.exe` |
 | Service     | `w32time` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123] |
-| Scope       | Any |
+| Remote Addresses | Any |
 
 As the NTP service might be used by non-Windows clients, we do not limit the remote addresses.
 
@@ -1459,7 +1477,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Program     | `%systemroot%\system32\svchost.exe` |
 | Service     | `rpcss` |
 | Description | Inbound rule for the RPCSS service to allow RPC/TCP traffic to the Active Directory Domain Controller service. |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Kerberos Key Distribution Center - PCR (UDP-In)
 
@@ -1472,7 +1490,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [UDP 464] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Kerberos Key Distribution Center - PCR (TCP-In)
 
@@ -1485,7 +1503,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [TCP 464] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller (RPC)
 
@@ -1498,7 +1516,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | RPC |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule to allow remote RPC/TCP access to the Active Directory Domain Controller service. |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - LDAP (UDP-In)
 
@@ -1511,7 +1529,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [UDP 389] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - LDAP (TCP-In)
 
@@ -1524,7 +1542,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [TCP 389] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Secure LDAP (TCP-In)
 
@@ -1537,7 +1555,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | 636 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure LDAP traffic. [TCP 636] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)
 
@@ -1550,7 +1568,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | 3268 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Global Catalog traffic. [TCP 3268] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)
 
@@ -1563,7 +1581,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Port        | 3269 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure Global Catalog traffic. [TCP 3269] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### DNS (UDP, Incoming)
 
@@ -1577,7 +1595,7 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote UDP access to the DNS service. |
-| Scope       | Any |
+| Remote Addresses | Any |
 
 As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
@@ -1593,7 +1611,7 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote TCP access to the DNS service. |
-| Scope       | Any |
+| Remote Addresses | Any |
 
 As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
@@ -1608,7 +1626,7 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [TCP 88] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Kerberos Key Distribution Center (UDP-In)
 
@@ -1621,7 +1639,7 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [UDP 88] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - SAM/LSA (NP-UDP-In)
 
@@ -1634,7 +1652,7 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Port        | 445 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [UDP 445] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445. However, it is part of the predefined firewall rules on Windows Server and is mentioned in several official documents.
 
@@ -1649,7 +1667,7 @@ We are not sure if this rule is actually needed, as we have never seen UDP traff
 | Port        | 445 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [TCP 445] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Echo Request (ICMPv4-In)
 
@@ -1662,7 +1680,7 @@ We are not sure if this rule is actually needed, as we have never seen UDP traff
 | ICMP Type   | 8 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Echo Request (ICMPv6-In)
 
@@ -1675,7 +1693,7 @@ We are not sure if this rule is actually needed, as we have never seen UDP traff
 | ICMP Type   | 128 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - NetBIOS name resolution (UDP-In)
 
@@ -1688,7 +1706,7 @@ We are not sure if this rule is actually needed, as we have never seen UDP traff
 | Port        | 138 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NetBIOS name resolution. [UDP 138] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableNetbiosDatagramService](#enablenetbiosdatagramservice) setting.
 
@@ -1795,7 +1813,7 @@ This rule is governed by the [EnableNetbiosDatagramService](#enablenetbiosdatagr
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWINS](#enablewins) setting.
 
@@ -1811,7 +1829,7 @@ This rule is governed by the [EnableWINS](#enablewins) setting.
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWINS](#enablewins) setting.
 
@@ -1826,7 +1844,7 @@ This rule is governed by the [EnableWINS](#enablewins) setting.
 | Port        | 137 |
 | Program     | `System` |
 | Description | Inbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableNetbiosNameService](#enablenetbiosnameservice) setting.
 
@@ -1841,7 +1859,7 @@ This rule is governed by the [EnableNetbiosNameService](#enablenetbiosnameservic
 | Port        | 139 |
 | Program     | `System` |
 | Description | Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139] |
-| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossessionservice) setting.
 
@@ -1859,7 +1877,7 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
 | Service     | `adws` |
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Windows Remote Management (HTTP-In)
 
@@ -1872,7 +1890,7 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Port        | 5985 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5985] |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
 
@@ -1887,7 +1905,7 @@ This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremot
 | Port        | 5986 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5986] |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
 
@@ -1903,7 +1921,7 @@ This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindo
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `winmgmt` |
 | Description | Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Remote Desktop - User Mode (UDP-In)
 
@@ -1917,7 +1935,7 @@ This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindo
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
-| Scope       | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
@@ -1933,7 +1951,7 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
-| Scope       | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
@@ -1948,7 +1966,7 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Port        | 22 |
 | Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
 | Description | Inbound rule for OpenSSH SSH Server (sshd) |
-| Scope       | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting.
 
@@ -1963,7 +1981,7 @@ This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting
 | Port        | RPC |
 | Program     | `%systemroot%\system32\dfsfrsHost.exe` |
 | Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### RPC (TCP, Incoming)
 
@@ -1977,7 +1995,7 @@ This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote RPC/TCP access to the DNS service. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Windows Backup (RPC)
 
@@ -1991,7 +2009,7 @@ This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting
 | Program     | `%systemroot%\system32\wbengine.exe` |
 | Service     | `wbengine` |
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting.
 
@@ -2006,7 +2024,7 @@ This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) se
 | Port        | Any |
 | Program     | `%systemroot%\system32\plasrv.exe` |
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting.
 
@@ -2022,7 +2040,7 @@ This rule is governed by the [EnablePerformanceLogAccess](#enableperformanceloga
 | Program     | `%systemroot%\system32\dllhost.exe` |
 | Service     | `COMSysApp` |
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting.
 
@@ -2038,7 +2056,7 @@ This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement)
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `Eventlog` |
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.
 
@@ -2054,7 +2072,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `schedule` |
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting.
 
@@ -2069,7 +2087,7 @@ This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtas
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\services.exe` |
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting.
 
@@ -2085,7 +2103,7 @@ This rule is governed by the [EnableServiceManagement](#enableservicemanagement)
 | Program     | `%SystemRoot%\system32\vds.exe` |
 | Service     | `vds` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 
@@ -2100,7 +2118,7 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\vdsldr.exe` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 
@@ -2116,7 +2134,7 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWINS](#enablewins) setting.
 
@@ -2132,7 +2150,7 @@ This rule is governed by the [EnableWINS](#enablewins) setting.
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `policyagent` |
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
-| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting.
 
@@ -2150,7 +2168,7 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 | Program     | `%SystemRoot%\system32\dfsrs.exe` |
 | Service     | `Dfsr` |
 | Description | Inbound rule to allow DFS Replication RPC traffic. |
-| Scope       | [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Domain Controllers](#domaincontrolleraddresses) |
 
 #### File Replication (RPC)
 
@@ -2164,4 +2182,4 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 | Program     | `%SystemRoot%\system32\NTFRS.exe` |
 | Service     | `NTFRS` |
 | Description | Inbound rule to allow File Replication RPC traffic. |
-| Scope       | [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses | [Domain Controllers](#domaincontrolleraddresses) |
