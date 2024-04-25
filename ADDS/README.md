@@ -175,7 +175,27 @@ As a consequence, before the value of an unmanaged setting can be changed from `
 
 ### System Reboots
 
-TODO: Need to be done manually when static ports or startup scripts are changed.
+Changes to some settings require a reboot of the target domain controller to get applied. This is the case of static port number configurations and settings that are modified through the startup script:
+
+- [NtdsStaticPort](#ntdsstaticport)
+- [NetlogonStaticPort](#netlogonstaticport)
+- [FrsStaticPort](#frsstaticport)
+- [DfsrStaticPort](#dfsrstaticport)
+- [WmiStaticPort](#wmistaticport)
+- [EnableRpcFilters](#enablerpcfilters)
+- [LogFilePath](#logfilepath)
+
+If a full system reboot of all domain controllers is undesirable, the following steps can be performed instead:
+
+1. Make sure that the Group Policy changes are replicated to all domain controllers.
+2. Invoke the `gpupdate.exe` command for the changed policies to be applied immediately.
+3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
+4. Execute the `net stop ntds && net start ntds` command to restart the AD DS Domain Controller service.
+5. Repeat steps 2-4 on all domain controllers.
+
+### Firewall Rule Merging
+
+TODO: Picture of OU/GPO hierarchy from GPMC.
 
 ### Identifying Management Traffic
 
@@ -201,7 +221,6 @@ TODO: File list
   - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
 - Supported OS: ![](https://img.shields.io/badge/Windows%20Server-2016%20|%202019%20|%202022%20|%202025-007bb8.png?logo=Windows%2011)  ![](https://img.shields.io/badge/Windows-10%7C11-7bb800?logo=windows)
 
-
 ## Group Policy Object Contents
 
 ### Firewall Configuration
@@ -220,7 +239,7 @@ The following ADMX and their respective ADML (in English) are copied to Central 
 
 - Contains template for configuration of the following settings:
   - [NTDS Static Port](#ntdsstaticport)  
-  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Active Directory RPC static port 
+  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Active Directory RPC static port
   - [Netlogon Static Port](#netlogonstaticport)  
   Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Netlogon static port
   - [FRS Static Port](#frsstaticport)  
@@ -231,7 +250,7 @@ Computer Configuration / Administrative Templates / Network / DNS Client / Turn 
 `MSS-legacy.admx`
 
 - Contains template for configuration of all the settings stored in:  
-Computer Configuration / Administrative Templates / MSS (Legacy) 
+Computer Configuration / Administrative Templates / MSS (Legacy)
 
 `SecGuide.admx`
 
@@ -253,7 +272,7 @@ If enabled in the .json file, the script will execute the following actions:
 > [!WARNING]
 Due to the [GPO foreground processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11)) requirement, when applying a startup script, the server needs to be restarted to apply the configuration items in the script.
 
-##### WMI static port
+#### WMI static port
 
 The script will move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
 
@@ -261,7 +280,7 @@ The script will move the WMI service to a standalone process listening on TCP po
 winmgmt.exe /standalonehost 6
 ```
 
-##### DFSR static port
+#### DFSR static port
 
 If the server doesn't have DFS Management tools installed, the script will istall it.
 
@@ -275,7 +294,7 @@ Next, it will configure the DFSR to use static port.
 dfsrdiag.exe StaticRPC /Port:5722
 ```
 
-##### Firewall Log File
+#### Firewall Log File
 
 ![Firewall log file configuration](../Screenshots/firewall-log-config.png)
 
@@ -285,7 +304,7 @@ Log file is not created by the GPO, ACLs need to be configured through command l
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
-##### RPC Filters
+#### RPC Filters
 
 ![RPC Filters configuration file](../Screenshots/deploy-rpcnamedpipesfilter.png)  
 
@@ -629,6 +648,7 @@ Possible values: true / false / null
 ```
 
 ### DisableNetbiosBroadcasts
+
 > [!IMPORTANT]
 doplnit "false"  
 
@@ -674,7 +694,7 @@ Possible values: true / false / null
 
 Indicates whether remote service management should be enabled.
 
-If `true`, corresponding ports are open and remote services management will be available. If `false`, services cannot be managed remotely.
+If `true`, corresponding ports are open and remote services management will be available. If `false`, services cannot be managed remotely. The script achieves this by enabling or disabling the [Remote Service Management (RPC)](#remote-service-management-rpc) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -700,7 +720,7 @@ Possible values: true / false
 
 Indicates whether remote scheduled task management should be enabled.
 
-If `true`, corresponding ports are open and remote scheduled tasks management will be available. If `false`, scheduled tasks cannot be managed remotely.
+If `true`, corresponding ports are open and remote scheduled tasks management will be available. If `false`, scheduled tasks cannot be managed remotely. The script achieves this by enabling or disabling the [Remote Scheduled Tasks Management (RPC)](#remote-scheduled-tasks-management-rpc) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -714,7 +734,9 @@ Possible values: true / false
 
 Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled. This protocol is used by PowerShell Remoting, Server Manager, and [PowerShell CIM cmdlets](https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/?view=powershell-7.4).
 
-If `true`, corresponding ports are open and WinRM will be available. If `false`, WinRM ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
+If `true`, corresponding ports are open and WinRM will be available. If `false`, WinRM ports won’t be open. The script achieves this by enabling or disabling the [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in) and [Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in) firewall rules.
+
+For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
 
 ```yaml
 Type: Boolean
@@ -728,7 +750,7 @@ Possible values: true / false
 
 Indicates whether remote performance log access should be enabled.
 
-If `true`, corresponding ports are open and remote Performance Log management will be available. If `false`, Performance Log cannot be managed remotely.  
+If `true`, corresponding ports are open and remote Performance Log management will be available. If `false`, Performance Log cannot be managed remotely. The script achieves this by enabling or disabling the [Performance Logs and Alerts (TCP-In)](#performance-logs-and-alerts-tcp-in) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -742,7 +764,7 @@ Possible values: true / false
 
 Indicates whether inbound OpenSSH traffic should be enabled.
 
-If `true`, corresponding ports are open and OpenSSH will be available. If `false`, OpenSSH won't be allowed.
+If `true`, corresponding ports are open and OpenSSH will be available. If `false`, OpenSSH won't be allowed. The script achieves this by enabling or disabling the [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -756,7 +778,7 @@ Possible values: true / false
 
 Indicates whether inbound Remote Desktop Protocol (RDP) traffic should be enabled.
 
-If `true`, corresponding ports are open and remote desktop connection (RDP) will be available. If `false`, RDP is not available.  
+If `true`, corresponding ports are open and remote desktop connection (RDP) will be available. If `false`, RDP is not available. The script achieves this by enabling or disabling the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in) and [Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in) firewall rules.
 
 ```yaml
 Type: Boolean
@@ -770,7 +792,7 @@ Possible values: true / false
 
 Indicates whether remote disk management should be enabled.
 
-If `true`, corresponding ports are open and remote disk management will be available. If `false`, disks cannot be managed remotely.  
+If `true`, corresponding ports are open and remote disk management will be available. If `false`, disks cannot be managed remotely. The script achieves this by enabling or disabling the [Remote Volume Management - Virtual Disk Service Loader (RPC)](#remote-volume-management---virtual-disk-service-loader-rpc) and [Remote Volume Management - Virtual Disk Service (RPC)](#remote-volume-management---virtual-disk-service-rpc) firewall rules.
 
 ```yaml
 Type: Boolean
@@ -784,7 +806,7 @@ Possible values: true / false
 
 Indicates whether remote management of Windows Server Backup should be enabled.
 
-If `true`, corresponding ports are open and remote Windows Backup management will be available. If `false`, Windows Backup cannot be managed remotely.  
+If `true`, corresponding ports are open and remote Windows Backup management will be available. If `false`, Windows Backup cannot be managed remotely. The script achieves this by enabling or disabling the [Windows Backup (RPC)](#windows-backup-rpc) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -798,7 +820,7 @@ Possible values: true / false
 
 Indicates whether remote firewall management should be enabled.
 
-If `true`, corresponding ports are open and remote Windows Defender Firewall management will be available. If `false`, Windows Defender Firewall cannot be managed remotely.
+If `true`, corresponding ports are open and remote Windows Defender Firewall management will be available. If `false`, Windows Defender Firewall cannot be managed remotely. The script achieves this by enabling or disabling the [Windows Defender Firewall Remote Management (RPC)](#windows-defender-firewall-remote-management-rpc) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -812,7 +834,9 @@ Possible values: true / false
 
 Indicates whether inbound COM+ management traffic should be enabled.
 
-If `true`, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed. If `false`, COM+ System Application cannot be managed remotely. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
+If `true`, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed. If `false`, COM+ System Application cannot be managed remotely. The script achieves this by enabling or disabling the [COM+ Remote Administration (DCOM-In)](#com-remote-administration-dcom-in) firewall rule.
+
+For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
 
 ```yaml
 Type: Boolean
@@ -826,7 +850,9 @@ Possible values: true / false
 
 Indicates whether inbound legacy file replication traffic should be enabled.
 
-If `true`, corresponding ports are open for NTFRS replication. If you still haven’t migrated your SYSVOL replication to modern DFSR, you need to enable this setting. If `false`, NTFRS ports won’t be open. For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
+If `true`, corresponding ports are open for NTFRS replication. If you still haven’t migrated your SYSVOL replication to modern DFSR, you need to enable this setting. If `false`, NTFRS ports won’t be open. The script achieves this by enabling or disabling the [File Replication (RPC)](#file-replication-rpc) firewall rule.
+
+For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
 
 ```yaml
 Type: Boolean
@@ -840,7 +866,7 @@ Possible values: true / false
 
 Indicates whether inbound NetBIOS Name Service should be allowed.
 
-If `true`, corresponding ports (UDP 137) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open.
+If `true`, corresponding ports (UDP 137) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open. The script achieves this by enabling or disabling the [File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -854,7 +880,7 @@ Possible values: true / false
 
 Indicates whether inbound NetBIOS Datagram Service traffic should be allowed.
 
-If `true`, corresponding ports (UDP 138) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open.
+If `true`, corresponding ports (UDP 138) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open. The script achieves this by enabling or disabling the [Active Directory Domain Controller - NetBIOS name resolution (UDP-In)](#active-directory-domain-controller---netbios-name-resolution-udp-in) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -868,7 +894,7 @@ Possible values: true / false
 
 Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed.
 
-If `true`, corresponding ports (TCP 139) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open.  
+If `true`, corresponding ports (TCP 139) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open. The script achieves this by enabling or disabling the [File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -882,7 +908,7 @@ Possible values: true / false
 
 Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed.
 
-If `true`, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If `false`, WINS ports are not open.  
+If `true`, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If `false`, WINS ports are not open. The script achieves this by enabling or disabling the [Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in), [Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in), and [Windows Internet Naming Service (WINS) - Remote Management (RPC)](#windows-internet-naming-service-wins---remote-management-rpc) firewall rules.
 
 ```yaml
 Type: Boolean
@@ -896,7 +922,7 @@ Possible values: true / false
 
 Indicates whether the [Network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection) feature of Microsoft Defender Antivirus should be enabled.
 
-If `true` MDA Network Protection will be configured in block mode. If `false` MDA Network Protection will be configured in audit mode only. If `null` MDA Network Protection will not be configured. 
+If `true` MDA Network Protection will be configured in block mode. If `false` MDA Network Protection will be configured in audit mode only. If `null` MDA Network Protection will not be configured.
 
 ```yaml
 Type: Boolean
@@ -913,7 +939,7 @@ Indicates whether to block process creations originating from PSExec and WMI com
 - [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
 - [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-persistence-through-wmi-event-subscription)
 
-If `true` MDA Attack Surface Reduction rules (mentioned above) will be configured in block mode. If `false` MDA Attack Surface Reduction rules (mentioned above) will be configured in audit mode only, allowing you to evaluate the possible impact if the rules were enabled in block mode. If `null` MDA ASR rules are not configured, effectively disabling the rules. 
+If `true` MDA Attack Surface Reduction rules (mentioned above) will be configured in block mode. If `false` MDA Attack Surface Reduction rules (mentioned above) will be configured in audit mode only, allowing you to evaluate the possible impact if the rules were enabled in block mode. If `null` MDA ASR rules are not configured, effectively disabling the rules.
 
 ```yaml
 Type: Boolean
@@ -1028,11 +1054,13 @@ If you need to rollback the changes, unlink the GPO from Domain Controllers OU a
 If you've configured static ports for WMI and/or DFSR, you'll need to run the following commands, in order to revert them back to dynamic ports.
 
 For DFSR:
+
 ```shell
 dfsrdiag staticrpc /port:0
 ```
 
 For WMI
+
 ```shell
 winmgmt /sharedhost
 ```
@@ -1041,6 +1069,7 @@ winmgmt /sharedhost
 > TODO: zbytek static portu
 
 If you've enabled [RPC filters](#rpc-filters) in the `Set-ADDSFirewallPolicy.json`, you need to manually run the following command to delete them:
+
 ```shell
 netsh rpc filter delete filter filterkey=all
 ```
@@ -1154,8 +1183,8 @@ add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=86D35949-83C9-4044-B424-DB363231FD0C
 add filter
 ```
-Interface UUID: [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
 
+Interface UUID: [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
 
 ```txt
 # Block [MS-TSCH]: Task Scheduler Service Remoting Protocol, Named pipe: \PIPE\atsvc, Interface: Task Scheduler Agent (ATSvc)
@@ -1322,10 +1351,10 @@ TODO: Block RDP-related protocols over named pipes?
 
 https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rsp/6dfeb978-7a02-4826-b537-a1760fbf8074
 
-UUID: d95afe70-a6d5-4259-822e-2c84da1ddb0d 
+UUID: d95afe70-a6d5-4259-822e-2c84da1ddb0d
 ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
 
-UUID: 76f226c3-ec14-4325-8a99-6a46348418af 
+UUID: 76f226c3-ec14-4325-8a99-6a46348418af
 ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
 
 ### Further Protocol Considerations
@@ -1377,6 +1406,9 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\svchost.exe` |
 | Service     | `w32time` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123] |
+| Scope       | Any |
+
+As the NTP service might be used by non-Windows clients, we do not limit the remote addresses.
 
 #### Active Directory Domain Controller (RPC-EPMAP)
 
@@ -1390,6 +1422,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\system32\svchost.exe` |
 | Service     | `rpcss` |
 | Description | Inbound rule for the RPCSS service to allow RPC/TCP traffic to the Active Directory Domain Controller service. |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Kerberos Key Distribution Center - PCR (UDP-In)
 
@@ -1402,6 +1435,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [UDP 464] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Kerberos Key Distribution Center - PCR (TCP-In)
 
@@ -1414,6 +1448,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 464 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service to allow for password change requests. [TCP 464] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller (RPC)
 
@@ -1426,6 +1461,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | RPC |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule to allow remote RPC/TCP access to the Active Directory Domain Controller service. |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - LDAP (UDP-In)
 
@@ -1438,6 +1474,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [UDP 389] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - LDAP (TCP-In)
 
@@ -1450,6 +1487,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 389 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote LDAP traffic. [TCP 389] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Secure LDAP (TCP-In)
 
@@ -1462,6 +1500,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 636 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure LDAP traffic. [TCP 636] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)
 
@@ -1474,6 +1513,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 3268 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Global Catalog traffic. [TCP 3268] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)
 
@@ -1486,6 +1526,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 3269 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow remote Secure Global Catalog traffic. [TCP 3269] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### DNS (UDP, Incoming)
 
@@ -1499,6 +1540,9 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote UDP access to the DNS service. |
+| Scope       | Any |
+
+As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
 #### DNS (TCP, Incoming)
 
@@ -1512,6 +1556,9 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote TCP access to the DNS service. |
+| Scope       | Any |
+
+As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
 #### Kerberos Key Distribution Center (TCP-In)
 
@@ -1524,6 +1571,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [TCP 88] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Kerberos Key Distribution Center (UDP-In)
 
@@ -1536,6 +1584,7 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 88 |
 | Program     | `%systemroot%\System32\lsass.exe` |
 | Description | Inbound rule for the Kerberos Key Distribution Center service. [UDP 88] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - SAM/LSA (NP-UDP-In)
 
@@ -1548,8 +1597,9 @@ TODO: Needs splitting, extending, and mapping to the default rules.
 | Port        | 445 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [UDP 445] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-Note: We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445.
+We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445. However, it is part of the predefined firewall rules on Windows Server and is mentioned in several official documents.
 
 #### Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
 
@@ -1562,6 +1612,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Port        | 445 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [TCP 445] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Echo Request (ICMPv4-In)
 
@@ -1574,6 +1625,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 8 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - Echo Request (ICMPv6-In)
 
@@ -1586,6 +1638,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 128 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping). |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Active Directory Domain Controller - NetBIOS name resolution (UDP-In)
 
@@ -1598,7 +1651,9 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Port        | 138 |
 | Program     | `System` |
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NetBIOS name resolution. [UDP 138] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
+This rule is governed by the [EnableNetbiosDatagramService](#enablenetbiosdatagramservice) setting.
 
 #### Core Networking - Destination Unreachable (ICMPv6-In)
 
@@ -1611,7 +1666,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 1 |
 | Program     | `System` |
 | Description | Destination Unreachable error messages are sent from any node that a packet traverses which is unable to forward the packet for any reason except congestion. |
-
+| Scope | Any |
 
 #### Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)
 
@@ -1624,7 +1679,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 3:4 |
 | Program     | `System` |
 | Description | Destination Unreachable Fragmentation Needed error messages are sent from any node that a packet traverses which is unable to forward the packet because fragmentation was needed and the don't fragment bit was set. |
-
+| Scope | Any|
 
 #### Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)
 
@@ -1637,7 +1692,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 136 |
 | Program     | `System` |
 | Description | Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request. |
-
+| Scope | Any |
 
 #### Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)
 
@@ -1650,7 +1705,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 135 |
 | Program     | `System` |
 | Description | Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node. |
-
+| Scope | Any |
 
 #### Core Networking - Packet Too Big (ICMPv6-In)
 
@@ -1663,7 +1718,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 2 |
 | Program     | `System` |
 | Description | Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link. |
-
+| Scope | Any|
 
 #### Core Networking - Parameter Problem (ICMPv6-In)
 
@@ -1676,7 +1731,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 4 |
 | Program     | `System` |
 | Description | Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets. |
-
+| Scope | Any |
 
 #### Core Networking - Time Exceeded (ICMPv6-In)
 
@@ -1689,7 +1744,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | ICMP Type   | 3 |
 | Program     | `System` |
 | Description | Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path. |
-
+| Scope | Any |
 
 #### Windows Internet Naming Service (WINS) (TCP-In)
 
@@ -1703,7 +1758,9 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
+This rule is governed by the [EnableWINS](#enablewins) setting.
 
 #### Windows Internet Naming Service (WINS) (UDP-In)
 
@@ -1717,7 +1774,9 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
+This rule is governed by the [EnableWINS](#enablewins) setting.
 
 #### File and Printer Sharing (NB-Name-In)
 
@@ -1730,7 +1789,9 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Port        | 137 |
 | Program     | `System` |
 | Description | Inbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
+This rule is governed by the [EnableNetbiosNameService](#enablenetbiosnameservice) setting.
 
 #### File and Printer Sharing (NB-Session-In)
 
@@ -1743,7 +1804,9 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Port        | 139 |
 | Program     | `System` |
 | Description | Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139] |
+| Scope       | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
+This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossessionservice) setting.
 
 ### Management Traffic
 
@@ -1759,6 +1822,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
 | Service     | `adws` |
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Windows Remote Management (HTTP-In)
 
@@ -1771,6 +1835,7 @@ Note: We are not sure if this rule is actually needed, as we have never seen UDP
 | Port        | 5985 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5985] |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
 
@@ -1785,8 +1850,9 @@ This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremot
 | Port        | 5986 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5986] |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
+This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
 
 #### Windows Management Instrumentation (WMI-In)
 
@@ -1800,6 +1866,7 @@ This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremot
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `winmgmt` |
 | Description | Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Remote Desktop - User Mode (UDP-In)
 
@@ -1813,6 +1880,7 @@ This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremot
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
+| Scope       | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
@@ -1828,6 +1896,7 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
+| Scope       | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
@@ -1842,6 +1911,7 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Port        | 22 |
 | Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
 | Description | Inbound rule for OpenSSH SSH Server (sshd) |
+| Scope       | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting.
 
@@ -1856,6 +1926,7 @@ This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting
 | Port        | RPC |
 | Program     | `%systemroot%\system32\dfsfrsHost.exe` |
 | Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### RPC (TCP, Incoming)
 
@@ -1869,6 +1940,7 @@ This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote RPC/TCP access to the DNS service. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 #### Windows Backup (RPC)
 
@@ -1882,6 +1954,7 @@ This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting
 | Program     | `%systemroot%\system32\wbengine.exe` |
 | Service     | `wbengine` |
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting.
 
@@ -1896,6 +1969,7 @@ This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) se
 | Port        | Any |
 | Program     | `%systemroot%\system32\plasrv.exe` |
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting.
 
@@ -1911,6 +1985,7 @@ This rule is governed by the [EnablePerformanceLogAccess](#enableperformanceloga
 | Program     | `%systemroot%\system32\dllhost.exe` |
 | Service     | `COMSysApp` |
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting.
 
@@ -1926,6 +2001,7 @@ This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement)
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `Eventlog` |
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.
 
@@ -1941,6 +2017,7 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `schedule` |
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting.
 
@@ -1955,6 +2032,7 @@ This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtas
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\services.exe` |
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting.
 
@@ -1970,6 +2048,7 @@ This rule is governed by the [EnableServiceManagement](#enableservicemanagement)
 | Program     | `%SystemRoot%\system32\vds.exe` |
 | Service     | `vds` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 
@@ -1984,6 +2063,7 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\vdsldr.exe` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 
@@ -1999,6 +2079,7 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWINS](#enablewins) setting.
 
@@ -2014,6 +2095,7 @@ This rule is governed by the [EnableWINS](#enablewins) setting.
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `policyagent` |
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
+| Scope       | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting.
 
@@ -2031,6 +2113,7 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 | Program     | `%SystemRoot%\system32\dfsrs.exe` |
 | Service     | `Dfsr` |
 | Description | Inbound rule to allow DFS Replication RPC traffic. |
+| Scope       | [Domain Controllers](#domaincontrolleraddresses) |
 
 #### File Replication (RPC)
 
@@ -2044,3 +2127,4 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 | Program     | `%SystemRoot%\system32\NTFRS.exe` |
 | Service     | `NTFRS` |
 | Description | Inbound rule to allow File Replication RPC traffic. |
+| Scope       | [Domain Controllers](#domaincontrolleraddresses) |

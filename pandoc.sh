@@ -8,6 +8,7 @@ pandock \
   --output='Domain_Controller_Firewall.pdf' \
   --from=markdown \
   --to=pdf \
+  --pdf-engine=xelatex \
   --shift-heading-level-by=-1 \
   --top-level-division=section \
   --table-of-contents \

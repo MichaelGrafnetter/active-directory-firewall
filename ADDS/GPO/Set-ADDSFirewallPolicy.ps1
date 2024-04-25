@@ -301,6 +301,7 @@ function ConvertTo-NetSecurityEnabled {
 #region Inbound Firewall Rules
 
 # Create Inbound rule "Active Directory Domain Controller - W32Time (NTP-UDP-In)"
+# As the NTP service might be used by non-Windows clients, we do not limit the remote addresses.
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'W32Time-NTP-UDP-In' `
                     -DisplayName 'Active Directory Domain Controller - W32Time (NTP-UDP-In)' `
@@ -568,7 +569,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'Active Directory Domain Controller - SAM/LSA (NP-UDP-In)' `
                     -Group 'Active Directory Domain Services' `
                     -Description 'Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [UDP 445]' `
-                    -Enabled False `
+                    -Enabled True `
                     -Profile Any `
                     -Direction Inbound `
                     -Action Allow `
