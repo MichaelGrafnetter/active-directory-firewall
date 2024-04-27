@@ -197,7 +197,16 @@ Some firewall-related settings are not removed from the domain controllers after
 
 As a consequence, before the value of an unmanaged setting can be changed from `true` to `null`, it must temporarily be set to `false`.  Keep in mind that it may take time for the new settings to propagate to all domain controllers due to replication latency. Additionally, some settings may require a reboot.
 
-TODO: List settings that do tattooing.
+The following settings in this project are known to cause tattooing:
+
+- [NtdsStaticPort](#ntdsstaticport)
+- [NetlogonStaticPort](#netlogonstaticport)
+- [FrsStaticPort](#frsstaticport)
+- [DfsrStaticPort](#dfsrstaticport)
+- [WmiStaticPort](#wmistaticport)
+- [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
+- [DisableMDNS](#disablemdns)
+- [EnableRpcFilters](#enablerpcfilters)
 
 ### System Reboots
 
@@ -223,24 +232,31 @@ If a full system reboot of all domain controllers is undesirable, the following 
 
 #### Reasons for Blocking Outbound Traffic
 
-NTLM relay to workstations, lateral movement, C2 channel to the Internet
+Generally speaking, outbound firewall rules on domain controllers might play an important role in blocking NTLM relay to workstations, preventing lateral movement, breaking malware C2 channels, and mitigating the risk of data breaches.
+
+On the other hand, all of the [security standards we are familiar with](#security-standards-compliance) state that Windows Firewall should allow outbound connections by default. The [CIS benchmark](#center-for-internet-security-cis-benchmark) provides this rationale:
+
+> Some people believe that it is prudent to block all outbound connections except those specifically approved by the user or administrator. Microsoft disagrees with this opinion, blocking outbound connections by default will force users to deal with a large number of dialog boxes prompting them to authorize or block applications such as their web browser or instant messaging software. Additionally, blocking outbound traffic has little value because if an attacker has compromised the system they can reconfigure the firewall anyway.
+
+Furthermore, our security research has shown that configuring a reliable allow list for outbound traffic using the built-in features of Windows is impractical. We have identified several challenges that make it difficult to implement such a list.
 
 #### Services with User Impersonation
 
+The following important Windows services initiate outbound connections, yet they locally impersonate the currently logged-on user, making it impossible to target them in service-specific Windows Firewall rules:
+
 - Windows Update (wuauserv)
 - Cryptographic Services (CryptSvc)
-- Microsoft Account Sign-in Assistant (wlidsvc)
 - Background Intelligent Transfer Service (BITS)
 
-#### Dynamic Keywords
-
-https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
+To allow Windows Update to work, one would need to target the `svchost.exe` program in a firewall rule, thus allowing all services to connect to remote computers.
 
 #### Scheduled Tasks with Custom Handlers
 
-taskhostw.exe
+Some scheduled task actions are implemented using a custom DLL handler.
 
 ![Scheduled task with a custom handler](../Screenshots/scheduled-task-custom-handler.png)
+
+As a result, the corresponding firewall rule would need to target the `taskhostw.exe` program,  thus allowing all scheduled tasks to connect to remote computers.
 
 #### Microsoft Defender for Identity
 
@@ -258,11 +274,19 @@ Any process
 
 #### Installers Downloading Additional Files
 
+#### Dynamic Keywords
+
+https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
+
 #### WinHTTP Proxy
 
 ![Listing the advanced WinHTTP proxy configuration](../Screenshots/proxy-config.png)
 
 ![WinHTTP proxy configuration error](../Screenshots/proxy-error.png)
+
+#### Escaping the Rabbit Hole
+
+As a conclusion, the only viable solution is to deploy a 3rd-party Internet proxy server that would limit the outbound traffic from domain controllers to select domains. Such list of approved domains used by Microsoft's services should ideally be kept up-to-date by the proxy vendor.
 
 ### Static RPC Ports
 
