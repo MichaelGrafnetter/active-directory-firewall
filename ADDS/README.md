@@ -96,7 +96,13 @@ This tool provides a flexible and repeatable way to deploy a secure configuratio
 
 ### Firewall Rule Merging
 
-TODO: Picture of OU/GPO hierarchy from GPMC.
+As mentioned in the [Key Design Decisions](#key-design-decisions), the set of rules is prepared for specific roles and are not adjusted for various agents or non-standard roles running on a DC.  
+If you need to add additional firewall rules for your environment (DC agents, SCCM management, etc.), it is recommended to create separate GPO and define all the custom rules there.  
+Firewall rules, which are finally configured on a DC, are the outcome of all the rules merged from all the applied GPOs.  
+> [!NOTE]
+Please note, that our GPO is focused on the firewall rules, it is not a security baseline, and it is not covering recommended hardening of a DC. You should have separate and dedicated security baseline GPO applied to your DCs.
+
+![GPO Precedence](../Screenshots/firewall-precedence-gpo.png)
 
 ### Identifying Management Traffic
 
@@ -555,6 +561,9 @@ TODO: File list
 
 ### Security Standards Compliance
 
+> [!IMPORTANT]
+> TODO: security rules - nemame osetrenou konfiguraci - V-242005 nesplnujeme
+
 #### Security Technical Implementation Guide (STIG)
 
 The [Security Technical Implementation Guide (STIG)](https://public.cyber.mil/stigs/) for Microsoft Windows Defender Firewall with Advanced Security was developed and [published](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip) by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) as a tool to improve the security of [Department of Defense (DOD)](https://www.defense.gov/) information systems.
@@ -610,16 +619,79 @@ Our firewall configuration is compliant with the majority of the STIG requiremen
 [V-242009]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242009
 
 #### Center for Internet Security (CIS) Benchmark
+This CIS Benchmark was created using a consensus review process comprised of a global community of subject matter experts. The process combines real world experience with data-based information to create technology specific guidance to assist users to secure their environments. Consensus participants provide perspective from a diverse set of backgrounds including consulting, software development, audit and compliance, security research, operations, government, and legal.
 
 ![](../Screenshots/cis-logo.png)
 
 - [CIS: Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
 
+Our firewall configuration is compliant with the majority of the CIS requirements out-of-the-box. The configuration file can easily be modified to achieve almost full compliance.
+
+> [!IMPORTANT]
+> TODO: "Partially" - dovysvetlit, asi hvezdicka a vysvetleni pod tabulkou  
+Spravny char pro nesplneni.  
+
+| CIS Title  | Required value |  Compliance                      |
+|------------|----------|---------------------------------------------------------------|
+| (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| On (recommended) | ☑ |
+| (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| Block (default) | ☑ |
+| (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| No| ☑ |
+| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\System32\logfiles\firewall\domainfw.log| %SystemRoot%\System32\logfiles\firewall\domainfw.log | Partially |
+| (L1) Ensure Windows Firewall: Domain: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Domain: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Domain: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+| (L1) Ensure Windows Firewall: Private: Firewall state is set to On (recommended)| On (recommended) | ☑ |
+| (L1) Ensure Windows Firewall: Private: Inbound connections is set to Block (default)| Block (default) | ☑ |
+| (L1) Ensure Windows Firewall: Private: Settings: Display a notification is set to No| No| ☑ |
+| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\System32\logfiles\firewall\privatefw.log.log| %SystemRoot%\System32\logfiles\firewall\privatefw.log | Partially |
+| (L1) Ensure Windows Firewall: Private: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Private: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Private: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+| (L1) Ensure Windows Firewall: Public: Firewall state is set to On (recommended)| On (recommended) | ☑ |
+| (L1) Ensure Windows Firewall: Public: Inbound connections is set to Block (default)| Block (default) | ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Display a notification is set to No| No| ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Apply local firewall rules is set to No| No| ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Apply local connection security rules is set to No| No| ❌ |
+| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\System32\logfiles\firewall\publicfw.log| %SystemRoot%\System32\logfiles\firewall\publicfw.log | Partially |
+| (L1) Ensure Windows Firewall: Public: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Public: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Public: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+
 #### Microsoft Security Compliance Toolkit
+[The Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10) is a set of tools that allows enterprise security administrators to download, analyze, test, edit, and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
 
 ![](../Screenshots/microsoft-logo.png)
 
 - [Microsoft: Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
+
+Our firewall configuration is compliant with the majority of the MS security baseline requirements out-of-the-box. The configuration file can easily be modified to achieve almost full compliance.
+
+| Policy Path  | Policy Setting Name | Win 2016 DC requirement | Win 2022 DC requirement |Compliance                      |
+|------------|----------|------------------------------|---------------------------------|---------------------------------|
+| \Windows Defender Firewall with Advanced Security\Domain Profile\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| \Windows Defender Firewall with Advanced Security\Domain Profile\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| \Windows Defender Firewall with Advanced Security\Domain Profile\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| \Windows Defender Firewall with Advanced Security\Domain Profile\Settings | Display a notification | No | Not defined | ☑ |
+|\Windows Defender Firewall with Advanced Security\Domain Profile\State | Firewall state | On (recommended) | On (recommended) | ☑ |
+|\Windows Defender Firewall with Advanced Security\Domain Profile\State | Inbound connections | Block (default) | Block (default) | ☑ |
+|\Windows Defender Firewall with Advanced Security\Domain Profile\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
+| \Windows Defender Firewall with Advanced Security\Private Profile\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| \Windows Defender Firewall with Advanced Security\Private Profile\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| \Windows Defender Firewall with Advanced Security\Private Profile\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| \Windows Defender Firewall with Advanced Security\Private Profile\Settings | Display a notification | No | Not defined | ☑ |
+|\Windows Defender Firewall with Advanced Security\Private Profile\State | Firewall state | On (recommended) | On (recommended) | ☑ |
+|\Windows Defender Firewall with Advanced Security\Private Profile\State | Inbound connections | Block (default) | Block (default) | ☑ |
+|\Windows Defender Firewall with Advanced Security\Private Profile\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
+| \Windows Defender Firewall with Advanced Security\Public Profile\Logging | Log dropped packets | Yes | Not defined| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| \Windows Defender Firewall with Advanced Security\Public Profile\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| \Windows Defender Firewall with Advanced Security\Public Profile\Logging | Size limit (KB) | 16384 | Not defined| ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| \Windows Defender Firewall with Advanced Security\Public Profile\Settings | Apply local connection security rules | No | N/A | ❌ |
+| \Windows Defender Firewall with Advanced Security\Public Profile\Settings | Apply local firewall rules | No | Not defined | ☑ |
+| \Windows Defender Firewall with Advanced Security\Public Profile\Settings | Display a notification | No | Not defined | ☑ |
+|\Windows Defender Firewall with Advanced Security\Public Profile\State | Firewall state | On (recommended) | On (recommended) | ☑ |
+|\Windows Defender Firewall with Advanced Security\Public Profile\State | Inbound connections | Block (default) | Block (default) | ☑ |
+|\Windows Defender Firewall with Advanced Security\Public Profile\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
+
 
 ## Prerequisites
 
@@ -1077,8 +1149,7 @@ Possible values: true / false / null
 
 ### DisableNetbiosBroadcasts
 
-> [!IMPORTANT]
-doplnit "false"  
+
 
 Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode. If `true` NetBIOS node type is set to P-node. If `false` NetBIOS node type is set to H-node (hybrid) If `null` NetBIOS node type is not managed through GPO.
 
