@@ -296,7 +296,19 @@ As a conclusion, the only viable solution is to deploy a 3rd-party Internet prox
 
 ### Static RPC Ports
 
-TODO
+Many services that typically use dynamic ports are configured with static port numbers by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
+
+If you want to change the static port number or disable the static port configuration, you can do it in the [Configuration File](#configuration-file).
+
+The following services are by default configured to use static port by the tool:
+
+- [NTDS](#ntdsstaticport) - port 38901 - applied through Group Policy setting
+- [Netlogon](#netlogonstaticport) - port 38902 - applied through Group Policy setting
+- [FRS](#frsstaticport) - port 38903 - applied through Group Policy setting
+- [DFSR](#dfsr-static-port) - port 5722 - applied through [Startup script](#startup-script)
+- [WMI](#wmi-static-port) - port 24158 - applied through [Startup script](#startup-script)
+
+More information:
 
 - [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
 - [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
@@ -619,7 +631,7 @@ Our firewall configuration is compliant with the majority of the STIG requiremen
 [V-242009]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242009
 
 #### Center for Internet Security (CIS) Benchmark
-This CIS Benchmark was created using a consensus review process comprised of a global community of subject matter experts. The process combines real world experience with data-based information to create technology specific guidance to assist users to secure their environments. Consensus participants provide perspective from a diverse set of backgrounds including consulting, software development, audit and compliance, security research, operations, government, and legal.
+This [CIS Benchmark](https://www.cisecurity.org/cis-benchmarks) was created using a consensus review process comprised of a global community of subject matter experts. The process combines real world experience with data-based information to create technology specific guidance to assist users to secure their environments. Consensus participants provide perspective from a diverse set of backgrounds including consulting, software development, audit and compliance, security research, operations, government, and legal.
 
 ![](../Screenshots/cis-logo.png)
 
@@ -631,8 +643,8 @@ Our firewall configuration is compliant with the majority of the CIS requirement
 > TODO: "Partially" - dovysvetlit, asi hvezdicka a vysvetleni pod tabulkou  
 Spravny char pro nesplneni.  
 
-| CIS Title  | Required value |  Compliance                      |
-|------------|----------|---------------------------------------------------------------|
+| CIS Title  | Required value |  Compliance  |
+|------------|----------|---------------------------------------------------|
 | (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| On (recommended) | ☑ |
 | (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| Block (default) | ☑ |
 | (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| No| ☑ |
