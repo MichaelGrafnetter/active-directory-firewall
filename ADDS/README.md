@@ -673,14 +673,14 @@ Spravny char pro nesplneni.
 | (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| On (recommended) | ☑ |
 | (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| Block (default) | ☑ |
 | (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| No| ☑ |
-| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\System32\logfiles\firewall\domainfw.log| %SystemRoot%\System32\logfiles\firewall\domainfw.log | Partially |
+| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log| %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log | Partially |
 | (L1) Ensure Windows Firewall: Domain: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
 | (L1) Ensure Windows Firewall: Domain: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | (L1) Ensure Windows Firewall: Domain: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
 | (L1) Ensure Windows Firewall: Private: Firewall state is set to On (recommended)| On (recommended) | ☑ |
 | (L1) Ensure Windows Firewall: Private: Inbound connections is set to Block (default)| Block (default) | ☑ |
 | (L1) Ensure Windows Firewall: Private: Settings: Display a notification is set to No| No| ☑ |
-| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\System32\logfiles\firewall\privatefw.log.log| %SystemRoot%\System32\logfiles\firewall\privatefw.log | Partially |
+| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log| %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log | Partially |
 | (L1) Ensure Windows Firewall: Private: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
 | (L1) Ensure Windows Firewall: Private: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | (L1) Ensure Windows Firewall: Private: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
@@ -689,7 +689,7 @@ Spravny char pro nesplneni.
 | (L1) Ensure Windows Firewall: Public: Settings: Display a notification is set to No| No| ☑ |
 | (L1) Ensure Windows Firewall: Public: Settings: Apply local firewall rules is set to No| No| ☑ |
 | (L1) Ensure Windows Firewall: Public: Settings: Apply local connection security rules is set to No| No| ❌ |
-| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\System32\logfiles\firewall\publicfw.log| %SystemRoot%\System32\logfiles\firewall\publicfw.log | Partially |
+| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log| %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log | Partially |
 | (L1) Ensure Windows Firewall: Public: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
 | (L1) Ensure Windows Firewall: Public: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | (L1) Ensure Windows Firewall: Public: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
@@ -705,29 +705,29 @@ Our firewall configuration is compliant with the majority of the MS security bas
 
 | Policy Path  | Policy Setting Name | Win 2016 DC requirement | Win 2022 DC requirement |Compliance                      |
 |------------|----------|------------------------------|---------------------------------|---------------------------------|
-| \Windows Defender Firewall with Advanced Security\Domain Profile\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| \Windows Defender Firewall with Advanced Security\Domain Profile\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| \Windows Defender Firewall with Advanced Security\Domain Profile\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| \Windows Defender Firewall with Advanced Security\Domain Profile\Settings | Display a notification | No | Not defined | ☑ |
-|\Windows Defender Firewall with Advanced Security\Domain Profile\State | Firewall state | On (recommended) | On (recommended) | ☑ |
-|\Windows Defender Firewall with Advanced Security\Domain Profile\State | Inbound connections | Block (default) | Block (default) | ☑ |
-|\Windows Defender Firewall with Advanced Security\Domain Profile\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
-| \Windows Defender Firewall with Advanced Security\Private Profile\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| \Windows Defender Firewall with Advanced Security\Private Profile\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| \Windows Defender Firewall with Advanced Security\Private Profile\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| \Windows Defender Firewall with Advanced Security\Private Profile\Settings | Display a notification | No | Not defined | ☑ |
-|\Windows Defender Firewall with Advanced Security\Private Profile\State | Firewall state | On (recommended) | On (recommended) | ☑ |
-|\Windows Defender Firewall with Advanced Security\Private Profile\State | Inbound connections | Block (default) | Block (default) | ☑ |
-|\Windows Defender Firewall with Advanced Security\Private Profile\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
-| \Windows Defender Firewall with Advanced Security\Public Profile\Logging | Log dropped packets | Yes | Not defined| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| \Windows Defender Firewall with Advanced Security\Public Profile\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| \Windows Defender Firewall with Advanced Security\Public Profile\Logging | Size limit (KB) | 16384 | Not defined| ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| \Windows Defender Firewall with Advanced Security\Public Profile\Settings | Apply local connection security rules | No | N/A | ❌ |
-| \Windows Defender Firewall with Advanced Security\Public Profile\Settings | Apply local firewall rules | No | Not defined | ☑ |
-| \Windows Defender Firewall with Advanced Security\Public Profile\Settings | Display a notification | No | Not defined | ☑ |
-|\Windows Defender Firewall with Advanced Security\Public Profile\State | Firewall state | On (recommended) | On (recommended) | ☑ |
-|\Windows Defender Firewall with Advanced Security\Public Profile\State | Inbound connections | Block (default) | Block (default) | ☑ |
-|\Windows Defender Firewall with Advanced Security\Public Profile\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Domain Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| \\Windows Defender Firewall with Advanced Security\\Domain Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| \\Windows Defender Firewall with Advanced Security\\Domain Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| \\Windows Defender Firewall with Advanced Security\\Domain Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Domain Profile\\State | Firewall state | On (recommended) | On (recommended) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Domain Profile\\State | Inbound connections | Block (default) | Block (default) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Domain Profile\\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Private Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| \\Windows Defender Firewall with Advanced Security\\Private Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| \\Windows Defender Firewall with Advanced Security\\Private Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| \\Windows Defender Firewall with Advanced Security\\Private Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Private Profile\\State | Firewall state | On (recommended) | On (recommended) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Private Profile\\State | Inbound connections | Block (default) | Block (default) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Private Profile\\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\Logging | Log dropped packets | Yes | Not defined| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\Logging | Size limit (KB) | 16384 | Not defined| ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\Settings | Apply local connection security rules | No | N/A | ❌ |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\Settings | Apply local firewall rules | No | Not defined | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\State | Firewall state | On (recommended) | On (recommended) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\State | Inbound connections | Block (default) | Block (default) | ☑ |
+| \\Windows Defender Firewall with Advanced Security\\Public Profile\\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
 
 
 ## Prerequisites
