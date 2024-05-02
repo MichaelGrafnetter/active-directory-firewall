@@ -1586,32 +1586,51 @@ Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
 
 ## Rollback
 
-If you need to rollback the changes, unlink the GPO from Domain Controllers OU and either wait 5 minutes or do gpupdate /force on the DCs. This should remove the firewall configuration.
-If you've configured static ports for WMI and/or DFSR, you'll need to run the following commands, in order to revert them back to dynamic ports.
+As some of the settings are propagated throug startup script and some, even though propagated through GPO, cause tattooing, you first need to reconfigure some settings in the GPO and modify the startup script, let the changes apply on all DCs and only after that, unlink the GPO.
 
-For DFSR:
+Follow these steps:
 
-```shell
-dfsrdiag staticrpc /port:0
-```
+### 1. Change the following settings in the GPO:
+- [NtdsStaticPort](#ntdsstaticport)
+- [NetlogonStaticPort](#netlogonstaticport)
+- [FrsStaticPort](#frsstaticport)
+- [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
+- [DisableMDNS](#disablemdns)
 
-For WMI
+[Locate](#administrative-templates) all the above settings in the Firewall GPO and set them to "Not Configured". 
 
-```shell
-winmgmt /sharedhost
-```
+![Rollback GPO Tattooing](../Screenshots/rollback-gpo-tatto.png)
 
-> [!IMPORTANT]
-> TODO: zbytek static portu
+### 2. Change the following settings in the startup script:
+- [DfsrStaticPort](#dfsrstaticport)
+- [WmiStaticPort](#wmistaticport)
 
-If you've enabled [RPC filters](#rpc-filters) in the `Set-ADDSFirewallPolicy.json`, you need to manually run the following command to delete them:
+Locate and open `FirewallConfiguration.bat` file, located in the "Startup" folder of the DC firewall GPO (e.g.: C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup):
 
-```shell
-netsh rpc filter delete filter filterkey=all
-```
+> [!NOTE]
+The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration. 
 
-> [!IMPORTANT]
-> TODO: GPO tattoing
+Change the following line `winmgmt.exe /standalonehost 6` ⇒ `winmgmt /sharedhost`  
+Change the following line `dfsrdiag.exe StaticRPC /Port:5722` ⇒ `dfsrdiag staticrpc /port:0`
+
+![Rollback Startup Script](../Screenshots/rollback-startup-script.png)
+
+### 3. Remove the RPC filtres
+
+Remove "#" before "exit" at line 15 in `RpcNamedPipesFilters.txt`, located in the "Startup" folder of the DC firewall GPO (e.g.: C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup):
+
+> [!NOTE]
+The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration. 
+
+![Rollback RPC Named Pipes](../Screenshots/rollback-rpc-named-pipes.png)
+
+### 4. Restart the DCs
+
+Once AD and SYSVOL replication convergence is achieved and all DCs in the environment received the changed GPO, startup script and RPC configuration file, you need to restart all DCs. 
+
+### 5. Unlink the GPO
+
+Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Controllers container in GPO management console.
 
 ## Inbound Firewall Rules Reference
 
