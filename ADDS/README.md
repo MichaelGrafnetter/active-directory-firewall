@@ -569,7 +569,32 @@ TODO: Firewall remote management?
 
 ### Distribution Contents
 
-TODO: File list
+The below table contains list of all the files, that are part of the solution, with their respective path and brief description.
+
+> [!IMPORTANT]
+> TODO: file, kde je v description "?" - Michael doplni, abych tam nepsal uplny hamotiny
+
+| File path  | Description |
+|------------|----------|
+| .\GPOReport.html | Group Policy HTML report of all GPO settings configured by the tool |
+| .\inbound-builtin-firewall-rules.csv | List of all build-in FW rules utilized (not all enabled) by the tool |
+| .\inbound-custom-firewall-rules.csv | List of all custom FW rules utilized by the tool|
+| .\README.md | This "Read me" file |
+| GPO\RpcNamedPipesFilters.txt | List of all RPC filters registered if enabled in config file|
+| GPO\Set-ADDSFirewallPolicy.json | JSON containing all configuration items for the tool |
+| GPO\Set-ADDSFirewallPolicy.ps1 | Script to deploy the DC Firewall solution |
+| GPO\Set-ADDSFirewallPolicy.schema.json | Schema file for the Set-ADDSFirewallPolicy.json |
+| GPO\Set-ADDSFirewallPolicy.Starter.json |?|
+| GPO\PolicyDefinitions\DomainControllerFirewall.admx | GPO template file for [custom configuration](#administrative-templates) settings |
+| GPO\PolicyDefinitions\MSS-legacy.admx | GPO template file for ["MSS (Legacy)"](https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055) settings |
+| GPO\PolicyDefinitions\SecGuide.admx | GPO template file for ["MS Security Guide"](https://learn.microsoft.com/en-us/deployoffice/security/security-baseline#ms-security-guide-administrative-template) settings |
+| GPO\PolicyDefinitions\en-US\DomainControllerFirewall.adml | English language file for DomainControllerFirewall.admx |
+| GPO\PolicyDefinitions\en-US\MSS-legacy.adml | English language file for MSS-legacy.admx |
+| GPO\PolicyDefinitions\en-US\SecGuide.adml | English language file for SecGuide.admx |
+| Schema\BaseTypes.xsd |?|
+| Schema\PolicyDefinitionFiles.xsd |?|
+| Schema\PolicyDefinitions.xsd |?|
+| Schema\README.md | "Read me" file for the schema definition files |
 
 ### Security Standards Compliance
 
