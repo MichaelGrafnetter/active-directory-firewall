@@ -1605,7 +1605,7 @@ Follow these steps:
 - [DfsrStaticPort](#dfsrstaticport)
 - [WmiStaticPort](#wmistaticport)
 
-Locate and open `FirewallConfiguration.bat` file, located in the "Startup" folder of the DC firewall GPO (e.g.: C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup):
+Locate and open `FirewallConfiguration.bat` file, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
 
 > [!NOTE]
 The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration. 
@@ -1617,7 +1617,7 @@ Change the following line `dfsrdiag.exe StaticRPC /Port:5722` ⇒ `dfsrdiag stat
 
 ### 3. Remove the RPC filtres
 
-Remove "#" before "exit" at line 15 in `RpcNamedPipesFilters.txt`, located in the "Startup" folder of the DC firewall GPO (e.g.: C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup):
+Remove "#" before "exit" at line 15 in `RpcNamedPipesFilters.txt`, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
 
 > [!NOTE]
 The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration. 
