@@ -665,8 +665,7 @@ This [CIS Benchmark](https://www.cisecurity.org/cis-benchmarks) was created usin
 Our firewall configuration is compliant with the majority of the CIS requirements out-of-the-box. The configuration file can easily be modified to achieve almost full compliance.
 
 > [!IMPORTANT]
-> TODO: "Partially" - dovysvetlit, asi hvezdicka a vysvetleni pod tabulkou  
-Spravny char pro nesplneni.  
+> TODO: Spravny char pro nesplneni.  
 
 | CIS Title  | Required value |  Compliance  |
 |------------|----------|---------------------------------------------------|
@@ -1642,23 +1641,35 @@ Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Co
 - [How to configure a firewall for Active Directory domains and trusts](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/config-firewall-for-ad-domains-and-trusts)
 - [Service overview and network port requirements for Windows](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/service-overview-and-network-port-requirements)
 
-TODO: Needs splitting, extending, and mapping to the default rules.
+Dynamic RPC ports, listed in the following table, can be set to static port through [Configuration File](#configuration-file):
+- [NTDS static port](#ntdsstaticport)
+- [Netlogon static port](#netlogonstaticport)
+- [FRS static port](#frsstaticport)
+- [DFSR static port](#dfsr-static-port)
 
-|Port|Service|
-|---|---|
-|123/UDP|W32Time|
-|135/TCP|RPC Endpoint Mapper|
-|464/TCP/UDP|Kerberos password change|
-|49152-65535/TCP|RPC for LSA, SAM, NetLogon (*)|
-|389/TCP/UDP|LDAP|
-|636/TCP|LDAP SSL|
-|3268/TCP|LDAP GC|
-|3269/TCP|LDAP GC SSL|
-|53/TCP/UDP|DNS|
-|49152-65535/TCP|FRS RPC (*)|
-|88/TCP/UDP|Kerberos|
-|445/TCP|SMB (**)|
-|49152-65535/TCP|DFSR RPC (*)|
+> [!IMPORTANT]
+> TODO: Needs splitting, extending, and mapping to the default rules.
+
+|Port|Service|Rule Reference|
+|---|---|---|
+|123/UDP|W32Time|[Active Directory Domain Controller - W32Time (NTP-UDP-In)](#active-directory-domain-controller---w32time-ntp-udp-in)|
+|135/TCP|RPC Endpoint Mapper|[Active Directory Domain Controller (RPC-EPMAP)](#active-directory-domain-controller-rpc-epmap)
+|464/UDP|Kerberos password change|[Kerberos Key Distribution Center - PCR (UDP-In)](#kerberos-key-distribution-center---pcr-udp-in)|
+|464/TCP|Kerberos password change|[Kerberos Key Distribution Center - PCR (TCP-In)](#kerberos-key-distribution-center---pcr-tcp-in)|
+|49152-65535/TCP|RPC for LSA, SAM, NetLogon (*)|[Active Directory Domain Controller (RPC)](#active-directory-domain-controller-rpc)|
+|389/UDP|LDAP|[Active Directory Domain Controller - LDAP (UDP-In)](#active-directory-domain-controller---ldap-udp-in)|
+|389/TCP|LDAP|[Active Directory Domain Controller - LDAP (TCP-In)](#active-directory-domain-controller---ldap-tcp-in)|
+|636/TCP|LDAP SSL|[Active Directory Domain Controller - Secure LDAP (TCP-In)](#active-directory-domain-controller---secure-ldap-tcp-in)|
+|3268/TCP|LDAP GC|[Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)](#active-directory-domain-controller---ldap-for-global-catalog-tcp-in)|
+|3269/TCP|LDAP GC SSL|[Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)](#active-directory-domain-controller---secure-ldap-for-global-catalog-tcp-in)|
+|53/TCP/UDP|DNS|[DNS (UDP, Incoming)](#dns-udp-incoming)|
+|53/TCP/UDP|DNS|[DNS (TCP, Incoming)](#dns-tcp-incoming)|
+|49152-65535/TCP|FRS RPC (*)|[File Replication (RPC)](#file-replication-rpc)|
+|88/TCP|Kerberos|[Kerberos Key Distribution Center (TCP-In)](#kerberos-key-distribution-center-tcp-in)|
+|88/UDP|Kerberos|[Kerberos Key Distribution Center (UDP-In)](#kerberos-key-distribution-center---pcr-udp-in)|
+|445/UDP|SMB (**)|[Active Directory Domain Controller - SAM/LSA (NP-UDP-In)](#active-directory-domain-controller---samlsa-np-udp-in)|
+|445/TCP|SMB|[Active Directory Domain Controller - SAM/LSA (NP-TCP-In)](#active-directory-domain-controller---samlsa-np-tcp-in)|
+|49152-65535/TCP|DFSR RPC (*)|[DFS Replication (RPC-In)](#dfs-replication-rpc-in)|
 
 ### Client Traffic
 
