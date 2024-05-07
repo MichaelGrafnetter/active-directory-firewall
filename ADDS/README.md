@@ -667,31 +667,31 @@ Our firewall configuration is compliant with the majority of the CIS requirement
 > [!IMPORTANT]
 > TODO: Spravny char pro nesplneni.  
 
-| CIS Title  | Required value |  Compliance  |
-|------------|----------|---------------------------------------------------|
-| (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| On (recommended) | ☑ |
-| (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| Block (default) | ☑ |
-| (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| No| ☑ |
-| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log| domainfw.log | Partially *|
-| (L1) Ensure Windows Firewall: Domain: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| (L1) Ensure Windows Firewall: Domain: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| (L1) Ensure Windows Firewall: Domain: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
-| (L1) Ensure Windows Firewall: Private: Firewall state is set to On (recommended)| On (recommended) | ☑ |
-| (L1) Ensure Windows Firewall: Private: Inbound connections is set to Block (default)| Block (default) | ☑ |
-| (L1) Ensure Windows Firewall: Private: Settings: Display a notification is set to No| No| ☑ |
-| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log| privatefw.log | Partially * |
-| (L1) Ensure Windows Firewall: Private: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| (L1) Ensure Windows Firewall: Private: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| (L1) Ensure Windows Firewall: Private: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
-| (L1) Ensure Windows Firewall: Public: Firewall state is set to On (recommended)| On (recommended) | ☑ |
-| (L1) Ensure Windows Firewall: Public: Inbound connections is set to Block (default)| Block (default) | ☑ |
-| (L1) Ensure Windows Firewall: Public: Settings: Display a notification is set to No| No| ☑ |
-| (L1) Ensure Windows Firewall: Public: Settings: Apply local firewall rules is set to No| No| ☑ |
-| (L1) Ensure Windows Firewall: Public: Settings: Apply local connection security rules is set to No| No| ❌ |
-| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log| publicfw.log | Partially * |
-| (L1) Ensure Windows Firewall: Public: Logging: Size limit (KB) is set to 16,384 KB or greater| 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| (L1) Ensure Windows Firewall: Public: Logging: Log dropped packets is set to Yes| Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| (L1) Ensure Windows Firewall: Public: Logging: Log successful connections is set to Yes| Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+| CIS Title  |  Compliance  |
+|------------|---------------------------------------------------|
+| (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| ☑ |
+| (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| ☑ |
+| (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log| Partially *|
+| (L1) Ensure Windows Firewall: Domain: Logging: Size limit (KB) is set to 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Domain: Logging: Log dropped packets is set to Yes| [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Domain: Logging: Log successful connections is set to Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+| (L1) Ensure Windows Firewall: Private: Firewall state is set to On (recommended) | ☑ |
+| (L1) Ensure Windows Firewall: Private: Inbound connections is set to Block (default) | ☑ |
+| (L1) Ensure Windows Firewall: Private: Settings: Display a notification is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log| Partially * |
+| (L1) Ensure Windows Firewall: Private: Logging: Size limit (KB) is set to 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Private: Logging: Log dropped packets is set to Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Private: Logging: Log successful connections is set to Yes| [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+| (L1) Ensure Windows Firewall: Public: Firewall state is set to On (recommended) | ☑ |
+| (L1) Ensure Windows Firewall: Public: Inbound connections is set to Block (default) | ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Display a notification is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Apply local firewall rules is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Apply local connection security rules is set to No| ❌ |
+| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log | Partially * |
+| (L1) Ensure Windows Firewall: Public: Logging: Size limit (KB) is set to 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Public: Logging: Log dropped packets is set to Yes| [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Public: Logging: Log successful connections is set to Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
 
 \* All the profiles share the same log file, as explained [here](#logfilepath).
 
@@ -1662,8 +1662,8 @@ Dynamic RPC ports, listed in the following table, can be set to static port thro
 |636/TCP|LDAP SSL|[Active Directory Domain Controller - Secure LDAP (TCP-In)](#active-directory-domain-controller---secure-ldap-tcp-in)|
 |3268/TCP|LDAP GC|[Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)](#active-directory-domain-controller---ldap-for-global-catalog-tcp-in)|
 |3269/TCP|LDAP GC SSL|[Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)](#active-directory-domain-controller---secure-ldap-for-global-catalog-tcp-in)|
-|53/TCP/UDP|DNS|[DNS (UDP, Incoming)](#dns-udp-incoming)|
-|53/TCP/UDP|DNS|[DNS (TCP, Incoming)](#dns-tcp-incoming)|
+|53/UDP|DNS|[DNS (UDP, Incoming)](#dns-udp-incoming)|
+|53/TCP|DNS|[DNS (TCP, Incoming)](#dns-tcp-incoming)|
 |49152-65535/TCP|FRS RPC (*)|[File Replication (RPC)](#file-replication-rpc)|
 |88/TCP|Kerberos|[Kerberos Key Distribution Center (TCP-In)](#kerberos-key-distribution-center-tcp-in)|
 |88/UDP|Kerberos|[Kerberos Key Distribution Center (UDP-In)](#kerberos-key-distribution-center---pcr-udp-in)|
