@@ -140,6 +140,9 @@ class ScriptSettings {
 
     # Indicates whether additional filtering of RPC over Named Pipes should be applied.
     [Nullable[bool]]   $EnableRpcFilters              = $null
+
+    # Indicates whether local IPSec rules should be enabled.
+    [bool]             $EnableLocalIPsecRules         = $true
 }
 
 [ScriptSettings] $configuration = [ScriptSettings]::new()
@@ -224,14 +227,16 @@ finally {
 }
 
 # Determine the dropped packet logging settings
-[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocked = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
+[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocked =
+    [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
 
 if($configuration.LogDroppedPackets) {
     $logBlocked = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
 }
 
 # Determine the allowed packet logging settings
-[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logAllowed = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
+[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logAllowed =
+    [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
 
 if($configuration.LogAllowedPackets) {
     $logAllowed = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
@@ -243,6 +248,15 @@ if($configuration.LogMaxSizeKilobytes -gt [int16]::MaxValue -or $configuration.L
     $configuration.LogMaxSizeKilobytes = [int16]::MaxValue # = 32MB
 }
 
+# Determine if local IPSec rules should be enabled
+# Note: This is here only for compliace, as we are not configuring IPSec rules in this script.
+[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $allowLocalIPsecRules =
+    [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
+
+if($configuration.EnableLocalIPsecRules) {
+    $allowLocalIPsecRules = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
+}
+
 # Configure all firewall profiles (Domain, Private, and Public)
 Set-NetFirewallProfile -GPOSession $gpoSession `
                        -All `
@@ -251,6 +265,7 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -DefaultInboundAction Block `
                        -DefaultOutboundAction Allow `
                        -AllowLocalFirewallRules False `
+                       -AllowLocalIPsecRules $allowLocalIPsecRules `
                        -AllowUnicastResponseToMulticast False `
                        -NotifyOnListen False `
                        -LogFileName $configuration.LogFilePath `

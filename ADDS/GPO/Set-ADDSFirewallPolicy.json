@@ -35,5 +35,6 @@
     "EnableWINS": false,
     "EnableNetworkProtection": true,
     "BlockWmiCommandExecution": true,
-    "EnableRpcFilters": true
+    "EnableRpcFilters": true,
+    "EnableLocalIPsecRules": false
 }

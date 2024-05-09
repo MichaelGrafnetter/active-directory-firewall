@@ -399,6 +399,11 @@
         ],
         "default": null,
         "description": "Indicates whether additional filtering of RPC over Named Pipes should be applied."
+      },
+      "EnableLocalIPsecRules": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether local IPSec rules should be enabled."
       }
     },
     "required": [
