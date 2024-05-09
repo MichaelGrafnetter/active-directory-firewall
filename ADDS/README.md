@@ -59,6 +59,8 @@ footer-right: "\\hspace{1cm}"
 | mDNS         | Multicast DNS                                         |
 | OS           | Operating System                                      |
 | UI           | User Interface                                        |
+| PoC          |                                                       |
+| L3           |                                                       |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Operations Manager]: https://learn.microsoft.com/en-us/system-center/scom/get-started
@@ -106,8 +108,45 @@ Please note, that our GPO is focused on the firewall rules, it is not a security
 
 ### Identifying Management Traffic
 
-Easy: RDP, WinRM (PowerShell Remoting), ADWS,...
-Problems: MS-DRSR, LDAP, SMB, DCOM, Remote Registry
+#### The Good
+
+With some protocols, it is quite obvious that they should only be available from management networks or jump servers. This is the case of the [Remote Desktop Protocol (RDP)](#remote-desktop---user-mode-tcp-in) or [Remote Event Log Management](#remote-event-log-management-rpc).
+
+#### The Bad
+
+There are several protocols that should primarily be used for remote system management, but some organizations also used them for client traffic.
+
+##### Windows Remote Management (WinRM)
+
+One such example is the [Windows Remote Management (WinRM)](#windows-remote-management-http-in) protocol. Contrary to its name, it can not only be used by [Server Manager](https://learn.microsoft.com/en-us/windows-server/administration/server-manager/server-manager) and [PowerShell Remoting](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/08-powershell-remoting), but also by source-initiated [Windows Event Collector](https://learn.microsoft.com/en-us/windows/win32/wec/windows-event-collector) subscriptions.
+
+As a best-practice, domain controllers should not be used as event forwarding targets, especially not by workstations. AD domains, where this recommendation is not followed, must first be reconfigured, before the strict firewall rules are applied to domain controllers.
+
+##### Active Directory Web Services (ADWS)
+
+Another example would be [Active Directory Web Services (ADWS)](#active-directory-web-services-tcp-in). It is rare, but not unimaginable, to see legitimate PowerShell scripts with the `Get-ADUser` cmdlet running on client machines. Such scripts would stop working if ADWS is simply blocked on domain controllers.
+
+On the other hand, it is relatively easy to rewrite these scipts to use the built-in [DirectorySearcher](https://learn.microsoft.com/en-us/dotnet/api/system.directoryservices.directorysearcher) class, which relies on the [LDAP](#active-directory-domain-controller---ldap-tcp-in) protocol instead of ADWS. The added value would be the removal of the [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/) PowerShell module dependency.
+
+#### The Ugly
+
+Unfortunately, there are some protocols which are required by all Windows clients, but can also be (mis)used to perform administrative operations.
+
+##### Directory Replication Service (DRS) Remote Protocol
+
+One would be highly tempted to limit the [Directory Replication Service (DRS) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/f977faaa-673e-4f66-b9bf-48c640241d47) traffic to domain controllers and thus block potential [DCSync](https://adsecurity.org/?p=1729) attacks. Unfortunately, this protocol is also used by Windows clients during user logon, specifically its [IDL_DRSCrackNames](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/9b4bfb44-6656-4404-bcc8-dc88111658b3) RPC call, so it cannot simply be blocked by an L3 firewall rule.
+
+One solution to this problem would be the deployment of the open-source [RPC Firewall](https://github.com/zeronetworks/rpcfirewall) tool, which can selectively limit the scope of the dangerous [IDL_DRSGetNCChanges](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/b63730ac-614c-431c-9501-28d6aca91894) operation. However, the project does not seem to be mature enough for production deployments. Its installation and configuration is cumbersome and requires deep understanding of the RPC protocol. Moreover, the binaries are not digitally signed, making them incompatible with some optional Windows security features, including [LSA Protection](https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection).
+
+The most common approach is to just monitor domain controllers for unexpected replication traffic. Many products in the Identity Threat Detection and Response (ITDR) category are able to detect the DCSync attack, including [Microsoft Defender for Identity](https://learn.microsoft.com/en-us/defender-for-identity/what-is) and [Netwrix Threat Manager](https://www.netwrix.com/threat_detection_software.html).
+
+##### Server Message Block (SMB)
+
+TODO: Michael
+
+##### Lightweight Directory Access Protocol (LDAP)
+
+TODO: Michael
 
 ### Firewall Rule Deduplication
 
@@ -598,9 +637,6 @@ The below table contains list of all the files, that are part of the solution, w
 
 ### Security Standards Compliance
 
-> [!IMPORTANT]
-> TODO: security rules - nemame osetrenou konfiguraci - V-242005 nesplnujeme
-
 #### Security Technical Implementation Guide (STIG)
 
 The [Security Technical Implementation Guide (STIG)](https://public.cyber.mil/stigs/) for Microsoft Windows Defender Firewall with Advanced Security was developed and [published](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip) by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) as a tool to improve the security of [Department of Defense (DOD)](https://www.defense.gov/) information systems.
@@ -627,7 +663,7 @@ Our firewall configuration is compliant with the majority of the STIG requiremen
 | [V-242002] | CAT I    | Windows Defender Firewall with Advanced Security must block unsolicited inbound connections when connected to a public network. | ☑ |
 | [V-242003] | CAT II   | Windows Defender Firewall with Advanced Security must allow outbound connections, unless a rule explicitly blocks the connection when connected to a public network. | ☑ |
 | [V-242004] | CAT II   | Windows Defender Firewall with Advanced Security local firewall rules must not be merged with Group Policy settings when connected to a public network. | ☑ |
-| [V-242005] | CAT II   | Windows Defender Firewall with Advanced Security local connection rules must not be merged with Group Policy settings when connected to a public network. | ☑ |
+| [V-242005] | CAT II   | Windows Defender Firewall with Advanced Security local connection rules must not be merged with Group Policy settings when connected to a public network. | ❌ |
 | [V-242006] | CAT III  | Windows Defender Firewall with Advanced Security log size must be configured for public network connections. | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be at least `16384`. |
 | [V-242007] | CAT III  | Windows Defender Firewall with Advanced Security must log dropped packets when connected to a public network. | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | [V-242008] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a public network. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
@@ -656,6 +692,7 @@ Our firewall configuration is compliant with the majority of the STIG requiremen
 [V-242009]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242009
 
 #### Center for Internet Security (CIS) Benchmark
+
 This [CIS Benchmark](https://www.cisecurity.org/cis-benchmarks) was created using a consensus review process comprised of a global community of subject matter experts. The process combines real world experience with data-based information to create technology specific guidance to assist users to secure their environments. Consensus participants provide perspective from a diverse set of backgrounds including consulting, software development, audit and compliance, security research, operations, government, and legal.
 
 ![](../Screenshots/cis-logo.png)
@@ -664,22 +701,19 @@ This [CIS Benchmark](https://www.cisecurity.org/cis-benchmarks) was created usin
 
 Our firewall configuration is compliant with the majority of the CIS requirements out-of-the-box. The configuration file can easily be modified to achieve almost full compliance.
 
-> [!IMPORTANT]
-> TODO: Spravny char pro nesplneni.  
-
 | CIS Title  |  Compliance  |
 |------------|---------------------------------------------------|
 | (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| ☑ |
 | (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| ☑ |
 | (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| ☑ |
-| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log| Partially *|
+| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log | Partially[^cis-partially] |
 | (L1) Ensure Windows Firewall: Domain: Logging: Size limit (KB) is set to 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
 | (L1) Ensure Windows Firewall: Domain: Logging: Log dropped packets is set to Yes| [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | (L1) Ensure Windows Firewall: Domain: Logging: Log successful connections is set to Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
 | (L1) Ensure Windows Firewall: Private: Firewall state is set to On (recommended) | ☑ |
 | (L1) Ensure Windows Firewall: Private: Inbound connections is set to Block (default) | ☑ |
 | (L1) Ensure Windows Firewall: Private: Settings: Display a notification is set to No| ☑ |
-| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log| Partially * |
+| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log | Partially[^cis-partially] |
 | (L1) Ensure Windows Firewall: Private: Logging: Size limit (KB) is set to 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
 | (L1) Ensure Windows Firewall: Private: Logging: Log dropped packets is set to Yes | [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | (L1) Ensure Windows Firewall: Private: Logging: Log successful connections is set to Yes| [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
@@ -688,14 +722,15 @@ Our firewall configuration is compliant with the majority of the CIS requirement
 | (L1) Ensure Windows Firewall: Public: Settings: Display a notification is set to No| ☑ |
 | (L1) Ensure Windows Firewall: Public: Settings: Apply local firewall rules is set to No| ☑ |
 | (L1) Ensure Windows Firewall: Public: Settings: Apply local connection security rules is set to No| ❌ |
-| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log | Partially * |
+| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log | Partially[^cis-partially] |
 | (L1) Ensure Windows Firewall: Public: Logging: Size limit (KB) is set to 16,384 KB or greater | [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
 | (L1) Ensure Windows Firewall: Public: Logging: Log dropped packets is set to Yes| [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | (L1) Ensure Windows Firewall: Public: Logging: Log successful connections is set to Yes | [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
 
-\* All the profiles share the same log file, as explained [here](#logfilepath).
+[^cis-partially]: All the profiles share the same log file, as explained [here](#logfilepath).
 
 #### Microsoft Security Compliance Toolkit
+
 [The Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10) is a set of tools that allows enterprise security administrators to download, analyze, test, edit, and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
 
 ![](../Screenshots/microsoft-logo.png)
