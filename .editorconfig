@@ -1,7 +1,7 @@
 root = true
 
 # Text files
-[*.md,*.yml,*.json,*.ps1,*.sh]
+[*.md,*.yml,*.json,*.ps1,*.sh,*.lua]
   indent_style = space
   indent_size = 2
   insert_final_newline = true

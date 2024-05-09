@@ -101,8 +101,9 @@ This tool provides a flexible and repeatable way to deploy a secure configuratio
 As mentioned in the [Key Design Decisions](#key-design-decisions), the set of rules is prepared for specific roles and are not adjusted for various agents or non-standard roles running on a DC.  
 If you need to add additional firewall rules for your environment (DC agents, SCCM management, etc.), it is recommended to create separate GPO and define all the custom rules there.  
 Firewall rules, which are finally configured on a DC, are the outcome of all the rules merged from all the applied GPOs.  
+
 > [!NOTE]
-Please note, that our GPO is focused on the firewall rules, it is not a security baseline, and it is not covering recommended hardening of a DC. You should have separate and dedicated security baseline GPO applied to your DCs.
+> Please note that our GPO is focused on the firewall rules, it is not a security baseline, and it is not covering recommended hardening of a DC. You should have separate and dedicated security baseline GPO applied to your DCs.
 
 ![GPO Precedence](../Screenshots/firewall-precedence-gpo.png)
 
@@ -825,7 +826,7 @@ If enabled in the .json file, the script will execute the following actions:
 - Registers RPC filters, defined in `RpcNamedPipesFilters.txt`
 
 > [!WARNING]
-Due to the [GPO foreground processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11)) requirement, when applying a startup script, the server needs to be restarted to apply the configuration items in the script.
+> Due to the [GPO foreground processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11)) requirement, when applying a startup script, the server needs to be restarted to apply the configuration items in the script.
 
 #### WMI static port
 
@@ -901,8 +902,9 @@ netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85
 
 All settings that are configurable are stored in `Set-ADDSFirewallPolicy.json`.  
 It is essential to review them and change as necessary for your environment.
+
 > [!CAUTION]
-Improper configuration can cause network outages in your environment!
+> Improper configuration can cause network outages in your environment!
 
 Note, that “Default value” in the configuration items below, refers to default value, that is set in the `Set-ADDSFirewallPolicy.json`, not Windows system defaults.
 
@@ -1041,8 +1043,9 @@ Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a
 
 Specify IPv4 address, IPv4 subnet or address range of all your clients. Anything what acts as a client from a DC perspective is considered client here, so you should specify all your server and user/client subnets.  
 Everything that needs to interact with your DCs should be included here, except other DCs and secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.
+
 > [!WARNING]
-**This is a critical configuration setting!** With improper configuration, this could cause network outage for your clients.
+> This is a critical configuration setting! With improper configuration, this could cause network outage for your clients.
 
 ```yaml
 Type: String[]
@@ -1057,8 +1060,9 @@ List of IP addresses from which inbound management traffic should be allowed.
 Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
 
 Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.  
+
 > [!WARNING]
-**This is a critical configuration setting!** With improper configuration, this could cause network outage for your management workstations.
+> **This is a critical configuration setting!** With improper configuration, this could cause network outage for your management workstations.
 
 ```yaml
 Type: String[]
@@ -1073,8 +1077,9 @@ List of domain controller IP addresses, between which replication and management
 Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
 
 Specify IPv4 address, IPv4 subnet or address range of all your Domain Controllers in the forest.
+
 > [!WARNING]
-**This is a critical configuration setting!** With improper configuration, this could cause network outage for your DCs.
+> This is a critical configuration setting! With improper configuration, this could cause network outage for your DCs.
 
 ```yaml
 Type: String[]
@@ -1222,8 +1227,6 @@ Possible values: true / false / null
 ```
 
 ### DisableNetbiosBroadcasts
-
-
 
 Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode. If `true` NetBIOS node type is set to P-node. If `false` NetBIOS node type is set to H-node (hybrid) If `null` NetBIOS node type is not managed through GPO.
 
@@ -1565,7 +1568,7 @@ You might need to adjust your Powershell execution policy to allow execution of 
 ![Changing the Script Execution Policy](../Screenshots/deploy-ps-exec-policy.png)
 
 > [!NOTE]
-  If you are using AppLocker, Device Guard or Constrained Language Mode, you might need adjust the configured restrictions in order to run the script.  
+> If you are using AppLocker, Device Guard or Constrained Language Mode, you might need adjust the configured restrictions in order to run the script.  
 
 Script logic:
 
@@ -1641,45 +1644,47 @@ As some of the settings are propagated throug startup script and some, even thou
 
 Follow these steps:
 
-### 1. Change the following settings in the GPO:
+1. Change the following settings in the GPO:
+
 - [NtdsStaticPort](#ntdsstaticport)
 - [NetlogonStaticPort](#netlogonstaticport)
 - [FrsStaticPort](#frsstaticport)
 - [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
 - [DisableMDNS](#disablemdns)
 
-[Locate](#administrative-templates) all the above settings in the Firewall GPO and set them to "Not Configured". 
+[Locate](#administrative-templates) all the above settings in the Firewall GPO and set them to "Not Configured".
 
 ![Rollback GPO Tattooing](../Screenshots/rollback-gpo-tatto.png)
 
-### 2. Change the following settings in the startup script:
+2. Change the following settings in the startup script:
+
 - [DfsrStaticPort](#dfsrstaticport)
 - [WmiStaticPort](#wmistaticport)
 
 Locate and open `FirewallConfiguration.bat` file, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
 
 > [!NOTE]
-The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration. 
+> The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration.
 
 Change the following line `winmgmt.exe /standalonehost 6` ⇒ `winmgmt /sharedhost`  
 Change the following line `dfsrdiag.exe StaticRPC /Port:5722` ⇒ `dfsrdiag staticrpc /port:0`
 
 ![Rollback Startup Script](../Screenshots/rollback-startup-script.png)
 
-### 3. Remove the RPC filtres
+3. Remove the RPC filters
 
 Remove "#" before "exit" at line 15 in `RpcNamedPipesFilters.txt`, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
 
 > [!NOTE]
-The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration. 
+> The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration.
 
 ![Rollback RPC Named Pipes](../Screenshots/rollback-rpc-named-pipes.png)
 
-### 4. Restart the DCs
+4. Restart the DCs
 
-Once AD and SYSVOL replication convergence is achieved and all DCs in the environment received the changed GPO, startup script and RPC configuration file, you need to restart all DCs. 
+Once AD and SYSVOL replication convergence is achieved and all DCs in the environment received the changed GPO, startup script and RPC configuration file, you need to restart all DCs.
 
-### 5. Unlink the GPO
+5. Unlink the GPO
 
 Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Controllers container in GPO management console.
 
@@ -1691,6 +1696,7 @@ Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Co
 - [Service overview and network port requirements for Windows](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/service-overview-and-network-port-requirements)
 
 Dynamic RPC ports, listed in the following table, can be set to static port through [Configuration File](#configuration-file):
+
 - [NTDS static port](#ntdsstaticport)
 - [Netlogon static port](#netlogonstaticport)
 - [FRS static port](#frsstaticport)
@@ -1702,7 +1708,7 @@ Dynamic RPC ports, listed in the following table, can be set to static port thro
 |Port|Service|Rule Reference|
 |---|---|---|
 |123/UDP|W32Time|[Active Directory Domain Controller - W32Time (NTP-UDP-In)](#active-directory-domain-controller---w32time-ntp-udp-in)|
-|135/TCP|RPC Endpoint Mapper|[Active Directory Domain Controller (RPC-EPMAP)](#active-directory-domain-controller-rpc-epmap)
+|135/TCP|RPC Endpoint Mapper|[Active Directory Domain Controller (RPC-EPMAP)](#active-directory-domain-controller-rpc-epmap) |
 |464/UDP|Kerberos password change|[Kerberos Key Distribution Center - PCR (UDP-In)](#kerberos-key-distribution-center---pcr-udp-in)|
 |464/TCP|Kerberos password change|[Kerberos Key Distribution Center - PCR (TCP-In)](#kerberos-key-distribution-center---pcr-tcp-in)|
 |49152-65535/TCP|RPC for LSA, SAM, NetLogon (*)|[Active Directory Domain Controller (RPC)](#active-directory-domain-controller-rpc)|

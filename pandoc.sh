@@ -15,6 +15,7 @@ pandock \
   --toc-depth=2 \
   --number-sections \
   --template=eisvogel \
+  --lua-filter=pandoc.lua \
   --variable=lof:true \
   --variable=classoption:oneside \
   --variable=geometry:a4paper,margin=2cm \
@@ -37,4 +38,5 @@ pandock \
   --table-of-contents \
   --toc-depth=2 \
   --resource-path=ADDS \
+  --lua-filter=pandoc.lua \
   ADDS/README.md
