@@ -319,7 +319,7 @@ It allows to define the following keywords, which can be then referred by a fire
 - fully qualified domain names (FQDNs)
 - autoresolution options
 
-This functionality have some major limitation, mainly inability to configure it through Group Policy settings, which led us to avoiding using it in our solution. 
+This functionality have some major limitation, mainly inability to configure it through Group Policy settings, which led us to avoiding using it in our solution.
 
 More information can be found in the following article:
 
@@ -695,13 +695,11 @@ Our firewall configuration is compliant with the majority of the STIG requiremen
 
 #### Center for Internet Security (CIS) Benchmark
 
-This [CIS Benchmark](https://www.cisecurity.org/cis-benchmarks) was created using a consensus review process comprised of a global community of subject matter experts. The process combines real world experience with data-based information to create technology specific guidance to assist users to secure their environments. Consensus participants provide perspective from a diverse set of backgrounds including consulting, software development, audit and compliance, security research, operations, government, and legal.
+[CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) are created using a consensus review process comprised of a global community of subject matter experts. The process combines real world experience with data-based information to create technology specific guidance to assist users to secure their environments. Consensus participants provide perspective from a diverse set of backgrounds including consulting, software development, audit and compliance, security research, operations, government, and legal.
 
-![](../Screenshots/cis-logo.png)
+![](../Screenshots/cis-logo.png){ width=200px }
 
-- [CIS: Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
-
-Our firewall configuration is compliant with the majority of the CIS requirements out-of-the-box. The configuration file can easily be modified to achieve almost full compliance.
+Our firewall configuration is compliant with the majority of the [CIS Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC) requirements out-of-the-box. The configuration file can easily be modified to achieve full compliance, with one negligible exception.
 
 | CIS Title | Compliance |
 |------------------------------------|-----------|
@@ -733,39 +731,37 @@ Our firewall configuration is compliant with the majority of the CIS requirement
 
 #### Microsoft Security Compliance Toolkit
 
-[The Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10) is a set of tools that allows enterprise security administrators to download, analyze, test, edit, and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
+The [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10) is a set of tools that allows enterprise security administrators to download, analyze, test, edit, and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
 
-![](../Screenshots/microsoft-logo.png)
+![](../Screenshots/microsoft-logo.png){ width=200px }
 
-- [Microsoft: Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
+Our firewall configuration is compliant with the majority of the [SCT Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319) requirements out-of-the-box. The configuration file can easily be modified to achieve full compliance.
 
-Our firewall configuration is compliant with the majority of the MS security baseline requirements out-of-the-box. The configuration file can easily be modified to achieve almost full compliance.
-
-| Policy Path  | Policy Setting Name | Win 2016 DC requirement | Win 2022 DC requirement |Compliance                      |
-|------------|----------|------------------------------|---------------------------------|---------------------------------|
-| \\Domain Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| \\Domain Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| \\Domain Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| \\Domain Profile\\Settings | Display a notification | No | Not defined | ☑ |
-| \\Domain Profile\\State | Firewall state | On (recommended) | On (recommended) | ☑ |
-| \\Domain Profile\\State | Inbound connections | Block (default) | Block (default) | ☑ |
-| \\Domain Profile\\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
-| \\Private Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| \\Private Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| \\Private Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| \\Private Profile\\Settings | Display a notification | No | Not defined | ☑ |
-| \\Private Profile\\State | Firewall state | On (recommended) | On (recommended) | ☑ |
-| \\Private Profile\\State | Inbound connections | Block (default) | Block (default) | ☑ |
-| \\Private Profile\\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
-| \\Public Profile\\Logging | Log dropped packets | Yes | Not defined| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| \\Public Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| \\Public Profile\\Logging | Size limit (KB) | 16384 | Not defined| ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| \\Public Profile\\Settings | Apply local connection security rules | No | N/A | ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
-| \\Public Profile\\Settings | Apply local firewall rules | No | Not defined | ☑ |
-| \\Public Profile\\Settings | Display a notification | No | Not defined | ☑ |
-| \\Public Profile\\State | Firewall state | On (recommended) | On (recommended) | ☑ |
-| \\Public Profile\\State | Inbound connections | Block (default) | Block (default) | ☑ |
-| \\Public Profile\\State | Outbound connections | Allow (default) | Allow (default) | ☑ |
+| Firewall Policy Path | Policy Setting Name | Win 2016 DC Requirement | Win 2022 DC Requirement | Compliance |
+|-------------------|----------------|----------|----------|--------------------|
+| Domain Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| Domain Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| Domain Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| Domain Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| Domain Profile\\State | Firewall state | On | On | ☑ |
+| Domain Profile\\State | Inbound connections | Block | Block | ☑ |
+| Domain Profile\\State | Outbound connections | Allow | Allow | ☑ |
+| Private Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| Private Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| Private Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| Private Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| Private Profile\\State | Firewall state | On | On | ☑ |
+| Private Profile\\State | Inbound connections | Block | Block | ☑ |
+| Private Profile\\State | Outbound connections | Allow | Allow | ☑ |
+| Public Profile\\Logging | Log dropped packets | Yes | Not defined| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| Public Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| Public Profile\\Logging | Size limit (KB) | 16384 | Not defined| ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| Public Profile\\Settings | Apply local connection security rules | No | N/A | ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
+| Public Profile\\Settings | Apply local firewall rules | No | Not defined | ☑ |
+| Public Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| Public Profile\\State | Firewall state | On | On | ☑ |
+| Public Profile\\State | Inbound connections | Block | Block | ☑ |
+| Public Profile\\State | Outbound connections | Allow | Allow | ☑ |
 
 ## Group Policy Object Contents
 
