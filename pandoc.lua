@@ -2,27 +2,63 @@
 
 function Para(para)
   local firstWord = para.content[1].text
+  local iconSize = { height = '12px' }
 
   if firstWord == '[!WARNING]' then
-    -- Replace GitHub alert [!WARNING] with **Warning:**
-    para.content[1] = pandoc.Strong { pandoc.Str "Warning:" }
-    return para
+    -- Render the GitHub alert [!WARNING] with the ⚠️ icon.
+    table.remove(para.content, 1)
+
+    return pandoc.LineBlock {
+      pandoc.Inlines {
+        pandoc.Image({}, 'https://github.com/images/icons/emoji/unicode/26a0.png', 'Warning', iconSize),
+        pandoc.Strong { pandoc.Str "\tWarning" }
+      },
+      para.content
+    }
   elseif firstWord == '[!NOTE]' then
-    -- Replace GitHub alert [!NOTE] with **Note:**
-    para.content[1] = pandoc.Strong { pandoc.Str "Note:" }
-    return para
+    -- Render the GitHub alert [!NOTE] with the ℹ icon.
+    table.remove(para.content, 1)
+
+    return pandoc.LineBlock {
+      pandoc.Inlines {
+        pandoc.Image({}, 'https://github.com/images/icons/emoji/unicode/2139.png', 'Note', iconSize),
+        pandoc.Strong { pandoc.Str "\tNote" }
+      },
+      para.content
+    }
   elseif firstWord == '[!TIP]' then
-    -- Replace GitHub alert [!TIP] with **Tip:**
-    para.content[1] = pandoc.Strong { pandoc.Str "Tip:" }
-    return para
+    -- Render the GitHub alert [!TIP] with the 💡 icon.
+    table.remove(para.content, 1)
+
+    return pandoc.LineBlock {
+      pandoc.Inlines {
+        pandoc.Image({}, 'https://github.com/images/icons/emoji/unicode/1f4a1.png', 'Tip', iconSize),
+        pandoc.Strong { pandoc.Str "\tTip" }
+      },
+      para.content
+    }
   elseif firstWord == '[!IMPORTANT]' then
-    -- Replace GitHub alert [!IMPORTANT] with **Important:**
-    para.content[1] = pandoc.Strong { pandoc.Str "Important:" }
-    return para
+    -- Render the GitHub alert [!IMPORTANT] with the ❗ icon.
+    table.remove(para.content, 1)
+
+    return pandoc.LineBlock {
+      pandoc.Inlines {
+        pandoc.Image({}, 'https://github.com/images/icons/emoji/unicode/2757.png', 'Important', iconSize),
+        pandoc.Strong { pandoc.Str "\tImportant" }
+      },
+      para.content
+    }
   elseif firstWord == '[!CAUTION]' then
-    -- Replace GitHub alert [!CAUTION] with **Caution:**
-    para.content[1] = pandoc.Strong { pandoc.Str "Caution:" }
-    return para
+    -- Render the GitHub alert [!CAUTION] with the 🛑 icon.
+    table.remove(para.content, 1)
+
+    return pandoc.LineBlock {
+      pandoc.Inlines {
+        pandoc.Image({}, 'https://github.com/images/icons/emoji/unicode/1f6d1.png', 'Caution', iconSize),
+        pandoc.Strong { pandoc.Str "\tCaution" }
+      },
+      para.content
+    }
   end
 end
   

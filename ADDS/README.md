@@ -1052,7 +1052,7 @@ Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a
 Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.  
 
 > [!WARNING]
-> **This is a critical configuration setting!** With improper configuration, this could cause network outage for your management workstations.
+> This is a critical configuration setting! With improper configuration, this could cause network outage for your management workstations.
 
 ```yaml
 Type: String[]
