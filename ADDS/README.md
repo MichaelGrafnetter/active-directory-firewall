@@ -34,6 +34,7 @@ footer-right: "\\hspace{1cm}"
 |--------------|-------------------------------------------------------|
 | DC           | Domain Controller                                     |
 | ADDS         | Active Directory Domain Services                      |
+| AD           | Active Directory (Domain Services)                    |
 | DNS          | Domain Name System                                    |
 | GPO          | Group Policy Object                                   |
 | PS           | PowerShell                                            |
@@ -59,8 +60,11 @@ footer-right: "\\hspace{1cm}"
 | mDNS         | Multicast DNS                                         |
 | OS           | Operating System                                      |
 | UI           | User Interface                                        |
-| PoC          |                                                       |
-| L3           |                                                       |
+| PoC          | Proof of Concept                                      |
+| L3           | Layer 3 (Network Layer)                               |
+| SIEM         | Security Information and Event Management             |
+| ITDR         | Identity Threat Detection and Response                |
+| EDR          | Endpoint Detection and Response                       |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Operations Manager]: https://learn.microsoft.com/en-us/system-center/scom/get-started
@@ -98,12 +102,12 @@ This tool provides a flexible and repeatable way to deploy a secure configuratio
 
 ### Firewall Rule Merging
 
-As mentioned in the [Key Design Decisions](#key-design-decisions), the set of rules is prepared for specific roles and are not adjusted for various agents or non-standard roles running on a DC.  
+As mentioned in the [Key Design Decisions](#key-design-decisions) section, the set of rules is only prepared for DC-related roles and are is adjusted for various agents or non-standard roles running on a DC.  
 If you need to add additional firewall rules for your environment (DC agents, SCCM management, etc.), it is recommended to create separate GPO and define all the custom rules there.  
 Firewall rules, which are finally configured on a DC, are the outcome of all the rules merged from all the applied GPOs.  
 
 > [!NOTE]
-> Please note that our GPO is focused on the firewall rules, it is not a security baseline, and it is not covering recommended hardening of a DC. You should have separate and dedicated security baseline GPO applied to your DCs.
+> Please keep in mind that our GPO is focused on the firewall rules, it is not a security baseline, and it is not covering recommended hardening of a DC. You should have separate and dedicated security baseline GPO applied to your DCs.
 
 ![GPO Precedence](../Screenshots/firewall-precedence-gpo.png)
 
@@ -111,43 +115,28 @@ Firewall rules, which are finally configured on a DC, are the outcome of all the
 
 #### The Good
 
-With some protocols, it is quite obvious that they should only be available from management networks or jump servers. This is the case of the [Remote Desktop Protocol (RDP)](#remote-desktop---user-mode-tcp-in) or [Remote Event Log Management](#remote-event-log-management-rpc).
+With some protocols, it is quite obvious that they should only be available from management networks or jump servers. This is the case of the **[Remote Desktop Protocol (RDP)](#remote-desktop---user-mode-tcp-in)** or **[Remote Event Log Management](#remote-event-log-management-rpc)**.
 
 #### The Bad
 
 There are several protocols that should primarily be used for remote system management, but some organizations also used them for client traffic.
 
-##### Windows Remote Management (WinRM)
-
-One such example is the [Windows Remote Management (WinRM)](#windows-remote-management-http-in) protocol. Contrary to its name, it can not only be used by [Server Manager](https://learn.microsoft.com/en-us/windows-server/administration/server-manager/server-manager) and [PowerShell Remoting](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/08-powershell-remoting), but also by source-initiated [Windows Event Collector](https://learn.microsoft.com/en-us/windows/win32/wec/windows-event-collector) subscriptions.
-
+One such example is the **[Windows Remote Management (WinRM)](#windows-remote-management-http-in)** protocol. Contrary to its name, it can not only be used by [Server Manager](https://learn.microsoft.com/en-us/windows-server/administration/server-manager/server-manager) and [PowerShell Remoting](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/08-powershell-remoting), but also by source-initiated [Windows Event Collector](https://learn.microsoft.com/en-us/windows/win32/wec/windows-event-collector) subscriptions.
 As a best-practice, domain controllers should not be used as event forwarding targets, especially not by workstations. AD domains, where this recommendation is not followed, must first be reconfigured, before the strict firewall rules are applied to domain controllers.
 
-##### Active Directory Web Services (ADWS)
-
-Another example would be [Active Directory Web Services (ADWS)](#active-directory-web-services-tcp-in). It is rare, but not unimaginable, to see legitimate PowerShell scripts with the `Get-ADUser` cmdlet running on client machines. Such scripts would stop working if ADWS is simply blocked on domain controllers.
-
+Another example would be **[Active Directory Web Services (ADWS)](#active-directory-web-services-tcp-in)**. It is rare, but not unimaginable, to see legitimate PowerShell scripts with the `Get-ADUser` cmdlet running on client machines. Such scripts would stop working if ADWS is simply blocked on domain controllers.
 On the other hand, it is relatively easy to rewrite these scipts to use the built-in [DirectorySearcher](https://learn.microsoft.com/en-us/dotnet/api/system.directoryservices.directorysearcher) class, which relies on the [LDAP](#active-directory-domain-controller---ldap-tcp-in) protocol instead of ADWS. The added value would be the removal of the [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/) PowerShell module dependency.
 
 #### The Ugly
 
 Unfortunately, there are some protocols which are required by all Windows clients, but can also be (mis)used to perform administrative operations.
 
-##### Directory Replication Service (DRS) Remote Protocol
+One would be highly tempted to limit the **[Directory Replication Service (DRS) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/f977faaa-673e-4f66-b9bf-48c640241d47)** traffic to domain controllers and thus block potential [DCSync](https://adsecurity.org/?p=1729) attacks. Unfortunately, this protocol is also used by Windows clients during user logon, specifically its [IDL_DRSCrackNames](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/9b4bfb44-6656-4404-bcc8-dc88111658b3) RPC call, so it cannot simply be blocked by an L3 firewall rule.
+One solution to this problem would be the deployment of the open-source [RPC Firewall](https://github.com/zeronetworks/rpcfirewall) tool, which can selectively limit the scope of the dangerous [IDL_DRSGetNCChanges](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/b63730ac-614c-431c-9501-28d6aca91894) operation. However, the project does not seem to be mature enough for production deployments. Its installation and configuration is cumbersome and requires deep understanding of the RPC protocol. Moreover, the binaries are not digitally signed, making them incompatible with some optional Windows security features, including [LSA Protection](https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection). As a result, the most common approach is to just monitor domain controllers for unexpected replication traffic. Many products in the Identity Threat Detection and Response (ITDR) category are able to detect the DCSync attack, including [Microsoft Defender for Identity](https://learn.microsoft.com/en-us/defender-for-identity/what-is) and [Netwrix Threat Manager](https://www.netwrix.com/threat_detection_software.html).
 
-One would be highly tempted to limit the [Directory Replication Service (DRS) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/f977faaa-673e-4f66-b9bf-48c640241d47) traffic to domain controllers and thus block potential [DCSync](https://adsecurity.org/?p=1729) attacks. Unfortunately, this protocol is also used by Windows clients during user logon, specifically its [IDL_DRSCrackNames](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/9b4bfb44-6656-4404-bcc8-dc88111658b3) RPC call, so it cannot simply be blocked by an L3 firewall rule.
+The protocol that causes the most confusion among network administrators is undeniably the **[Server Message Block (SMB)](#active-directory-domain-controller---samlsa-np-tcp-in)**. Although its primary use is for file and printer sharing, it can also be used for remote system management through various RPC-based protocols. Because the functionality of AD heavily depends on the `SYSVOL` and `NETLOGON` file shares on domain controllers, the SMB protocol cannot simply be blocked on DCs. Deep packet inspection has also become less effective with the advent of SMBv3 encryption. Our approach to this issue is to [selectively block remote management over SMB named pipes](#rpc-filters).
 
-One solution to this problem would be the deployment of the open-source [RPC Firewall](https://github.com/zeronetworks/rpcfirewall) tool, which can selectively limit the scope of the dangerous [IDL_DRSGetNCChanges](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/b63730ac-614c-431c-9501-28d6aca91894) operation. However, the project does not seem to be mature enough for production deployments. Its installation and configuration is cumbersome and requires deep understanding of the RPC protocol. Moreover, the binaries are not digitally signed, making them incompatible with some optional Windows security features, including [LSA Protection](https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection).
-
-The most common approach is to just monitor domain controllers for unexpected replication traffic. Many products in the Identity Threat Detection and Response (ITDR) category are able to detect the DCSync attack, including [Microsoft Defender for Identity](https://learn.microsoft.com/en-us/defender-for-identity/what-is) and [Netwrix Threat Manager](https://www.netwrix.com/threat_detection_software.html).
-
-##### Server Message Block (SMB)
-
-TODO: Michael
-
-##### Lightweight Directory Access Protocol (LDAP)
-
-TODO: Michael
+Also worth mentioning is the **[Lightweight Directory Access Protocol (LDAP)](#active-directory-domain-controller---ldap-tcp-in)**, which gives Active Directory its name. It can surely be used for administrative operations, e.g., privileged group membership changes, but at least it does not provide the capability to directly execute arbitrary code on DCs. And with a well-configured SIEM or an ITDR solution, modifications of sensitive AD objects can be detected almost in real-time.
 
 ### Firewall Rule Deduplication
 
@@ -863,7 +852,7 @@ Log file is not created by the GPO, ACLs need to be configured through command l
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
-#### RPC Filters
+#### RPC Filters Script
 
 ![RPC Filters configuration file](../Screenshots/deploy-rpcnamedpipesfilter.png)  
 
