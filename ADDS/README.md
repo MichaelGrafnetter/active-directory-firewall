@@ -74,6 +74,11 @@ footer-right: "\\hspace{1cm}"
 
 ## Summary
 
+> [!NOTE]
+> Summary needs to be expanded.
+
+![The most common DC firewall configuration](../Screenshots/firewall-off.png)
+
 The purpose of this tool is to simplify the deployment of a specific set of firewall rules and filters that can significantly reduce the attack surface of Domain Controllers without impacting the functionality of Active Directory.
 
 This tool provides a flexible and repeatable way to deploy a secure configuration in your environment within minutes.
@@ -109,7 +114,7 @@ Firewall rules, which are finally configured on a DC, are the outcome of all the
 > [!NOTE]
 > Please keep in mind that our GPO is focused on the firewall rules, it is not a security baseline, and it is not covering recommended hardening of a DC. You should have separate and dedicated security baseline GPO applied to your DCs.
 
-![GPO Precedence](../Screenshots/firewall-precedence-gpo.png)
+![GPO precedence](../Screenshots/firewall-precedence-gpo.png)
 
 ### Identifying Management Traffic
 
@@ -180,9 +185,9 @@ Moreover, both ports 135 and 445 need to be accessible by all Windows clients fo
 
 #### Overview of Keywords
 
-In addition to manually enumerating IP address ranges, the firewall rule scope configuration allows the use of predefined sets of computers, known as keywords:
+In addition to manually enumerating IP address ranges, the firewall rule scope configuration allows the use of predefined sets of computers, known as keywords.
 
-![Predefined address sets in Windows Firewall](../Screenshots/firewall-predefined-sets.png)
+![Predefined address sets (keywords) in Windows Firewall](../Screenshots/firewall-predefined-sets.png)
 
 These keywords are briefly described in the [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f) document. However, there is no public documentation available that explains how the keywords are defined and under what circumstances the corresponding IP addresses are updated.
 
@@ -308,6 +313,8 @@ Any process
 ![Azure Arc built-in firewall rule](../Screenshots/azure-arc-firewall.png)
 
 #### Installers Downloading Additional Files
+
+Many application installers (`setup.exe` or `setup.msi`) do not work in a fully offline mode, as they need to download some prerequisites from the Internet. Microsoft .NET Framework and Visual C++ Runtime seem to be the most common installer dependencies. Then there are so-called web installers, which download all application binaries from online sources. As installers do not have well-defined names and can be executed from any location, it 
 
 #### Dynamic Keywords
 
