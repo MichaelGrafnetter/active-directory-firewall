@@ -737,8 +737,8 @@ The [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/window
 
 Our firewall configuration is compliant with the majority of the [SCT Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319) requirements out-of-the-box. The configuration file can easily be modified to achieve full compliance.
 
-| Firewall Policy Path | Policy Setting Name | Win 2016 DC Requirement | Win 2022 DC Requirement | Compliance |
-|-------------------|----------------|----------|----------|--------------------|
+| Firewall Policy Path | Setting Name | Win 2016 DC Requirement | Win 2022 DC Requirement | Compliance |
+|-------------------|----------------|-----------|-----------|---------------------|
 | Domain Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
 | Domain Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
 | Domain Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
