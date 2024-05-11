@@ -165,7 +165,7 @@ Also worth mentioning is the **[Lightweight Directory Access Protocol (LDAP)](#a
 
 ### Firewall Rule Deduplication
 
-Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports, even though their names might suggest otherwise. For example, all of the following rules open port `TCP/135` for the `rpcss` service:
+Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports, even though their names might suggest otherwise. For example, all of the following rules open port `135/TCP` for the `rpcss` service:
 
 - RPC Endpoint Mapper (TCP, Incoming)
 - Active Directory Domain Controller (RPC-EPMAP)
@@ -187,7 +187,7 @@ Many of the built-in/predefined Windows Firewall rules are actually duplicates o
 
 ![Duplicate RPC Endpoint Mapper rules](../Screenshots/duplicate-epmap-rules.png)
 
-Similarly, all of these firewall rules open port `TCP/445` for `System`:
+Similarly, all of these firewall rules open port `445/TCP` for `System`:
 
 - File and Printer Sharing (SMB-In)
 - Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
@@ -362,19 +362,21 @@ And then there are of course air-gapped (isolated) environments, in which the gr
 
 ### Static RPC Ports
 
-Many services that typically use dynamic ports are configured with static port numbers by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
+Several Windows services that use RPC dynamic ports by default can be configured to listen on static port numbers instead. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network-based firewalls.
 
-If you want to change the static port number or disable the static port configuration, you can do it in the [Configuration File](#configuration-file).
+The following services are supported by our solution:
 
-The following services are by default configured to use static port by the tool:
+| Service                         | Default Port | Applied Using                     |
+|---------|-----:|---------------|
+| [NTDS](#ntdsstaticport)         |    38901/TCP | [Administrative Templates](#administrative-templates) |
+| [Netlogon](#netlogonstaticport) |    38902/TCP | [Administrative Templates](#administrative-templates) |
+| [FRS](#frsstaticport)           |    38903/TCP | [Administrative Templates](#administrative-templates) |
+| [DFSR](#dfsr-static-port)       |     5722/TCP | [Startup Script](#startup-script) |
+| [WMI](#wmi-static-port)         |    24158/TCP | [Startup Script](#startup-script) |
 
-- [NTDS](#ntdsstaticport) - port 38901 - applied through Group Policy setting
-- [Netlogon](#netlogonstaticport) - port 38902 - applied through Group Policy setting
-- [FRS](#frsstaticport) - port 38903 - applied through Group Policy setting
-- [DFSR](#dfsr-static-port) - port 5722 - applied through [Startup script](#startup-script)
-- [WMI](#wmi-static-port) - port 24158 - applied through [Startup script](#startup-script)
+The port numbers can be changed by modifying the [configuration file](#configuration-file). To simplify the static port changes through the Group Policy Editor, the [DomainControllerFirewall.admx](#administrative-templates) file is provided as part of the solution.
 
-More information:
+References:
 
 - [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
 - [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
@@ -635,32 +637,27 @@ TODO: Firewall remote management?
 
 ### Distribution Contents
 
-The below table contains list of all the files, that are part of the solution, with their respective path and brief description.
+The table below contains a list of all files that are part of the solution, with their respective paths and brief descriptions.
 
-> [!IMPORTANT]
-> TODO: file, kde je v description "?" - Michael doplni, abych tam nepsal uplny hamotiny
+| File path                                                   | Description |
+|-------------------------------------------------------------|----------------------------------------------------------------------------------|
+| `GPOReport.html`                                            | Sample Group Policy HTML report with all GPO settings configured by the tool |
+| `inbound-builtin-firewall-rules.csv`                        | List of all built-in FW rules utilized (not necessarily enabled) by the tool |
+| `inbound-custom-firewall-rules.csv`                         | List of all custom FW rules utilized by the tool |
+| `GPO\Set-ADDSFirewallPolicy.ps1`                            | PowerShell script for deploying the DC Firewall GPO |
+| `GPO\Set-ADDSFirewallPolicy.Starter.json`                   | Initial minimalistic configuraton file that should be renamed to `Set-ADDSFirewallPolicy.json` and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed |
+| `GPO\Set-ADDSFirewallPolicy.Sample.json`                    | Sample configuration file containing all supported configurations options |
+| `GPO\Set-ADDSFirewallPolicy.schema.json`                    | Schema file for the JSON configuration files |
+| `GPO\RpcNamedPipesFilters.txt`                              | `netsh.exe` script for creating RPC filters |
+| `GPO\PolicyDefinitions\DomainControllerFirewall.admx`       | GPO template file for [custom configuration](#administrative-templates) settings |
+| `GPO\PolicyDefinitions\MSS-legacy.admx`                     | GPO template file for [MSS (Legacy)] settings |
+| `GPO\PolicyDefinitions\SecGuide.admx`                       | GPO template file for [MS Security Guide] settings |
+| `GPO\PolicyDefinitions\en-US\DomainControllerFirewall.adml` | English localization file for the `DomainControllerFirewall.admx` template |
+| `GPO\PolicyDefinitions\en-US\MSS-legacy.adml`               | English localization file for the `MSS-legacy.admx` template |
+| `GPO\PolicyDefinitions\en-US\SecGuide.adml`                 | English localization file for the `SecGuide.admx` template |
 
-| File path  | Description |
-|------------|----------|
-| .\\GPOReport.html | Group Policy HTML report of all GPO settings configured by the tool |
-| .\\inbound-builtin-firewall-rules.csv | List of all build-in FW rules utilized (not all enabled) by the tool |
-| .\\inbound-custom-firewall-rules.csv | List of all custom FW rules utilized by the tool|
-| .\\README.md | This "Read me" file |
-| GPO\\RpcNamedPipesFilters.txt | List of all RPC filters registered if enabled in config file|
-| GPO\\Set-ADDSFirewallPolicy.json | JSON containing all configuration items for the tool |
-| GPO\\Set-ADDSFirewallPolicy.ps1 | Script to deploy the DC Firewall solution |
-| GPO\\Set-ADDSFirewallPolicy.schema.json | Schema file for the Set-ADDSFirewallPolicy.json |
-| GPO\\Set-ADDSFirewallPolicy.Starter.json |?|
-| GPO\\PolicyDefinitions\\DomainControllerFirewall.admx | GPO template file for [custom configuration](#administrative-templates) settings |
-| GPO\\PolicyDefinitions\\MSS-legacy.admx | GPO template file for ["MSS (Legacy)"](https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055) settings |
-| GPO\\PolicyDefinitions\\SecGuide.admx | GPO template file for ["MS Security Guide"](https://learn.microsoft.com/en-us/deployoffice/security/security-baseline#ms-security-guide-administrative-template) settings |
-| GPO\\PolicyDefinitions\\en-US\\DomainControllerFirewall.adml | English language file for DomainControllerFirewall.admx |
-| GPO\\PolicyDefinitions\\en-US\\MSS-legacy.adml | English language file for MSS-legacy.admx |
-| GPO\\PolicyDefinitions\\en-US\\SecGuide.adml | English language file for SecGuide.admx |
-| Schema\\BaseTypes.xsd |?|
-| Schema\\PolicyDefinitionFiles.xsd |?|
-| Schema\\PolicyDefinitions.xsd |?|
-| Schema\\README.md | "Read me" file for the schema definition files |
+[MSS (Legacy)]: https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055
+[MS Security Guide]: https://learn.microsoft.com/en-us/deployoffice/security/security-baseline#ms-security-guide-administrative-template
 
 ### Security Standards Compliance
 
