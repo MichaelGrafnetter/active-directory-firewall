@@ -33,11 +33,12 @@ footer-right: "\\hspace{1cm}"
 | Abbreviation | Explanation                                           |
 |--------------|-------------------------------------------------------|
 | DC           | Domain Controller                                     |
-| ADDS         | Active Directory Domain Services                      |
+| ADDS         | [Active Directory Domain Services]                    |
 | AD           | Active Directory (Domain Services)                    |
 | DNS          | Domain Name System                                    |
+| FQDN         | Fully Qualified Domain Name                           |
 | GPO          | Group Policy Object                                   |
-| PS           | PowerShell                                            |
+| PS           | [PowerShell]                                          |
 | T0 / Tier 0  | Control plane of your environment – see [Admin Model] |
 | SCOM         | [System Center Operations Manager]                    |
 | NLA          | [Network Location Awareness]                          |
@@ -46,17 +47,17 @@ footer-right: "\\hspace{1cm}"
 | WINS         | Windows Internet Name Service                         |
 | ASR          | [Attack Surface Reduction]                            |
 | WMI          | Windows Management Instrumentation                    |
-| RPC          | Remote Procedure Call                                 |
+| RPC          | [Remote Procedure Call]                               |
 | DCOM         | Distributed Component Object Model                    |
 | SMB          | Server Message Block                                  |
 | TCP          | Transmission Control Protocol                         |
 | UDP          | User Datagram Protocol                                |
 | NTP          | Network Time Protocol                                 |
 | SNMP         | Simple Network Management Protocol                    |
-| RSAT         | Remote Server Administration Tools                    |
+| RSAT         | [Remote Server Administration Tools]                  |
 | ICMP         | Internet Control Message Protocol                     |
 | DHCP         | Dynamic Host Configuration Protocol                   |
-| LLMNR        | Link-Local Multicast Name Resolution                  |
+| LLMNR        | [Link-Local Multicast Name Resolution]                |
 | mDNS         | Multicast DNS                                         |
 | OS           | Operating System                                      |
 | UI           | User Interface                                        |
@@ -71,13 +72,16 @@ footer-right: "\\hspace{1cm}"
 [Network Location Awareness]: https://learn.microsoft.com/en-us/windows/win32/winsock/network-location-awareness-service-provider-nla--2
 [Privileged Access Workstation]: https://learn.microsoft.com/en-us/security/privileged-access-workstations/privileged-access-devices
 [Attack Surface Reduction]: https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/overview-attack-surface-reduction?view=o365-worldwide
+[Remote Procedure Call]: https://learn.microsoft.com/en-us/windows/win32/rpc/rpc-start-page
+[Active Directory Domain Services]: https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/get-started/virtual-dc/active-directory-domain-services-overview
+[PowerShell]: https://learn.microsoft.com/en-us/powershell/
+[Remote Server Administration Tools]: https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/remote-server-administration-tools
+[Link-Local Multicast Name Resolution]: https://www.rfc-editor.org/rfc/rfc4795.html
 
 ## Summary
 
 > [!NOTE]
 > Summary needs to be expanded.
-
-![The most common DC firewall configuration](../Screenshots/firewall-off.png)
 
 The purpose of this tool is to simplify the deployment of a specific set of firewall rules and filters that can significantly reduce the attack surface of Domain Controllers without impacting the functionality of Active Directory.
 
@@ -104,6 +108,22 @@ This tool provides a flexible and repeatable way to deploy a secure configuratio
 - Only **Inbound rules** are configured and enforced.
 - The configuration does not differentiate between the Domain, Private, and Public firewall profiles to avoid potential DC unavailability in case of incorrect network type detection by NLA.
 - Many services that typically use dynamic ports are configured with **static port numbers** by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
+
+### Host-Based Firewall vs Network-Based Firewall
+
+Most network administrators only configure network-based firewalls and turn off the [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/) on servers. Their reasoning is that they do not want to maintain duplicate sets of firewall rules and that Windows Firewall rule management is cumbersome and inflexible.
+
+![The most common DC firewall configuration](../Screenshots/firewall-off.png)
+
+There are several security issues with this approach:
+
+- As network-based firewalls only filter traffic between networks, they are incapable of blocking lateral movement inside of VLANs. Their functionality might further be degraded by poor network segmentation.
+- The majority of network firewalls is incapable of differentiating between various RPC-based protocols, most of which use dynamic port numbers. The entire ephemeral TCP port range (49152-65535) is thus typically accessible on domain controllers from the entire corporate network, regardless of whether a particular port is used by the Netlogon service or for remote management of scheduled tasks.
+- Network-based firewalls are commonly managed by dedicated teams, which might lack the required advanced Windows knowledge.
+
+The best-practice is thus to configure both the network-based firewall and host-based firewall. Internet traffic should additionally be filtered by proxy servers.
+
+This paper only focuses on secure configuration of host-based firewalls, i.e., Windows Defender Firewall with Advanced Security, on domain controllers. However, the [Inbound Firewall Rules Reference](#inbound-firewall-rules-reference) chapter might also serve as information source for configuring network-based firewalls.
 
 ### Firewall Rule Merging
 
@@ -292,55 +312,53 @@ To allow Windows Update to work, one would need to target the `svchost.exe` prog
 
 #### Scheduled Tasks with Custom Handlers
 
-Some scheduled task actions are implemented using a custom DLL handler.
+Some scheduled task actions are implemented using a custom DLL handler. As a result, the corresponding firewall rule would need to target the `taskhostw.exe` program, thus allowing all scheduled tasks to connect to remote computers.
 
 ![Scheduled task with a custom handler](../Screenshots/scheduled-task-custom-handler.png)
 
-As a result, the corresponding firewall rule would need to target the `taskhostw.exe` program,  thus allowing all scheduled tasks to connect to remote computers.
-
 #### Microsoft Defender for Identity
 
-Defender for Identity sensor to All devices on network  - SMB (TCP/UDP 445), RPC (TCP 135), NetBIOS (UDP 137), RDP (TCP 3389).
+The [Network Name Resolution](https://learn.microsoft.com/en-us/defender-for-identity/nnr-policy) and [Lateral Movement Path Detection](https://learn.microsoft.com/en-us/defender-for-identity/deploy/remote-calls-sam) capabilies of Microsoft Defender for Identity depend on the domain controllers being able to connect over the RDP (TCP port 3389), RPC (TCP port 135), NetBIOS (UDP port 137), and SMB (TCP port 445) protocols to all workstations. It would thus be impossible to fully mitigate NTLM relay attacks against domain controllers using outbound firewall rules in environments with this product deployed. Moreover, the sensor needs to be able to communicate with Microsoft's servers as well.
 
 #### Azure Arc
 
-PowerShell, msiexec
+Large organizations might want to utilize the new hotpatching capability of Windows Server 2025. However, this feature is only available on servers managed by [Azure Arc](https://azure.microsoft.com/en-us/products/azure-arc). And the Azure Arc Agent contains several binaries and PowerShell scripts, which all need to be able to communicate with Microsoft's cloud, but their exact behavior is undocumented and subject to change.
 
-![Azure Arc binaries](../Screenshots/azure-arc-binaries.png)
+![Azure Arc Agent binaries and PowerShell scripts](../Screenshots/azure-arc-binaries.png)
 
-Any process
+Interestingly, the Azure Arc installer creates a custom outbound firewall rule called `SmeOutboundOpenException`, which targets all processes and is scoped to a hardcoded list of Microsoft's IP addresses. It is unclear how reliable and future-proof this rule actually is, as even [Google has never heard of it](https://www.google.com/search?q=SmeOutboundOpenException).
 
-![Azure Arc built-in firewall rule](../Screenshots/azure-arc-firewall.png)
+![Azure Arc built-in outbound firewall rule](../Screenshots/azure-arc-firewall.png)
 
 #### Installers Downloading Additional Files
 
-Many application installers (`setup.exe` or `setup.msi`) do not work in a fully offline mode, as they need to download some prerequisites from the Internet. Microsoft .NET Framework and Visual C++ Runtime seem to be the most common installer dependencies. Then there are so-called web installers, which download all application binaries from online sources. As installers do not have well-defined names and can be executed from any location, it 
+Many application installers (`setup.exe` or `setup.msi`) do not work in a fully offline mode, as they need to download some prerequisites from the Internet. Microsoft .NET Framework and Visual C++ Runtime seem to be the most common installer dependencies. Then there are so-called web installers, which download all application binaries from online sources. As installers do not have well-defined names and can be executed from any location, it is impossible to selectively cover them by a firewall rule.
 
 #### Dynamic Keywords
 
-Windows Firewall includes a functionality called dynamic keywords, which simplifies the configuration and management of Windows Firewall.  
+Windows Firewall includes a functionality called [dynamic keywords](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords), which simplifies the management of Windows Firewall. This feature allows administrators to define the following types of keywords, which can then be referenced by firewall rules:
 
-It allows to define the following keywords, which can be then referred by a firewall rule:
+- Set of IP address ranges
+- Fully qualified domain names (FQDNs)
+- Autoresolution options
 
-- set of IP address range
-- fully qualified domain names (FQDNs)
-- autoresolution options
-
-This functionality have some major limitation, mainly inability to configure it through Group Policy settings, which led us to avoiding using it in our solution.
-
-More information can be found in the following article:
-
-https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords
+As the dynamic keywords cannot be referenced in firewall rules managed by Group Policies, we have decided not to use them in our configuration.
 
 #### WinHTTP Proxy
 
+After we verified that it was indeed impossible selectively filter outbound Internet traffic on domain controllers using Windows Firewall in a reliable way, we turned our attention to the built-in [WinHTTP proxy](https://learn.microsoft.com/en-us/windows/win32/winhttp/netsh-exe-commands#set-advproxy). The idea was to compile a list of all cloud endpoints used by Windows Server components and to configure the local WinHTTP proxy to only allow outbound HTTP(S) connections to these endpoints, while acting as a black hole for any other outbound traffic.
+
 ![Listing the advanced WinHTTP proxy configuration](../Screenshots/proxy-config.png)
+
+Although this approach seemed promising initially, we soon stumbled upon a few difficulties: The advanced WinHTTP proxy settings lack proper documentation and the ever-changing list of Microsoft's cloud services used by Windows Server turned out to be too large for us to maintain. And when the `netsh.exe winhttp reset autoproxy` stopped working repeatedly and manual registry cleanup was necessary to fix this issue, we definitely abandoned the idea of using WinHTTP proxy on domain controllers.
 
 ![WinHTTP proxy configuration error](../Screenshots/proxy-error.png)
 
 #### Escaping the Rabbit Hole
 
-As a conclusion, the only viable solution is to deploy a 3rd-party Internet proxy server that would limit the outbound traffic from domain controllers to select domains. Such list of approved domains used by Microsoft's services should ideally be kept up-to-date by the proxy vendor.
+As a conclusion, the only viable and secure solution is to deploy 3rd-party Internet proxy servers that would limit the outbound traffic from domain controllers to select FQDNs. This list of approved addresses used by Microsoft's services should ideally be kept up-to-date by the proxy vendor.
+
+And then there are of course air-gapped (isolated) environments, in which the growing number of cloud-dependent Windows Server features will never be used, thus eliminating the need to differentiate between legitimate and potentially malitious Internet traffic.
 
 ### Static RPC Ports
 
