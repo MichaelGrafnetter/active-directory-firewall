@@ -125,6 +125,11 @@ The best-practice is thus to configure both the network-based firewall and host-
 
 This paper only focuses on secure configuration of host-based firewalls, i.e., Windows Defender Firewall with Advanced Security, on domain controllers. However, the [Inbound Firewall Rules Reference](#inbound-firewall-rules-reference) chapter might also serve as information source for configuring network-based firewalls.
 
+### Need for Scripting
+
+> [!NOTE]
+> TODO: IPaddress ranges in rules screenshot
+
 ### Firewall Rule Merging
 
 As mentioned in the [Key Design Decisions](#key-design-decisions) section, the set of rules is only prepared for DC-related roles and are is adjusted for various agents or non-standard roles running on a DC.  
@@ -358,6 +363,9 @@ Although this approach seemed promising initially, we soon stumbled upon a few d
 
 As a conclusion, the only viable and secure solution is to deploy 3rd-party Internet proxy servers that would limit the outbound traffic from domain controllers to select FQDNs. This list of approved addresses used by Microsoft's services should ideally be kept up-to-date by the proxy vendor.
 
+> [!NOTE]
+> TODO: Network protection, Telemetry, Windows Update P2P
+
 And then there are of course air-gapped (isolated) environments, in which the growing number of cloud-dependent Windows Server features will never be used, thus eliminating the need to differentiate between legitimate and potentially malitious Internet traffic.
 
 ### Static RPC Ports
@@ -366,13 +374,13 @@ Several Windows services that use RPC dynamic ports by default can be configured
 
 The following services are supported by our solution:
 
-| Service                         | Default Port | Applied Using                     |
-|---------|-----:|---------------|
+| Service                         | Default Port | Applied Using                                         |
+|---------------------------------|-------------:|-------------------------------------------------------|
 | [NTDS](#ntdsstaticport)         |    38901/TCP | [Administrative Templates](#administrative-templates) |
 | [Netlogon](#netlogonstaticport) |    38902/TCP | [Administrative Templates](#administrative-templates) |
 | [FRS](#frsstaticport)           |    38903/TCP | [Administrative Templates](#administrative-templates) |
-| [DFSR](#dfsr-static-port)       |     5722/TCP | [Startup Script](#startup-script) |
-| [WMI](#wmi-static-port)         |    24158/TCP | [Startup Script](#startup-script) |
+| [DFSR](#dfsr-static-port)       |     5722/TCP | [Startup Script](#startup-script)                     |
+| [WMI](#wmi-static-port)         |    24158/TCP | [Startup Script](#startup-script)                     |
 
 The port numbers can be changed by modifying the [configuration file](#configuration-file). To simplify the static port changes through the Group Policy Editor, the [DomainControllerFirewall.admx](#administrative-templates) file is provided as part of the solution.
 
@@ -381,33 +389,78 @@ References:
 - [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
 - [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
 - [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi)
+- [RPC Load Balancing Best Practices](https://learn.microsoft.com/en-us/windows/win32/rpc/load-balancing-best-practices)
 
 ### RPC Filters
 
 #### RPC over Named Pipes
 
-TODO
+Most RPC protocols implemented in Windows support two transport types:
+
+- [RPC over TCP/IP (ncacn_ip_tcp)](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/95fbfb56-d67a-47df-900c-e263d6031f22)
+- [RPC over SMB Named Pipes (ncacn_np)](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/7063c7bd-b48b-42e7-9154-3c2ec4113c0d)
+
+Each Windows service which uses the TCP/IP transport is assigned its own RPC dynamic port and in some cases, [static ports can be configured](#static-rpc-ports). Windows Firewall rules can then target services by their identifiers or program paths and either allow or block service-specific inbound traffic. It is thus possible to only allow remote management traffic from specific IP addresses.
+
+The named pipes transport is more problematic, as standard Windows Firewall rules can only allow or block all SMB traffic (`445/TCP`) and Active Directory functionality heavily depends on the `SYSVOL` and `NETLOGON` file shares being available over the SMB protocol to all Windows clients. The SMB protocol is therefore very popular among malicious actors and many off-the-shelf hacktools exclusively use the named pipes to perform remote code execution and other undesirable operations.
+
+Fortunately, it is possible to use the RPC Filters, a lesser known feature of the Windows Firewall, to partially limit undesirable RPC traffic. There is no graphical user interface for RPC Filters, but a subset of their capabilities can be configured using the `netsh.exe` tool. Each RPC protocol must be dealt with individually.
 
 #### \[MS-SCMR\]: Service Control Manager Remote Protocol
+
+The [\[MS-SCMR\]: Service Control Manager Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/705b624a-13de-43cc-b8a2-99573da3635f) with UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) is used by the built-in `services.msc` console and the `sc.exe` utility to remotely manage Windows services:
 
 ```shell
 sc.exe \\contoso-dc query wuauserv
 ```
 
-```shell
-impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+```txt
+SERVICE_NAME: wuauserv
+        TYPE               : 20  WIN32_SHARE_PROCESS
+        STATE              : 1  STOPPED
+        WIN32_EXIT_CODE    : 0  (0x0)
+        SERVICE_EXIT_CODE  : 0  (0x0)
+        CHECKPOINT         : 0x0
+        WAIT_HINT          : 0x0
 ```
 
-```shell
-impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
-```
+While the built-in Windows tools use the TCP/IP transport, hacktools commonly utilize the [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) SMB named pipe to execute code on remote systems:
 
-Named pipe: [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) , Protocol UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
+```shell
+impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc'
+```
 
 ```txt
-# Block [MS-SCMR]: Service Control Manager Remote Protocol
-# Named pipe: \PIPE\svcctl
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+Impacket v0.11.0 - Copyright 2023 Fortra
+
+[*] Requesting shares on contoso-dc.....
+[*] Found writable share ADMIN$
+[*] Uploading file vQfMdUbQ.exe
+[*] Opening SVCManager on contoso-dc.....
+[*] Creating service hOdT on contoso-dc.....
+[*] Starting service hOdT.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.20348.2340]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32>
+```
+
+```shell
+impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc'
+```
+
+```txt
+Impacket v0.11.0 - Copyright 2023 Fortra
+
+[!] Launching semi-interactive shell - Careful what you execute
+C:\Windows\system32>
+```
+
+The following sequence of `netsh.exe` commands can be used to block MS-SCMR connections over named pipes, while still allowing the TCP/IP traffic used by legitimate tools:
+
+```txt
+rpc filter
 add rule layer=um actiontype=block filterkey=d0c7640c-9355-4e52-8335-c12835559c10
 add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=367ABB81-9844-35F1-AD32-98F038001003
@@ -416,46 +469,52 @@ add filter
 
 #### \[MS-TSCH\]: Task Scheduler Service Remoting Protocol
 
+The [\[MS-TSCH\]: Task Scheduler Service Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/d1058a28-7e02-4948-8b8d-4a347fa64931) with UUID [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) is used by the built-in `taskschd.msc` console and the `schtasks.exe` utility to remotely manage scheduled tasks:
+
 ```shell
-schtasks.exe /query /s contoso-dc
+schtasks.exe /query /s contoso-dc /tn "\Microsoft\Windows\BitLocker\BitLocker Encrypt All Drives"
 ```
+
+```txt
+Folder: \Microsoft\Windows\BitLocker
+TaskName                                 Next Run Time          Status
+======================================== ====================== ===============
+BitLocker Encrypt All Drives             N/A                    Ready
+```
+
+While the built-in Windows tools use the TCP/IP transport, hacktools commonly utilize the [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) SMB named pipe to execute code on remote systems:
 
 ```shell
 impacket-atexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
 ```
 
-Named pipe: [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+```txt
+Impacket v0.11.0 - Copyright 2023 Fortra
 
-Interface UUID: [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+[!] This will work ONLY on Windows >= Vista
+[*] Creating task \ZNSsJjLS
+[*] Running task \ZNSsJjLS
+[*] Deleting task \ZNSsJjLS
+[*] Attempting to read ADMIN$\Temp\ZNSsJjLS.tmp
+CONTOSO-DC
+```
+
+Two additional interfaces with UUIDs [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) and [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) are exposed through the `\PIPE\atsvc` pipe and are only used by the legacy `at.exe` command line tool.
+
+The following sequence of `netsh.exe` commands will block MS-TSCH connections over named pipes, while still allowing the TCP/IP traffic used by legitimate tools:
 
 ```txt
-# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol
-# Named pipe: \PIPE\atsvc
-# Interface: Windows Vista Task Remote Protocol (ITaskSchedulerService)
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+rpc filter
+
 add rule layer=um actiontype=block filterkey=a43b9dd2-0866-4476-89dc-2e9b200762af
 add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=86D35949-83C9-4044-B424-DB363231FD0C
 add filter
-```
 
-Interface UUID: [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
-
-```txt
-# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol
-# Named pipe: \PIPE\atsvc
-# Interface: Task Scheduler Agent (ATSvc)
 add rule layer=um actiontype=block filterkey=13518c11-e3d8-4f62-9461-eda11beb540a
 add condition field=if_uuid matchtype=equal data=1FF70682-0A51-30E8-076D-740BE8CEE98B
 add filter
-```
 
-Interface UUID: [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
-
-```txt
-# Block [MS-TSCH]: Task Scheduler Service Remoting Protocol
-# Named pipe: \PIPE\atsvc
-# Interface: Net Schedule (SASec)
 add rule layer=um actiontype=block filterkey=1c079a18-e91f-4698-9868-68a121490636
 add condition field=if_uuid matchtype=equal data=378E52B0-C0A9-11CF-822D-00AA0051E40F
 add filter
@@ -463,9 +522,13 @@ add filter
 
 #### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0
 
+The [\[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/18000371-ae6d-45f7-95f3-249cbe2be39b) with UUID [F6BEAFF7-1E19-4FBB-9F8F-B89E2018337C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/3479d837-b759-4b13-9d5e-4c93eede7cb6) is used by the built-in `eventvwr.msc` console and the `wevtutil.exe` command line tool to remotely query and manage Windows event logs:
+
 ```shell
-wevtutil.exe /r:contoso-dc qe System /c:1
+wevtutil.exe /r:contoso-dc qe Security /c:1 /f:text
 ```
+
+An older version of the protocol with UUID called [\[MS-EVEN\]: EventLog Remoting Protocol]()
 
 Ability to clear security event logs remotely.
 
@@ -627,7 +690,8 @@ ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
 
 #### Further Protocol Considerations
 
-TODO: Firewall remote management?
+> [!NOTE]
+> TODO: Firewall remote management?
 
 #### Additional Reading on RPC
 
@@ -1434,7 +1498,7 @@ Possible values: true / false
 
 Indicates whether inbound legacy file replication traffic should be enabled.
 
-If `true`, corresponding ports are open for NTFRS replication. If you still haven’t migrated your SYSVOL replication to modern DFSR, you need to enable this setting. If `false`, NTFRS ports won’t be open. The script achieves this by enabling or disabling the [File Replication (RPC)](#file-replication-rpc) firewall rule.
+If `true`, corresponding ports are open for NTFRS replication. If you still haven’t migrated your `SYSVOL` replication to modern DFSR, you need to enable this setting. If `false`, NTFRS ports won’t be open. The script achieves this by enabling or disabling the [File Replication (RPC)](#file-replication-rpc) firewall rule.
 
 For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
 
@@ -1569,7 +1633,7 @@ Possible values: true / false
 
 ![](https://img.shields.io/badge/PowerShell-5+-0000FF.png?logo=PowerShell)
 
-- Domain Admins group membership or equivalent privileges, enabling the creation of a Group Policy Object (GPO), creation of folders and files in SYSVOL, and linking the GPO to the Domain Controllers OU.
+- Domain Admins group membership or equivalent privileges, enabling the creation of a Group Policy Object (GPO), creation of folders and files in `SYSVOL`, and linking the GPO to the Domain Controllers OU.
 - PowerShell modules that must be installed as part of RSAT:
   - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
   - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
@@ -1685,7 +1749,7 @@ Follow these steps:
 Locate and open `FirewallConfiguration.bat` file, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
 
 > [!NOTE]
-> The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration.
+> The GUID in the path is randomly generated and will be different in each environment. Also the path to `SYSVOL` might differ based on your DC configuration.
 
 Change the following line `winmgmt.exe /standalonehost 6` ⇒ `winmgmt /sharedhost`  
 Change the following line `dfsrdiag.exe StaticRPC /Port:5722` ⇒ `dfsrdiag staticrpc /port:0`
@@ -1697,13 +1761,13 @@ Change the following line `dfsrdiag.exe StaticRPC /Port:5722` ⇒ `dfsrdiag stat
 Remove "#" before "exit" at line 15 in `RpcNamedPipesFilters.txt`, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
 
 > [!NOTE]
-> The GUID in the path is randomly generated and will be different in each environment. Also the path to SYSVOL might differ based on your DC configuration.
+> The GUID in the path is randomly generated and will be different in each environment. Also the path to `SYSVOL` might differ based on your DC configuration.
 
 ![Rollback RPC Named Pipes](../Screenshots/rollback-rpc-named-pipes.png)
 
 4. Restart the DCs
 
-Once AD and SYSVOL replication convergence is achieved and all DCs in the environment received the changed GPO, startup script and RPC configuration file, you need to restart all DCs.
+Once AD and `SYSVOL` replication convergence is achieved and all DCs in the environment received the changed GPO, startup script and RPC configuration file, you need to restart all DCs.
 
 5. Unlink the GPO
 
