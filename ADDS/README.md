@@ -252,46 +252,7 @@ All of the built-in firewall rules are localized and displayed based on the OS l
 
 To ensure consistent firewall rule name display regardless of RSAT or the OS locale, we have decided to use only English rule names.
 
-### Dealing with GPO Tattooing
 
-Some firewall-related settings are not removed from the domain controllers after they fall out of scope of the GPO. These changes are thus permanent and require manual removal. Such settings are called **unmanaged** and the resulting behavior is known as GPO tattooing. To address this issue, configuration files use ternary logic:
-
-- `true` ⇒ The setting is enabled by the GPO.
-- `false` ⇒ The setting is disabled by the GPO.
-- `null` ⇒ The local setting is not changed by the GPO.
-
-As a consequence, before the value of an unmanaged setting can be changed from `true` to `null`, it must temporarily be set to `false`.  Keep in mind that it may take time for the new settings to propagate to all domain controllers due to replication latency. Additionally, some settings may require a reboot.
-
-The following settings in this project are known to cause tattooing:
-
-- [NtdsStaticPort](#ntdsstaticport)
-- [NetlogonStaticPort](#netlogonstaticport)
-- [FrsStaticPort](#frsstaticport)
-- [DfsrStaticPort](#dfsrstaticport)
-- [WmiStaticPort](#wmistaticport)
-- [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
-- [DisableMDNS](#disablemdns)
-- [EnableRpcFilters](#enablerpcfilters)
-
-### System Reboots
-
-Changes to some settings require a reboot of the target domain controller to get applied. This is the case of static port number configurations and settings that are modified through the startup script:
-
-- [NtdsStaticPort](#ntdsstaticport)
-- [NetlogonStaticPort](#netlogonstaticport)
-- [FrsStaticPort](#frsstaticport)
-- [DfsrStaticPort](#dfsrstaticport)
-- [WmiStaticPort](#wmistaticport)
-- [EnableRpcFilters](#enablerpcfilters)
-- [LogFilePath](#logfilepath)
-
-If a full system reboot of all domain controllers is undesirable, the following steps can be performed instead:
-
-1. Make sure that the Group Policy changes are replicated to all domain controllers.
-2. Invoke the `gpupdate.exe` command for the changed policies to be applied immediately.
-3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
-4. Execute the `net.exe stop ntds && net.exe start ntds` command to restart the AD DS Domain Controller service.
-5. Repeat steps 2-4 on all domain controllers.
 
 ### Infeasibility of Outbound Traffic Filtering
 
@@ -1638,6 +1599,47 @@ Possible values: true / false
   - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
   - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
 
+### Dealing with GPO Tattooing
+
+Some firewall-related settings are not removed from the domain controllers after they fall out of scope of the GPO. These changes are thus permanent and require manual removal. Such settings are called **unmanaged** and the resulting behavior is known as GPO tattooing. To address this issue, configuration files use ternary logic:
+
+- `true` ⇒ The setting is enabled by the GPO.
+- `false` ⇒ The setting is disabled by the GPO.
+- `null` ⇒ The local setting is not changed by the GPO.
+
+As a consequence, before the value of an unmanaged setting can be changed from `true` to `null`, it must temporarily be set to `false`.  Keep in mind that it may take time for the new settings to propagate to all domain controllers due to replication latency. Additionally, some settings may require a reboot.
+
+The following settings in this project are known to cause tattooing:
+
+- [NtdsStaticPort](#ntdsstaticport)
+- [NetlogonStaticPort](#netlogonstaticport)
+- [FrsStaticPort](#frsstaticport)
+- [DfsrStaticPort](#dfsrstaticport)
+- [WmiStaticPort](#wmistaticport)
+- [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
+- [DisableMDNS](#disablemdns)
+- [EnableRpcFilters](#enablerpcfilters)
+
+### System Reboots
+
+Changes to some settings require a reboot of the target domain controller to get applied. This is the case of static port number configurations and settings that are modified through the startup script:
+
+- [NtdsStaticPort](#ntdsstaticport)
+- [NetlogonStaticPort](#netlogonstaticport)
+- [FrsStaticPort](#frsstaticport)
+- [DfsrStaticPort](#dfsrstaticport)
+- [WmiStaticPort](#wmistaticport)
+- [EnableRpcFilters](#enablerpcfilters)
+- [LogFilePath](#logfilepath)
+
+If a full system reboot of all domain controllers is undesirable, the following steps can be performed instead:
+
+1. Make sure that the Group Policy changes are replicated to all domain controllers.
+2. Invoke the `gpupdate.exe` command for the changed policies to be applied immediately.
+3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
+4. Execute the `net.exe stop ntds && net.exe start ntds` command to restart the AD DS Domain Controller service.
+5. Repeat steps 2-4 on all domain controllers.
+
 ### Installation
 
 If you finished with modifying all required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the [set of rules](#inbound-firewall-rules-reference) that will be deployed by the GPO.  
@@ -1675,7 +1677,8 @@ Once done, link the GPO to Domain Controllers OU.
 
 ![Group Policy link](../Screenshots/deploy-gpo-link.png)
 
-By default, GPO is refreshed every 5 minutes for DCs, so all your DCs should have the firewall configuration applied within maximum of 5 minutes.
+By default, GPO is refreshed every 5 minutes for DCs, so all your DCs should have the firewall configuration applied within maximum of 5 minutes.  
+Some settings require DC restart to apply, please refer to [System Reboots](#system-reboots).
 
 ## Troubleshooting
 
