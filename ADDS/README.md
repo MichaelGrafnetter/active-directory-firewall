@@ -252,8 +252,6 @@ All of the built-in firewall rules are localized and displayed based on the OS l
 
 To ensure consistent firewall rule name display regardless of RSAT or the OS locale, we have decided to use only English rule names.
 
-
-
 ### Infeasibility of Outbound Traffic Filtering
 
 #### Reasons for Blocking Outbound Traffic
@@ -926,7 +924,7 @@ echo Create the firewall log file and configure its DACL.
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 
 echo Register the RPC filters.
-netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85-D29FEBDFF6D6}\Machine\Scripts\Startup\RpcNamedPipesFilters.txt"
+netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
 ```
 
 ## Configuration
@@ -1826,7 +1824,7 @@ Dynamic RPC ports, listed in the following table, can be set to static port thro
 |42/TCP|WINS|[Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in)|
 |42/UDP|WINS|[Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in)|
 |137/UDP|File and Printer Sharing|[File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in)|
-|137/TCP|File and Printer Sharing|[File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)|
+|139/TCP|File and Printer Sharing|[File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)|
 |9389/TCP|AD Web Services|[Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in)|
 |5985/TCP|WinRM|[Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)|
 |5986/TCP|WinRM|[Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)|

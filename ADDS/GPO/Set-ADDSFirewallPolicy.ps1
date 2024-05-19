@@ -150,6 +150,14 @@ class ScriptSettings {
 # Load the configuration from the JSON file
 [string] $configurationFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ConfigurationFileName -ErrorAction Stop
 
+[bool] $configurationFileExists = Test-Path -Path $configurationFilePath -PathType Leaf
+
+if(-not $configurationFileExists) {
+    # Abort script execution if the configuration file does not exist.
+    [string] $message = 'The configuration file {0} was not found. Check the Set-ADDSFirewallPolicy.Starter.json and Set-ADDSFirewallPolicy.Sample.json files to see how the configuration file should look like.' -f $ConfigurationFileName
+    throw [System.IO.FileNotFoundException]::new($message, $ConfigurationFileName)
+}
+
 [System.Runtime.Serialization.Json.DataContractJsonSerializer] $serializer = [System.Runtime.Serialization.Json.DataContractJsonSerializer]::new([ScriptSettings])
 [System.IO.FileStream] $stream = [System.IO.File]::Open($configurationFilePath, [System.IO.FileMode]::Open)
 try {
@@ -1274,11 +1282,24 @@ if($null -ne $configuration.EnableNetworkProtection) {
                         -Value $networkProtectionState `
                         -Type DWord `
                         -Verbose | Out-Null
+                            
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
+                        -ValueName 'AllowNetworkProtectionOnWinServer' `
+                        -Value 1 `
+                        -Type DWord `
+                        -Verbose | Out-Null
 } else {
-    # Remove the Network Protection setting
+    # Remove the Network Protection settings
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
                            -ValueName 'EnableNetworkProtection' `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
+    
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
+                           -ValueName 'AllowNetworkProtectionOnWinServer' `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 }
@@ -1528,7 +1549,7 @@ $startupScript.AppendLine() | Out-Null
 if($configuration.EnableRpcFilters -eq $true) {
     $startupScript.AppendLine() | Out-Null
     $startupScript.AppendLine('echo Register the RPC filters.') | Out-Null
-    $startupScript.AppendFormat('netsh.exe -f "{0}"', $rpcFilterScriptTargetPath) | Out-Null
+    $startupScript.AppendFormat('netsh.exe -f "%~dp0{0}"', $rpcFilterScriptName) | Out-Null
     $startupScript.AppendLine() | Out-Null
 } elseif($null -ne $configuration.EnableRpcFilters) {
     $startupScript.AppendLine() | Out-Null
