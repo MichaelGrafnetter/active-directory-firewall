@@ -2,7 +2,7 @@
 <!--  (c) 2024 Michael Grafnetter  -->
 <policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0"
-  xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" xsi:schemaLocation="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions ../../Schema/PolicyDefinitionFiles.xsd">
+  xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" xsi:schemaLocation="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions ../../ADMXSchema/PolicyDefinitionFiles.xsd">
   <policyNamespaces>
     <target prefix="dsinternals" namespace="DSInternals.Policies.Firewall" />
     <using prefix="windows" namespace="Microsoft.Policies.Windows" />

@@ -2,7 +2,8 @@
 
 This directory contains the [Group Policy ADMX Schema files](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gpreg/6e10478a-e9e6-4fdc-a1f6-bdd9bd7f2209) that were slightly modified to support the [multiText element](https://learn.microsoft.com/en-us/previous-versions/windows/desktop/Policy/element-multitext). The schema files are used during ADMX and ADML file authoring for code completion (IntelliSense) and validation.
 
-| File                        | Description          |
+| File                        | Description        |
+|-----------------------------|--------------------|
 | `PolicyDefinitionFiles.xsd` | [ADMX File Schema] |
 | `PolicyDefinitions.xsd`     | [ADMX Policy Definition Schema] |
 | `BaseTypes.xsd`             | [Base ADMX Schema] |

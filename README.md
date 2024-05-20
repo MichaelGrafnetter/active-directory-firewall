@@ -4,7 +4,7 @@
 
 This project aims to provide production-ready guidelines on configuring the Windows Firewall for all Active Directory-related roles.
 
-![Windows Firewall with Advanced Security Screenshot](Screenshots/windows-firewall.png)
+![Windows Firewall with Advanced Security Screenshot](Images/Screenshots/windows-firewall.png)
 
 Only the [Active Directory Domain Services (Domain Controller)](ADDS/README.md) role is currently available.
 
