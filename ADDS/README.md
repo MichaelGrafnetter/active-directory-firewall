@@ -931,13 +931,22 @@ netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
 
 ### Configuration File
 
-All settings that are configurable are stored in `Set-ADDSFirewallPolicy.json`.  
-It is essential to review them and change as necessary for your environment.
+All settings that are used for the deployment by the script need to be stored in the file named `Set-ADDSFirewallPolicy.json`.  
+The file does not exist by default and needs to be created by you, before deployment.  
+To help you with the task, we're providing the 2 following files:  
+
+- `Set-ADDSFirewallPolicy.Starter.json`
+- `Set-ADDSFirewallPolicy.Sample.json`  
+
+`Set-ADDSFirewallPolicy.Starter.json` file contains only the minimum settings required for deployment. It is recommended to rename the file to `Set-ADDSFirewallPolicy.json` and add any additional settings you want to be configured during the deployment.
+
+`Set-ADDSFirewallPolicy.Sample.json` contains all possible configuration items, with sample values.
+It is essential to properly configure all the settings, do not use the samples for production deployment without thorough review and adjustment.
+
 
 > [!CAUTION]
 > Improper configuration can cause network outages in your environment!
 
-Note, that “Default value” in the configuration items below, refers to default value, that is set in the `Set-ADDSFirewallPolicy.json`, not Windows system defaults.
 
 ```json
 {
@@ -986,7 +995,7 @@ TODO: Intellisense support:
 
 ![Visual Studio Code support](../Images/Screenshots/settings-intellisense.png)
 
-The remainder of this chapter contains documentation to all the available settings.
+The rest of this chapter contains documentation to all the available settings.
 
 ### GroupPolicyObjectName
 
@@ -1640,9 +1649,13 @@ If a full system reboot of all domain controllers is undesirable, the following 
 
 ### Installation
 
-If you finished with modifying all required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the [set of rules](#inbound-firewall-rules-reference) that will be deployed by the GPO.  
+Rename `Set-ADDSFirewallPolicy.Starter.json` to `Set-ADDSFirewallPolicy.json`.  
+Review the available configuration items with sample values in `Set-ADDSFirewallPolicy.Sample.json` and use any, that you want to be configured in your environment.  
+All the configuration items with their possible values are documented in the [Configuration](#configuration) chapter.
 
-Once the review is completed, you can begin with the deployment.
+Once you are finished with modifying all the required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the [set of rules](#inbound-firewall-rules-reference) that will be deployed by the GPO.  
+
+After the review is completed, you can begin with the deployment.
 
 Open Powershell and run the `Set-ADDSFirewallPolicy.ps1` script:
 
@@ -1787,9 +1800,6 @@ Dynamic RPC ports, listed in the following table, can be set to static port thro
 - [Netlogon static port](#netlogonstaticport)
 - [FRS static port](#frsstaticport)
 - [DFSR static port](#dfsr-static-port)
-
-> [!IMPORTANT]
-> TODO: Needs splitting, extending, and mapping to the default rules.
 
 |Port|Service|Rule Reference|
 |---|---|---|
