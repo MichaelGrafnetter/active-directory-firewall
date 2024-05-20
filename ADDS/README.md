@@ -671,11 +671,28 @@ add filter
 
 #### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
 
-TODO
+The [\[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/f97756c9-3783-428b-9451-b376f877319a) with UUID [50ABC2A4-574D-40B3-9D66-EE4FD5FBA076](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/5093503c-687e-4376-9127-50504908fb91) is used by the built-in `dnsmgmt.msc` console and the `dnscmd.exe` utility to remotely manage DNS servers:
+
+```shell
+dnscmd.exe dc01 /EnumZones /Primary /Forward
+```
 
 ```txt
-# Block [MS-DNSP]: Domain Name Service (DNS) Server Management Protocol, Named pipe: \PIPE\DNSSERVER
-# This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
+Enumerated zone list:
+        Zone count = 3
+
+ Zone name                      Type       Storage         Properties
+ _msdcs.contoso.com             Primary    AD-Forest       Secure
+ contoso.com                    Primary    AD-Domain
+ TrustAnchors                   Primary    AD-Forest
+
+Command completed successfully.
+```
+
+Although the built-in Windows tools only use the TCP/IP transport, the protocol is exposed over the `\\PIPE\\DNSSERVER` named pipe as well. The latter transport layer could be blocked by executing the following sequence of `netsh.exe` commands:
+
+```txt
+rpc filter
 add rule layer=um actiontype=block filterkey=50754fe4-aa2d-42ff-8196-e90ea8fd2527
 add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=50abc2a4-574d-40b3-9d66-ee4fd5fba076
