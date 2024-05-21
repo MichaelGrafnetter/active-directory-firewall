@@ -157,6 +157,8 @@ As a best-practice, domain controllers should not be used as event forwarding ta
 Another example would be **[Active Directory Web Services (ADWS)](#active-directory-web-services-tcp-in)**. It is rare, but not unimaginable, to see legitimate PowerShell scripts with the `Get-ADUser` cmdlet running on client machines. Such scripts would stop working if ADWS is simply blocked on domain controllers.
 On the other hand, it is relatively easy to rewrite these scipts to use the built-in [DirectorySearcher](https://learn.microsoft.com/en-us/dotnet/api/system.directoryservices.directorysearcher) class, which relies on the [LDAP](#active-directory-domain-controller---ldap-tcp-in) protocol instead of ADWS. The added value would be the removal of the [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/) PowerShell module dependency.
 
+If an organization still uses the standalone [Managed Service Accounts (MSAs)](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/managed-service-accounts-understanding-implementing-best/ba-p/397009), application servers need ADWS connectivity for MSA enrollment using the [Install-ADServiceAccount](https://learn.microsoft.com/en-us/powershell/module/activedirectory/install-adserviceaccount) PowerShell cmdlet. Migration to [Group Managed Service Accounts (gMSAs)](https://learn.microsoft.com/en-us/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview), which do not depend on this cmdlet, is highly recommended.
+
 #### The Ugly
 
 Unfortunately, there are some protocols which are required by all Windows clients, but can also be (mis)used to perform administrative operations.
@@ -689,7 +691,7 @@ Enumerated zone list:
 Command completed successfully.
 ```
 
-Although the built-in Windows tools only use the TCP/IP transport, the protocol is exposed over the `\\PIPE\\DNSSERVER` named pipe as well. The latter transport layer could be blocked by executing the following sequence of `netsh.exe` commands:
+The [ServerLevelPluginDll](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/9500a7e8-165d-4b13-be86-0ddc43100eef) operation of the `MS-DNSP` protocol can be misused to remotely execute code on domain controllers, which makes this protocol interesting from the attacker's perspective. Although the built-in Windows tools only use the TCP/IP transport, the protocol is exposed over the `\\PIPE\\DNSSERVER` named pipe as well. The latter transport layer could be blocked by executing the following sequence of `netsh.exe` commands:
 
 ```txt
 rpc filter
