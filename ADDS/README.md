@@ -940,11 +940,29 @@ Our firewall configuration is compliant with the majority of the [SCT Windows Se
 
 ### Firewall Configuration
 
+Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file), the GPO will contain Windows Firewall profile settings:  
+
+- [Log dropped packets](#logdroppedpackets)
+- [Log allowed packets](#logallowedpackets)
+- [Log file location](#logfilepath)
+- [Maximum log size](#logmaxsizekilobytes)
+- [Enable local IPSec rule merge](#enablelocalipsecrules)
+
+![GPO firewall configuration](../Images/Screenshots/gpo-firewall-config.png)
+
 ### Inbound Firewall Rules
+
+Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file), the GPO will contain set of inbound [firewall rules](#inbound-firewall-rules-reference).
+
+![GPO inbound firewall rules](../Images/Screenshots/gpo-firewall-inbound-rules.png)
 
 ### Registry Settings
 
-Managed/Unmanaged
+Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file), the GPO will contain number of registry settings.  
+Most of them are managed, which means, once the GPO is not linked to the target, the settings revert back to the default state.  
+Some of them are [unmanaged](#dealing-with-gpo-tattooing) though and need different approach, when you require reverting back to default.
+
+![GPO registry settings](../Images/Screenshots/gpo-registry.png)
 
 ### Administrative Templates
 
