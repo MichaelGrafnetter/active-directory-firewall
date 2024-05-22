@@ -81,13 +81,13 @@ footer-right: "\\hspace{1cm}"
 ## Summary
 
 > [!NOTE]
-> Summary needs to be expanded.
+> TODO: The Summary section needs to be expanded.
 
 The purpose of this tool is to simplify the deployment of a specific set of firewall rules and filters that can significantly reduce the attack surface of Domain Controllers without impacting the functionality of Active Directory.
 
 This tool provides a flexible and repeatable way to deploy a secure configuration in your environment within minutes.
 
-![Windows Firewall with Advanced Security](../Images/Screenshots/windows-firewall.png)
+![Windows Firewall with Advanced Security](../Images/Screenshots/dc-firewall.png)
 
 [![MIT License](../Images/Badges/license-mit.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
 
@@ -121,14 +121,15 @@ There are several security issues with this approach:
 - The majority of network firewalls is incapable of differentiating between various RPC-based protocols, most of which use dynamic port numbers. The entire ephemeral TCP port range (49152-65535) is thus typically accessible on domain controllers from the entire corporate network, regardless of whether a particular port is used by the Netlogon service or for remote management of scheduled tasks.
 - Network-based firewalls are commonly managed by dedicated teams, which might lack the required advanced Windows knowledge.
 
+![RPC over named pipes traffic with SMBv3 encryption](../Images/Screenshots/wireshark-smb3.png)
+
 The best-practice is thus to configure both the network-based firewall and host-based firewall. Internet traffic should additionally be filtered by proxy servers.
 
 This paper only focuses on secure configuration of host-based firewalls, i.e., Windows Defender Firewall with Advanced Security, on domain controllers. However, the [Inbound Firewall Rules Reference](#inbound-firewall-rules-reference) chapter might also serve as information source for configuring network-based firewalls.
 
 ### Need for Scripting
 
-> [!NOTE]
-> TODO: IPaddress ranges in rules screenshot
+As the Windows Firewall does not provide the ability create named IP address sets, e.g., Management VLANs, manual (re)configuration of firewall rules and their source IP address ranges is cumbersome and error-prone. It is therefore recommended to use PowerShell scripts to manage Windows Firewall rules, which is what the `DCFWTool` does.
 
 ### Firewall Rule Merging
 
@@ -137,7 +138,7 @@ If you need to add additional firewall rules for your environment (DC agents, SC
 Firewall rules, which are finally configured on a DC, are the outcome of all the rules merged from all the applied GPOs.  
 
 > [!NOTE]
-> Please keep in mind that our GPO is focused on the firewall rules, it is not a security baseline, and it is not covering recommended hardening of a DC. You should have separate and dedicated security baseline GPO applied to your DCs.
+> Please keep in mind that this whitepaper only focuses on the firewall configuration. It is not a security baseline and it does not cover domain controller security hardening. You should have a separate and dedicated security baseline GPO applied to your DCs.
 
 ![GPO precedence](../Images/Screenshots/firewall-precedence-gpo.png)
 
@@ -204,7 +205,7 @@ Similarly, all of these firewall rules open port `445/TCP` for `System`:
 - Remote Event Log Management (NP-In)
 - Remote Service Management (NP-In)
 
-![Duplicate SMB rules](../Images/Screenshots/duplicate-epmap-rules.png)
+![Duplicate SMB rules](../Images/Screenshots/duplicate-smb-rules.png)
 
 Moreover, both ports 135 and 445 need to be accessible by all Windows clients for Active Directory to function properly. To keep the configuration readable, it is reasonable to consolidate the redundant rules, and to create a single firewall rule for each static port number.
 
@@ -214,7 +215,7 @@ Moreover, both ports 135 and 445 need to be accessible by all Windows clients fo
 
 In addition to manually enumerating IP address ranges, the firewall rule scope configuration allows the use of predefined sets of computers, known as keywords.
 
-![Predefined address sets (keywords) in Windows Firewall](../Images/Screenshots/firewall-predefined-sets.png)
+![Predefined address sets (keywords) in Windows Firewall](../Images/Screenshots/firewall-predefined-sets.png){ width=300px }
 
 These keywords are briefly described in the [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f) document. However, there is no public documentation available that explains how the keywords are defined and under what circumstances the corresponding IP addresses are updated.
 
@@ -232,7 +233,7 @@ The *Internet* keyword is presumed to include anything not defined as the *Intra
 
 The *DNS Servers* keyword is functional and respects all DNS servers defined in the network adapter properties. If a new DNS server IP address is configured, a network adapter state change (disable/enable, server restart, etc.) is required for the corresponding firewall rules to be automatically updated.
 
-![Network adapter DNS configuration](../Images/Screenshots/firewall-keyword-DNS.png)
+![Network adapter DNS configuration](../Images/Screenshots/firewall-keyword-dns.png){ width=400px }
 
 #### Additional Keywords
 
@@ -250,9 +251,16 @@ Additional keywords are available and although they seem to be mostly working, t
 
 All of the built-in firewall rules are localized and displayed based on the OS language. However, this feature relies on RSAT being installed on the management computer. If RSAT is absent, the UI may show references to missing DLL files instead of the actual firewall rule display names.
 
-![Localized rule names not displayed correctly](../Images/Screenshots/localization-issue.png)
+![Localized rule names not displayed correctly](../Images/Screenshots/localization-issue.png){ width=300px }
 
 To ensure consistent firewall rule name display regardless of RSAT or the OS locale, we have decided to use only English rule names.
+
+### Firewall Profiles
+
+> [!NOTE]
+> TODO: This section needs to be expanded.
+
+![Windows Firewall profiles](../Images/Screenshots/firewall-profiles.png){ width=400px }
 
 ### Infeasibility of Outbound Traffic Filtering
 
@@ -290,11 +298,11 @@ The [Network Name Resolution](https://learn.microsoft.com/en-us/defender-for-ide
 
 Large organizations might want to utilize the new hotpatching capability of Windows Server 2025. However, this feature is only available on servers managed by [Azure Arc](https://azure.microsoft.com/en-us/products/azure-arc). And the Azure Arc Agent contains several binaries and PowerShell scripts, which all need to be able to communicate with Microsoft's cloud, but their exact behavior is undocumented and subject to change.
 
-![Azure Arc Agent binaries and PowerShell scripts](../Images/Screenshots/azure-arc-binaries.png)
+![Azure Arc Agent binaries and PowerShell scripts](../Images/Screenshots/azure-arc-binaries.png){ width=400px }
 
 Interestingly, the Azure Arc installer creates a custom outbound firewall rule called `SmeOutboundOpenException`, which targets all processes and is scoped to a hardcoded list of Microsoft's IP addresses. It is unclear how reliable and future-proof this rule actually is, as even [Google has never heard of it](https://www.google.com/search?q=SmeOutboundOpenException).
 
-![Azure Arc built-in outbound firewall rule](../Images/Screenshots/azure-arc-firewall.png)
+![Azure Arc built-in outbound firewall rule](../Images/Screenshots/azure-arc-firewall.png){ width=400px }
 
 #### Installers Downloading Additional Files
 
@@ -590,12 +598,12 @@ coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --ta
 [*] DCERPC portmapper discovered ports: 49664,49665,49666,49667,49668,54795,51120,51124,38901,38902,56954,5722
 [+] DCERPC port '51120' is accessible!
    [+] Successful bind to interface (12345678-1234-ABCD-EF00-0123456789AB, 1.0)!
-      [!] (NO_AUTH_RECEIVED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotification(pszLocalMachine='\\10.213.0.100\x00')
-      [!] (RPC_S_ACCESS_DENIED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotificationEx(pszLocalMachine='\\10.213.0.100\x00')
+      [!] (NO_AUTH_RECEIVED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotification( pszLocalMachine='\\10.213.0.100\x00')
+      [!] (RPC_S_ACCESS_DENIED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotificationEx( pszLocalMachine='\\10.213.0.100\x00')
 [+] SMB named pipe '\PIPE\spoolss' is accessible!
    [+] Successful bind to interface (12345678-1234-abcd-ef00-0123456789ab, 1.0)!
-      [!] (NO_AUTH_RECEIVED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotification(pszLocalMachine='\\10.213.0.100\x00')
-      [!] (RPC_S_ACCESS_DENIED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotificationEx(pszLocalMachine='\\10.213.0.100\x00')
+      [!] (NO_AUTH_RECEIVED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotification( pszLocalMachine='\\10.213.0.100\x00')
+      [!] (RPC_S_ACCESS_DENIED) MS-RPRN──>RpcRemoteFindFirstPrinterChangeNotificationEx( pszLocalMachine='\\10.213.0.100\x00')
 [+] All done! Bye Bye!
 ```
 
@@ -748,24 +756,54 @@ The following protocols need to be investigated in the future, as they are open 
 
 ### Distribution Contents
 
-The table below contains a list of all files that are part of the solution, with their respective paths and brief descriptions.
+Below is a list of all files that are part of the solution, with their respective paths and brief descriptions.
 
-| File path                                                   | Description |
-|-------------------------------------------------------------|----------------------------------------------------------------------------------|
-| `GPOReport.html`                                            | Sample Group Policy HTML report with all GPO settings configured by the tool |
-| `inbound-builtin-firewall-rules.csv`                        | List of all built-in FW rules utilized (not necessarily enabled) by the tool |
-| `inbound-custom-firewall-rules.csv`                         | List of all custom FW rules utilized by the tool |
-| `DCFWTool\Set-ADDSFirewallPolicy.ps1`                            | PowerShell script for deploying the DC Firewall GPO |
-| `DCFWTool\Set-ADDSFirewallPolicy.Starter.json`                   | Initial minimalistic configuraton file that should be renamed to `Set-ADDSFirewallPolicy.json` and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed |
-| `DCFWTool\Set-ADDSFirewallPolicy.Sample.json`                    | Sample configuration file containing all supported configurations options |
-| `DCFWTool\Set-ADDSFirewallPolicy.schema.json`                    | Schema file for the JSON configuration files |
-| `DCFWTool\RpcNamedPipesFilters.txt`                              | `netsh.exe` script for creating RPC filters |
-| `DCFWTool\PolicyDefinitions\DomainControllerFirewall.admx`       | GPO template file for [custom configuration](#administrative-templates) settings |
-| `DCFWTool\PolicyDefinitions\MSS-legacy.admx`                     | GPO template file for [MSS (Legacy)] settings |
-| `DCFWTool\PolicyDefinitions\SecGuide.admx`                       | GPO template file for [MS Security Guide] settings |
-| `DCFWTool\PolicyDefinitions\en-US\DomainControllerFirewall.adml` | English localization file for the `DomainControllerFirewall.admx` template |
-| `DCFWTool\PolicyDefinitions\en-US\MSS-legacy.adml`               | English localization file for the `MSS-legacy.admx` template |
-| `DCFWTool\PolicyDefinitions\en-US\SecGuide.adml`                 | English localization file for the `SecGuide.admx` template |
+- `GPOReport.html`
+
+   Sample Group Policy HTML report with all GPO settings configured by the tool
+- `inbound-builtin-firewall-rules.csv`
+
+   List of all built-in FW rules utilized (not necessarily enabled) by the tool
+- `inbound-custom-firewall-rules.csv`
+
+   List of all custom FW rules utilized by the tool
+- `DCFWTool\Set-ADDSFirewallPolicy.ps1`
+
+   PowerShell script for deploying the DC Firewall GPO
+- `DCFWTool\Set-ADDSFirewallPolicy.Starter.json`
+
+   Initial minimalistic configuraton file that should be renamed to `Set-ADDSFirewallPolicy.json` and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed
+- `DCFWTool\Set-ADDSFirewallPolicy.Sample.json`
+
+   Sample configuration file containing all supported configurations options
+- `DCFWTool\Set-ADDSFirewallPolicy.schema.json`
+
+   Schema file for the JSON configuration files
+- `DCFWTool\RpcNamedPipesFilters.txt`
+
+   `netsh.exe` script for creating RPC filters
+- `DCFWTool\PolicyDefinitions\DomainControllerFirewall.admx`
+
+   GPO template file for [custom configuration](#administrative-templates) settings
+- `DCFWTool\PolicyDefinitions\MSS-legacy.admx`
+
+   GPO template file for [MSS (Legacy)] settings
+- `DCFWTool\PolicyDefinitions\SecGuide.admx`
+
+   GPO template file for [MS Security Guide] settings
+- `DCFWTool\PolicyDefinitions\en-US\DomainControllerFirewall.adml`
+
+   English localization file for the `DomainControllerFirewall.admx` template
+- `DCFWTool\PolicyDefinitions\en-US\MSS-legacy.adml`
+
+   English localization file for the `MSS-legacy.admx` template
+- `DCFWTool\PolicyDefinitions\en-US\SecGuide.adml`
+
+   English localization file for the `SecGuide.admx` template
+
+- `DCFWTool\Show-WindowsFirewallLog.ps1`
+
+   PowerShell script for reading Windows Firewall log files.
 
 [MSS (Legacy)]: https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055
 [MS Security Guide]: https://learn.microsoft.com/en-us/deployoffice/security/security-baseline#ms-security-guide-administrative-template
@@ -898,6 +936,8 @@ Our firewall configuration is compliant with the majority of the [SCT Windows Se
 
 ## Group Policy Object Contents
 
+![Managed GPO contents](../Images/Screenshots/gpo-contents.png)
+
 ### Firewall Configuration
 
 ### Inbound Firewall Rules
@@ -935,7 +975,7 @@ Computer Configuration → Administrative Templates → MS Security Guide
 ### Startup Script
 
 Startup script is used to configure some of the required settings, that are not easily configurable through Group Policy.  
-`FirewallConfiguration.bat` script, is automatically generated, based on the configuration defined in `Set-ADDSFirewallPolicy.json`.  
+`FirewallConfiguration.bat` script, is automatically generated, based on the configuration defined in the `Set-ADDSFirewallPolicy.json` file.
 If enabled in the .json file, the script will execute the following actions:
 
 - Configure WMI static port
@@ -973,7 +1013,7 @@ dfsrdiag.exe StaticRPC /Port:5722
 
 #### Firewall Log File
 
-![Firewall log file configuration](../Images/Screenshots/firewall-log-config.png)
+![Firewall log file configuration](../Images/Screenshots/firewall-log-config.png){ width=400px }
 
 Log file is not created by the GPO, ACLs need to be configured through command line.
 
@@ -1031,10 +1071,8 @@ To help you with the task, we're providing the 2 following files:
 `Set-ADDSFirewallPolicy.Sample.json` contains all possible configuration items, with sample values.
 It is essential to properly configure all the settings, do not use the samples for production deployment without thorough review and adjustment.
 
-
 > [!CAUTION]
 > Improper configuration can cause network outages in your environment!
-
 
 ```json
 {
@@ -1779,43 +1817,17 @@ Once done, link the GPO to Domain Controllers OU.
 By default, GPO is refreshed every 5 minutes for DCs, so all your DCs should have the firewall configuration applied within maximum of 5 minutes.  
 Some settings require DC restart to apply, please refer to [System Reboots](#system-reboots).
 
-## Troubleshooting
+### Troubleshooting
 
-`Show-WindowsFirewallLog.ps1`
+The following PowerShell script can be used to display the Windows Firewall log file in a human-readable way:
 
 ```powershell
-<#
-.SYNOPSIS
-Parses Windows Firewall log file.
-
-.PARAMETER LogFilePath
-Path to the log file.
-
-.PARAMETER Live
-Indicates that the log file should be monitored for new entries.
-
-.NOTES
-Author:  Michael Grafnetter
-Version: 1.2
-
-#>
-
-#Requires -Version 3
-#Requires -RunAsAdministrator
-
-Param(
-    [Parameter(Mandatory = $false, Position = 0)]
-    [ValidateNotNullOrEmpty()]
-    [string] $LogFilePath = "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log",
-
-    [Parameter()]
-    [switch] $Live
-)
+[string] $logFilePath = "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log"
 
 [string[]] $columnsToShow = @('date','time','path','action','pid',
     'src-ip','src-port','dst-ip','dst-port','icmptype','icmpcode')
 
-Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
+Get-Content -Path $LogFilePath |
     Select-Object -Skip 3 |
     ForEach-Object { $PSItem -replace '^#Fields: ' } |
     ConvertFrom-Csv -Delimiter ' ' |
@@ -1823,9 +1835,11 @@ Get-Content -Path $LogFilePath -Wait:($Live.IsPresent) |
     Out-GridView -Title 'Windows Firewall Log' -Wait
 ```
 
-![Parsing firewall log files](../Images/Screenshots/firewall-log-parser.png)
+![Parsing firewall log files](../Images/Screenshots/firewall-log-parser.png){ width=400px }
 
-## Rollback
+An improved version of this script is available in the `Show-WindowsFirewallLog.ps1` file, which is part of the `DCFWTool`.
+
+### Rollback
 
 As some of the settings are propagated throug startup script and some, even though propagated through GPO, cause tattooing, you first need to reconfigure some settings in the GPO and modify the startup script, let the changes apply on all DCs and only after that, unlink the GPO.
 
@@ -2429,7 +2443,7 @@ This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindo
 
 This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport).
 
-> ![NOTE]
+> [!NOTE]
 > The WMI protocol also supports receiving asynchronous callbacks through the `%systemroot%\system32\wbem\unsecapp.exe` binary. This feature is rarely used and we are unaware of a practical use case for async clients running on domain controllers.
 
 #### Remote Desktop - User Mode (UDP-In)

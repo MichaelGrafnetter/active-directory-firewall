@@ -4,7 +4,7 @@
 
 This project aims to provide production-ready and well-tested guidelines on configuring the Windows Firewall for Active Directory-related server roles.
 
-![Windows Firewall with Advanced Security Screenshot](../Images/Screenshots/windows-firewall.png)
+![Windows Firewall with Advanced Security Screenshot](../Images/Screenshots/dc-firewall.png)
 
 ## Domain Controller Firewall
 
