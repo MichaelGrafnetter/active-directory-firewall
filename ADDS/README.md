@@ -703,48 +703,42 @@ add filter
 
 #### \[MS-WMI\]: Windows Management Instrumentation Remote Protocol
 
+The [\[MS-WMI\]: Windows Management Instrumentation Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmi/c476597d-4c76-47e7-a2a4-a564fe4bf814) protocol is often used by administrators for remote system administration and monitoring:
+
 ```powershell
-Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName dc01
+(Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName dc01 -Property Caption).Caption
 ```
+
+```txt
+Microsoft Windows Server 2022 Standard
+```
+
+The protocol is also popular among malicious actors to perform remote command execution:
 
 ```shell
 impacket-wmiexec 'contoso/Admin:Pa$$w0rd@dc01' hostname
 ```
 
-Solved using Defender ASR rules.
+```txt
+Impacket v0.11.0 - Copyright 2023 Fortra
 
-TODO: Test service creation using WMI
-
-#### DCOM
-
-TODO: Block command execution over DCOM over named pipes (ShellWindows, ShellBrowserWindow, and MMC20 objects)
-
-```shell
-impacket-dcomexec 'contoso/Admin:Pa$$w0rd@dc01' hostname
+[*] SMBv3.0 dialect used
+DC01
 ```
 
-TODO: Does it event work?
+Although the output of the tool might suggest that WMI traffic can be tunnelled through SMB named pipes as well, it is fortunately not true and the WMI protocol can effectively be blocked using Windows Firewall. To further mitigate the threat of remote malicious command execution over WMI, it is recommended to turn on the following [Microsoft Defender Attack Surface Reduction (ASR)](https://learn.microsoft.com/en-us/defender-endpoint/overview-attack-surface-reduction) rules:
 
-#### \[MS-TSTS\]: Terminal Services Terminal Server Runtime Interface Protocol
-
-https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsts/1eb45af1-94f1-4c42-9e13-dd0a018646fd
-
-TODO: Block RDP-related protocols over named pipes?
-
-#### \[MS-RSP\]: Remote Shutdown Protocol
-
-https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rsp/6dfeb978-7a02-4826-b537-a1760fbf8074
-
-UUID: d95afe70-a6d5-4259-822e-2c84da1ddb0d
-ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
-
-UUID: 76f226c3-ec14-4325-8a99-6a46348418af
-ncacn_np:127.0.0.1[\\PIPE\\InitShutdown]
+- [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-reference#block-process-creations-originating-from-psexec-and-wmi-commands)
+- [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-reference#block-persistence-through-wmi-event-subscription)
 
 #### Further Protocol Considerations
 
-> [!NOTE]
-> TODO: Firewall remote management?
+The following protocols need to be investigated in the future, as they are open to all domain controller clients:
+
+- [\[MS-TSTS\]: Terminal Services Terminal Server Runtime Interface Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsts/1eb45af1-94f1-4c42-9e13-dd0a018646fd)
+- [\[MS-RSP\]: Remote Shutdown Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rsp/6dfeb978-7a02-4826-b537-a1760fbf8074)
+- [\[MS-DCOM\]: Distributed Component Object Model (DCOM) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/4a893f3d-bd29-48cd-9f43-d9777a4415b0), specifically the ShellWindows, ShellBrowserWindow, and MMC20 objects.
+- [\[MS-RRP\]: Windows Remote Registry Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rrp/0fa3191d-bb79-490a-81bd-54c2601b7a78)
 
 #### Additional Reading on RPC
 
@@ -920,23 +914,23 @@ The following ADMX and their respective ADML (in English) are copied to Central 
 
 - Contains template for configuration of the following settings:
   - [NTDS Static Port](#ntdsstaticport)  
-  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Active Directory RPC static port
+  Computer Configuration → Administrative Templates → RPC Static Ports → Domain Controller: Active Directory RPC static port
   - [Netlogon Static Port](#netlogonstaticport)  
-  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: Netlogon static port
+  Computer Configuration → Administrative Templates → RPC Static Ports → Domain Controller: Netlogon static port
   - [FRS Static Port](#frsstaticport)  
-  Computer Configuration / Administrative Templates / RPC Static Ports / Domain Controller: File Replication Service (FRS) static port
+  Computer Configuration → Administrative Templates → RPC Static Ports → Domain Controller: File Replication Service (FRS) static port
   - [mDNS Configuration](#disablemdns)  
-Computer Configuration / Administrative Templates / Network / DNS Client / Turn off Multicast DNS (mDNS) client
+Computer Configuration → Administrative Templates → Network → DNS Client → Turn off Multicast DNS (mDNS) client
 
 `MSS-legacy.admx`
 
 - Contains template for configuration of all the settings stored in:  
-Computer Configuration / Administrative Templates / MSS (Legacy)
+Computer Configuration → Administrative Templates → MSS (Legacy)
 
 `SecGuide.admx`
 
 - Contains template for configuration of all the settings stored in:  
-Computer Configuration / Administrative Templates / MS Security Guide
+Computer Configuration → Administrative Templates → MS Security Guide
 
 ### Startup Script
 
@@ -2020,6 +2014,14 @@ As the NTP service might be used by non-Windows clients, we do not limit the rem
 | Description | Inbound rule to allow remote RPC/TCP access to the Active Directory Domain Controller service. |
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
+This rule enables multiple crucial RPC-based protocols, including:
+
+- Directory Replication Service
+- Netlogon Service
+- Key Distribution Service
+
+Two dynamic RPC ports are used by default, but the services can be [reconfigured to use static ones](#ntdsstaticport).
+
 #### Active Directory Domain Controller - LDAP (UDP-In)
 
 | Property    | Value |
@@ -2425,6 +2427,11 @@ This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindo
 | Description | Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
+This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport).
+
+> ![NOTE]
+> The WMI protocol also supports receiving asynchronous callbacks through the `%systemroot%\system32\wbem\unsecapp.exe` binary. This feature is rarely used and we are unaware of a practical use case for async clients running on domain controllers.
+
 #### Remote Desktop - User Mode (UDP-In)
 
 | Property    | Value |
@@ -2672,6 +2679,8 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 | Description | Inbound rule to allow DFS Replication RPC traffic. |
 | Remote Addresses | [Domain Controllers](#domaincontrolleraddresses) |
 
+This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#dfsrstaticport).
+
 #### File Replication (RPC)
 
 | Property    | Value |
@@ -2685,3 +2694,5 @@ This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagemen
 | Service     | `NTFRS` |
 | Description | Inbound rule to allow File Replication RPC traffic. |
 | Remote Addresses | [Domain Controllers](#domaincontrolleraddresses) |
+
+This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#frsstaticport).
