@@ -1,0 +1,57 @@
+name: Generate Whitepaper
+
+on:
+  push:
+    paths:
+      - 'ADDS/README.md'
+      - '.github/workflows/generate-whitepaper.yml'
+
+jobs:
+  generate:
+    name: Generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Get the current date
+        id: get_date
+        run: echo "date=$(date '+%B %e, %Y')" > $GITHUB_OUTPUT
+
+      - name: Generate the whitepaper using Pandoc
+        uses: docker://pandoc/extra
+        with:
+          args: >-
+            --output=Domain_Controller_Firewall.pdf
+            --from=markdown
+            --to=pdf
+            --pdf-engine=xelatex
+            --shift-heading-level-by=-1
+            --top-level-division=section
+            --table-of-contents
+            --toc-depth=2
+            --number-sections
+            --template=eisvogel
+            --lua-filter=pandoc.lua
+            --variable=lof:true
+            --variable=classoption:oneside
+            --variable=geometry:a4paper,margin=2cm
+            --variable=colorlinks:true
+            --variable=linkcolor:"[HTML]{4077C0}"
+            --variable=titlepage:true
+            --variable=titlepage-rule-color:de0000
+            --variable=titlepage-rule-height:40
+            --variable=header-includes:"\usepackage{sectsty} \sectionfont{\clearpage}"
+            --variable=caption-justification:centering
+            --variable=listings-disable-line-numbers:true
+            --metadata date="${{ steps.get_date.outputs.date }}"
+            --resource-path="ADDS:/.pandoc/templates"
+            ADDS/README.md
+
+      - name: Publish the whitepaper as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Whitepaper
+          path: Domain_Controller_Firewall.pdf
+          if-no-files-found: error

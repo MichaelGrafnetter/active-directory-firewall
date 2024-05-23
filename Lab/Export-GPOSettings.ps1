@@ -1,0 +1,1 @@
+Get-GPOReport -Name 'Domain Controller Firewall' -ReportType HTML -Path 'GPOReport.html' -Server (Get-ADDomain).PDCEmulator

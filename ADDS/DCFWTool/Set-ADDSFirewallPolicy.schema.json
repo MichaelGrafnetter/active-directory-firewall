@@ -1,0 +1,415 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$comment": "Schema file for the Set-ADDSFirewallPolicy.json config.",
+    "title": "Domain Controller Firewall Configuration",
+    "type": "object",
+    "properties": {
+      "GroupPolicyObjectName": {
+        "type": "string",
+        "default": "Domain Controller Firewall",
+        "description": "The name of the Group Policy Object (GPO) that will be created or updated."
+      },
+      "GroupPolicyObjectComment": {
+        "type": "string",
+        "default": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
+        "description": "The comment that will be added to the Group Policy Object (GPO)."
+      },
+      "LogDroppedPackets": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether the packets dropped by the firewall should be logged."
+      },
+      "LogAllowedPackets": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether the packets allowed by the firewall should be logged."
+      },
+      "LogFilePath": {
+        "type": "string",
+        "default": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
+        "description": "The path to the log file that will be used to store information about the allowed and/or dropped packets."
+      },
+      "LogMaxSizeKilobytes": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 32767,
+        "default": 32767,
+        "description": "The maximum size of the firewall log file in kilobytes."
+      },
+      "ClientAddresses": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
+        "default": [ "Any" ],
+        "description": "List of client IP adresses from which inbound traffic should be allowed."
+      },
+      "ManagementAddresses": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
+        "default": [ "Any" ],
+        "description": "List of IP addresses from which inbound management traffic should be allowed."
+      },
+      "DomainControllerAddresses": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
+        "default": [ "Any" ],
+        "description": "List of domain controller IP addresses, between which replication and management traffic will be allowed."
+      },
+      "NtdsStaticPort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 49151,
+            "examples": [ 38901 ]
+          },
+          {
+            "const": 0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Static port to be used for inbound Active Directory RPC traffic."
+      },
+      "NetlogonStaticPort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 49151,
+            "examples": [ 38902 ]
+          },
+          {
+            "const": 0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Static port to be used for inbound Netlogon traffic."
+      },
+      "DfsrStaticPort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 49151,
+            "examples": [ 5722 ]
+          },
+          {
+            "const": 0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Static port to be used for DFSR traffic."
+      },
+      "FrsStaticPort": {
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 49151,
+            "examples": [ 38903 ]
+          },
+          {
+            "const": 0
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Static port to be used for legacy FRS traffic."
+      },
+      "WmiStaticPort": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether WMI traffic should use a static port."
+      },
+      "DisableNetbiosBroadcasts": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point)."
+      },
+      "DisableLLMNR": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled."
+      },
+      "DisableMDNS": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether the Multicast DNS (mDNS) client should be disabled."
+      },
+      "EnableServiceManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether remote service management should be enabled."
+      },
+      "EnableEventLogManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether remote event log management should be enabled."
+      },
+      "EnableScheduledTaskManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether remote scheduled task management should be enabled."
+      },
+      "EnableWindowsRemoteManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Windows Remote Management traffic should be enabled."
+      },
+      "EnablePerformanceLogAccess": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether remote performance log access should be enabled."
+      },
+      "EnableOpenSSHServer": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound OpenSSH traffic should be enabled."
+      },
+      "EnableRemoteDesktop": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Remote Desktop traffic should be enabled."
+      },
+      "EnableDiskManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether remote disk management should be enabled."
+      },
+      "EnableBackupManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether remote backup management should be enabled."
+      },
+      "EnableFirewallManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether remote firewall management should be enabled."
+      },
+      "EnableComPlusManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound COM+ management traffic should be enabled."
+      },
+      "EnableLegacyFileReplication": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound legacy file replication traffic should be enabled."
+      },
+      "EnableNetbiosNameService": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound NetBIOS Name Service should be allowed."
+      },
+      "EnableNetbiosDatagramService": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound NetBIOS Datagram Service traffic should be allowed."
+      },
+      "EnableNetbiosSessionService": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed."
+      },
+      "EnableWINS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed."
+      },
+      "EnableNetworkProtection": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled."
+      },
+      "BlockWmiCommandExecution": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR."
+      },
+      "EnableRpcFilters": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Indicates whether additional filtering of RPC over Named Pipes should be applied."
+      },
+      "EnableLocalIPsecRules": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether local IPSec rules should be enabled."
+      }
+    },
+    "required": [
+      "GroupPolicyObjectName",
+      "DomainControllerAddresses",
+      "ManagementAddresses",
+      "ClientAddresses"
+    ]
+  }

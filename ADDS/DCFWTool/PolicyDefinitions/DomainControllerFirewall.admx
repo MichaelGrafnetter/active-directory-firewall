@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--  (c) 2024 Michael Grafnetter  -->
+<policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0"
+  xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" xsi:schemaLocation="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions ../../ADMXSchema/PolicyDefinitionFiles.xsd">
+  <policyNamespaces>
+    <target prefix="dsinternals" namespace="DSInternals.Policies.Firewall" />
+    <using prefix="windows" namespace="Microsoft.Policies.Windows" />
+    <using prefix="dnsclient" namespace="Microsoft.Policies.DNSClient" />
+  </policyNamespaces>
+  <resources minRequiredRevision="1.0" />
+  <categories>
+    <category name="RPCStaticPorts" displayName="$(string.RPCStaticPorts)" />
+  </categories>
+  <policies>
+    <policy name="RPCStaticPorts_NTDS" class="Machine" displayName="$(string.RPCStaticPorts_NTDS)" explainText="$(string.RPCStaticPorts_NTDS_Help)" key="SYSTEM\CurrentControlSet\Services\NTDS\Parameters" presentation="$(presentation.RPCStaticPorts_NTDS)">
+      <parentCategory ref="RPCStaticPorts" />
+      <supportedOn ref="windows:SUPPORTED_Win2k" />
+      <disabledList>
+        <item key="SYSTEM\CurrentControlSet\Services\NTDS\Parameters" valueName="TCP/IP Port">
+          <value>
+            <decimal value="0" />
+          </value>
+        </item>
+      </disabledList>
+      <elements>
+        <decimal id="RPCStaticPorts_NTDS_Value" valueName="TCP/IP Port" required="true" minValue="1024" maxValue="49151" />
+      </elements>
+    </policy>
+    <policy name="RPCStaticPorts_NETLOGON" class="Machine" displayName="$(string.RPCStaticPorts_NETLOGON)" explainText="$(string.RPCStaticPorts_NETLOGON_Help)" key="SYSTEM\CurrentControlSet\Services\Netlogon\Parameters" presentation="$(presentation.RPCStaticPorts_NETLOGON)">
+      <parentCategory ref="RPCStaticPorts" />
+      <supportedOn ref="windows:SUPPORTED_Win2k" />
+      <disabledList>
+        <item key="SYSTEM\CurrentControlSet\Services\Netlogon\Parameters" valueName="DCTcpipPort">
+          <value>
+            <decimal value="0" />
+          </value>
+        </item>
+      </disabledList>
+      <elements>
+        <decimal id="RPCStaticPorts_NETLOGON_Value" valueName="DCTcpipPort" required="true" minValue="1024" maxValue="49151" />
+      </elements>
+    </policy>
+    <policy name="RPCStaticPorts_NTFRS" class="Machine" displayName="$(string.RPCStaticPorts_NTFRS)" explainText="$(string.RPCStaticPorts_NTFRS_Help)" key="SYSTEM\CurrentControlSet\Services\NTFRS\Parameters" presentation="$(presentation.RPCStaticPorts_NTFRS)">
+      <parentCategory ref="RPCStaticPorts" />
+      <supportedOn ref="windows:SUPPORTED_Win2k" />
+      <disabledList>
+        <item key="SYSTEM\CurrentControlSet\Services\NTFRS\Parameters" valueName="RPC TCP/IP Port Assignment">
+          <value>
+            <decimal value="0" />
+          </value>
+        </item>
+      </disabledList>
+      <elements>
+        <decimal id="RPCStaticPorts_NTFRS_Value" valueName="RPC TCP/IP Port Assignment" required="true" minValue="1024" maxValue="49151" />
+      </elements>
+    </policy>
+    <policy name="DNS_Turn_Off_MulticastDNS" class="Machine" displayName="$(string.DNS_Turn_Off_MulticastDNS)" explainText="$(string.DNS_Turn_Off_MulticastDNS_Help)" key="SYSTEM\CurrentControlSet\Services\DNSCache\Parameters" valueName="EnableMDNS">
+      <parentCategory ref="dnsclient:DNS_Client" />
+      <supportedOn ref="windows:SUPPORTED_Windows_10_0_RS1" />
+      <enabledValue>
+        <decimal value="0" />
+      </enabledValue>
+      <disabledValue>
+        <decimal value="1" />
+      </disabledValue>
+    </policy>
+  </policies>
+</policyDefinitions>

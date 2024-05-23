@@ -1,0 +1,2 @@
+Name,Group,Protocol,Port,IcmpType,Program,Service,RemoteAddress,Description
+Windows Remote Management (HTTPS-In),Windows Remote Management,TCP,5986,,System,,Management,Inbound rule for Windows Remote Management via WS-Management. [TCP 5986]

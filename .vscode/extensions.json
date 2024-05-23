@@ -1,0 +1,14 @@
+{
+    "recommendations": [
+      "ms-vscode.PowerShell",
+      "GitHub.vscode-pull-request-github",
+      "GitHub.vscode-github-actions",
+      "EditorConfig.EditorConfig",
+      "DavidAnson.vscode-markdownlint",
+      "bierner.markdown-preview-github-styles",
+      "mechatroner.rainbow-csv",
+      "GrapeCity.gc-excelviewer",
+      "GitHub.copilot",
+      "GitHub.copilot-chat"
+    ]
+  }
