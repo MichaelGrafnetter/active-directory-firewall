@@ -24,7 +24,7 @@ footer-right: "\\hspace{1cm}"
 
 | Date       | Version | Author                     | Description     |
 |------------|--------:|----------------------------|-----------------|
-| 2024-05-23 | 1.0     | P. Formanek, M. Grafnetter | Initial version |
+| 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft    |
 |            |         |                            |                 |
 
 ## Glossary {.unnumbered}
