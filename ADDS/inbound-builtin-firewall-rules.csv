@@ -37,7 +37,6 @@ Windows Remote Management (HTTP-In),Windows Remote Management,TCP,5985,,System,,
 Windows Management Instrumentation (WMI-In),Windows Management Instrumentation (WMI),TCP,Any,,%SystemRoot%\system32\svchost.exe,winmgmt,Management,Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]
 Remote Desktop - User Mode (UDP-In),Remote Desktop,UDP,3389,,%SystemRoot%\system32\svchost.exe,termservice,Management,Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389]
 Remote Desktop - User Mode (TCP-In),Remote Desktop,TCP,3389,,%SystemRoot%\system32\svchost.exe,termservice,Management,Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]
-DFS Management (TCP-In),DFS Management,TCP,RPC,,%systemroot%\system32\dfsfrsHost.exe,,Management,Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.
 "RPC (TCP, Incoming)",DNS Service,TCP,RPC,,%systemroot%\System32\dns.exe,dns,Management,Inbound rule to allow remote RPC/TCP access to the DNS service.
 Windows Backup (RPC),Windows Backup,TCP,RPC,,%systemroot%\system32\wbengine.exe,wbengine,Management,Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP
 DFS Management (TCP-In),DFS Management,TCP,RPC,,%systemroot%\system32\dfsfrsHost.exe,,Management,Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.
