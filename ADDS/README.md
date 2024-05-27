@@ -739,6 +739,9 @@ Although the output of the tool might suggest that WMI traffic can be tunnelled 
 - [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-reference#block-process-creations-originating-from-psexec-and-wmi-commands)
 - [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-reference#block-persistence-through-wmi-event-subscription)
 
+> [!IMPORTANT]
+> System Center Configuration Manager (SCCM) agent will not work properly if these ASR rules are enabled.
+
 #### Further Protocol Considerations
 
 The following protocols need to be investigated in the future, as they are open to all domain controller clients:
@@ -1700,6 +1703,9 @@ Indicates whether to block process creations originating from PSExec and WMI com
 - [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-persistence-through-wmi-event-subscription)
 
 If `true` MDA Attack Surface Reduction rules (mentioned above) will be configured in block mode. If `false` MDA Attack Surface Reduction rules (mentioned above) will be configured in audit mode only, allowing you to evaluate the possible impact if the rules were enabled in block mode. If `null` MDA ASR rules are not configured, effectively disabling the rules.
+
+> [!IMPORTANT]
+> System Center Configuration Manager (SCCM) agent will not work properly if these ASR rules are enabled.
 
 ```yaml
 Type: Boolean
