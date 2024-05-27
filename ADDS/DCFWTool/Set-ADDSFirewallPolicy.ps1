@@ -132,6 +132,12 @@ class ScriptSettings {
     # Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed.
     [bool]             $EnableWINS                    = $true
 
+    # Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed.
+    [bool]             $EnableDhcpServer              = $true
+
+    # Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed.
+    [bool]             $EnableNPS                     = $true
+
     # Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled.
     [Nullable[bool]]   $EnableNetworkProtection       = $null
 
@@ -1222,6 +1228,203 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 22 `
                     -RemoteAddress $configuration.ManagementAddresses `
                     -Program '%SystemRoot%\system32\OpenSSH\sshd.exe' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "DHCP Server v4 (UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-ClientSvc-DHCPv4-In' `
+                    -DisplayName 'DHCP Server v4 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic to the IPv4 Dynamic Host Control Protocol Server. [UDP 67]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 67 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "DHCP Server v4 (UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-SrvSvc-DHCPv4-In' `
+                    -DisplayName 'DHCP Server v4 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic so that rogue detection works in V4. [UDP 68]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 68 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "DHCP Server v6 (UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-SrvSvc-DHCPv6-In' `
+                    -DisplayName 'DHCP Server v6 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic so that rogue detection works in V6. [UDP 546]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 546 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "DHCP Server v6 (UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-ClientSvc-DHCPv6-In' `
+                    -DisplayName 'DHCP Server v6 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic to the IPv6 Dynamic Host Control Protocol Server. [UDP 547]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 547 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "DHCP Server Failover (TCP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-Failover-TCP-In' `
+                    -DisplayName 'DHCP Server Failover (TCP-In)' `
+                    -Group 'DHCP Server Management' `
+                    -Description 'An inbound rule to allow DHCP failover messages to the IPv4 Dynamic Host Configuration Protocol Server. [TCP 647]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 647 `
+                    -RemoteAddress $configuration.DomainControllerAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "DHCP Server (RPC-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-ClientSvc-RPC-TCP-In' `
+                    -DisplayName 'DHCP Server (RPC-In)' `
+                    -Group 'DHCP Server Management' `
+                    -Description 'An inbound rule to allow traffic to allow RPC traffic for DHCP Server management.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $dcAndManagementAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+                    
+# Create Inbound rule "Network Policy Server (Legacy RADIUS Authentication - UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1645' `
+                    -DisplayName 'Network Policy Server (Legacy RADIUS Authentication - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1645]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1645 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Network Policy Server (Legacy RADIUS Accounting - UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1646' `
+                    -DisplayName 'Network Policy Server (Legacy RADIUS Accounting - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1646]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1646 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Network Policy Server (RADIUS Authentication - UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1812' `
+                    -DisplayName 'Network Policy Server (RADIUS Authentication - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1812]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1812 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Network Policy Server (RADIUS Accounting - UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1813' `
+                    -DisplayName 'Network Policy Server (RADIUS Accounting - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1813]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1813 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Network Policy Server (RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-RPC' `
+                    -DisplayName 'Network Policy Server (RPC)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $dcAndManagementAddresses `
+                    -Program '%systemroot%\system32\iashost.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 

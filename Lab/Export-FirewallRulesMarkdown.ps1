@@ -1,7 +1,7 @@
 ﻿[string] $sourceGpo = 'contoso.com\Domain Controller Firewall'
 
 [Microsoft.ActiveDirectory.Management.ADDomain] $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
-[string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $domain.PDCEmulator -ErrorAction Stop
+[string] $gpoSession = Open-NetGPO -PolicyStore $sourceGpo -DomainController $domain.PDCEmulator -ErrorAction Stop
 
 # The source GPO session is provided as a custom CIM operation option.
 [Microsoft.Management.Infrastructure.Options.CimOperationOptions] $cimOperationOptions =

@@ -364,6 +364,16 @@
         "default": true,
         "description": "Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed."
       },
+      "EnableDhcpServer": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed."
+      },
+      "EnableNPS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed."
+      },
       "EnableNetworkProtection": {
         "anyOf": [
           {
