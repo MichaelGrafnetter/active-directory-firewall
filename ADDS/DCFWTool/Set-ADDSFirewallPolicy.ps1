@@ -60,6 +60,9 @@ class ScriptSettings {
     # List of domain controller IP addresses, between which replication and management traffic will be allowed.
     [string[]]         $DomainControllerAddresses     = 'Any'
 
+    # List of RADIUS client IP adresses from which inbound traffic should be allowed.
+    [string[]]         $RadiusClientAddresses         = 'Any'
+
     # Static port to be used for inbound Active Directory RPC traffic.
     [Nullable[uint16]] $NtdsStaticPort                = $null
 
@@ -306,6 +309,15 @@ if($allAddresses -contains 'Any') {
 if($dcAndManagementAddresses -contains 'Any') {
     # Consolidate the remote addresses
     $dcAndManagementAddresses = @('Any')
+}
+
+[string[]] $radiusClientAndDomainControllerAddresses =
+    ($configuration.RadiusClientAddresses + $configuration.DomainControllerAddresses) |
+    Sort-Object -Unique
+
+if($radiusClientAndDomainControllerAddresses -contains 'Any') {
+    # Consolidate the remote addresses
+    $radiusClientAndDomainControllerAddresses = @('Any')
 }
 
 #endregion Firewall Profiles
@@ -1351,7 +1363,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 1645 `
-                    -RemoteAddress Any `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
                     -Verbose `
@@ -1369,7 +1381,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 1646 `
-                    -RemoteAddress $allAddresses `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
                     -Verbose `
@@ -1387,7 +1399,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 1812 `
-                    -RemoteAddress $allAddresses `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
                     -Verbose `
@@ -1405,7 +1417,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 1813 `
-                    -RemoteAddress $allAddresses `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
                     -Verbose `

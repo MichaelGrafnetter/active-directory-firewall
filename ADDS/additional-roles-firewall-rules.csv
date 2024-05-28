@@ -1,0 +1,16 @@
+Name,Group,Protocol,Port,IcmpType,Program,Service,RemoteAddress,Description
+Windows Internet Naming Service (WINS) (UDP-In),Windows Internet Naming Service (WINS),UDP,42,,%SystemRoot%\System32\wins.exe,WINS,Client,Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42]
+Windows Internet Naming Service (WINS) (TCP-In),Windows Internet Naming Service (WINS),TCP,42,,%SystemRoot%\System32\wins.exe,WINS,Client,Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42]
+Windows Internet Naming Service (WINS) - Remote Management (RPC),Windows Internet Naming Service (WINS) - Remote Management,TCP,RPC,,%SystemRoot%\System32\wins.exe,WINS,Management,Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP.
+Network Policy Server (Legacy RADIUS Authentication - UDP-In),Network Policy Server,UDP,1645,,%systemroot%\system32\svchost.exe,ias,RADIUS Client,Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1645]
+Network Policy Server (Legacy RADIUS Accounting - UDP-In),Network Policy Server,UDP,1646,,%systemroot%\system32\svchost.exe,ias,RADIUS Client,Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1646]
+Network Policy Server (RADIUS Authentication - UDP-In),Network Policy Server,UDP,1812,,%systemroot%\system32\svchost.exe,ias,RADIUS Client,Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1812]
+Network Policy Server (RADIUS Accounting - UDP-In),Network Policy Server,UDP,1813,,%systemroot%\system32\svchost.exe,ias,RADIUS Client,Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1813]
+Network Policy Server (RPC),Network Policy Server,TCP,RPC,,%systemroot%\system32\iashost.exe,,Management,Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP.
+DHCP Server v4 (UDP-In),DHCP Server,UDP,67,,%systemroot%\system32\svchost.exe,dhcpserver,Client,An inbound rule to allow traffic to the IPv4 Dynamic Host Control Protocol Server. [UDP 67]
+DHCP Server v4 (UDP-In),DHCP Server,UDP,68,,%systemroot%\system32\svchost.exe,dhcpserver,Client,An inbound rule to allow traffic so that rogue detection works in V4. [UDP 68]
+DHCP Server v6 (UDP-In),DHCP Server,UDP,546,,%systemroot%\system32\svchost.exe,dhcpserver,Client,An inbound rule to allow traffic so that rogue detection works in V6. [UDP 546]
+DHCP Server v6 (UDP-In),DHCP Server,UDP,547,,%systemroot%\system32\svchost.exe,dhcpserver,Client,An inbound rule to allow traffic to the IPv6 Dynamic Host Control Protocol Server. [UDP 547]
+DHCP Server Failover (TCP-In),DHCP Server Management,TCP,647,,%systemroot%\system32\svchost.exe,dhcpserver,DC,An inbound rule to allow DHCP failover messages to the IPv4 Dynamic Host Configuration Protocol Server. [TCP 647]
+DHCP Server (RPC-In),DHCP Server Management,TCP,RPC,,%systemroot%\system32\svchost.exe,dhcpserver,Management,An inbound rule to allow traffic to allow RPC traffic for DHCP Server management.
+OpenSSH SSH Server (sshd),OpenSSH Server,TCP,22,,%SystemRoot%\system32\OpenSSH\sshd.exe,,Management,Inbound rule for OpenSSH SSH Server (sshd)

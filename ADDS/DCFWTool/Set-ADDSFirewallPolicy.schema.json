@@ -171,6 +171,51 @@
         "default": [ "Any" ],
         "description": "List of domain controller IP addresses, between which replication and management traffic will be allowed."
       },
+      "RadiusClientAddresses": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
+        "default": [ "Any" ],
+        "description": "List of RADIUS client IP adresses from which inbound traffic should be allowed."
+      },
       "NtdsStaticPort": {
         "oneOf": [
           {

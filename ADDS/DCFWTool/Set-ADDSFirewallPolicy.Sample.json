@@ -9,6 +9,7 @@
     "ClientAddresses": [ "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "10.220.6.0/24" ],
     "ManagementAddresses": [ "10.220.3.0/24" ],
     "DomainControllerAddresses": [ "10.220.1.0/24" ],
+    "RadiusClientAddresses": [ "10.220.1.12/32", "10.220.1.13/32" ],
     "NtdsStaticPort": 38901,
     "NetlogonStaticPort": 38902,
     "FrsStaticPort": 38903,

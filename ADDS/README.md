@@ -1691,6 +1691,8 @@ Possible values: true / false
 
 ### EnableNPS
 
+### RadiusClientAddresses
+
 ### EnableNetworkProtection
 
 Indicates whether the [Network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection) feature of Microsoft Defender Antivirus should be enabled.
@@ -1930,7 +1932,7 @@ Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Co
 - [How to configure a firewall for Active Directory domains and trusts](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/config-firewall-for-ad-domains-and-trusts)
 - [Service overview and network port requirements for Windows](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/service-overview-and-network-port-requirements)
 
-Dynamic RPC ports, listed in the following table, can be set to static port through [Configuration File](#configuration-file):
+Dynamic RPC ports, listed in the table below, can be set to static port through [Configuration File](#configuration-file):
 
 - [NTDS static port](#ntdsstaticport)
 - [Netlogon static port](#netlogonstaticport)
@@ -1949,6 +1951,7 @@ Dynamic RPC ports, listed in the following table, can be set to static port thro
 |636/TCP|LDAP SSL|[Active Directory Domain Controller - Secure LDAP (TCP-In)](#active-directory-domain-controller---secure-ldap-tcp-in)|
 |3268/TCP|LDAP GC|[Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)](#active-directory-domain-controller---ldap-for-global-catalog-tcp-in)|
 |3269/TCP|LDAP GC SSL|[Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)](#active-directory-domain-controller---secure-ldap-for-global-catalog-tcp-in)|
+|9389/TCP|AD Web Services|[Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in)|
 |53/UDP|DNS|[DNS (UDP, Incoming)](#dns-udp-incoming)|
 |53/TCP|DNS|[DNS (TCP, Incoming)](#dns-tcp-incoming)|
 |49152-65535/TCP|FRS RPC|[File Replication (RPC)](#file-replication-rpc)|
@@ -1959,7 +1962,16 @@ Dynamic RPC ports, listed in the following table, can be set to static port thro
 |49152-65535/TCP|DFSR RPC|[DFS Replication (RPC-In)](#dfs-replication-rpc-in)|
 |N/A|ICMPv4|[Active Directory Domain Controller - Echo Request (ICMPv4-In)](#active-directory-domain-controller---echo-request-icmpv4-in)|
 |N/A|ICMPv6|[Active Directory Domain Controller - Echo Request (ICMPv6-In)](#active-directory-domain-controller---echo-request-icmpv6-in)|
+|137/UDP|File and Printer Sharing|[File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in)|
 |138/UDP|NetBIOS|[Active Directory Domain Controller - NetBIOS name resolution (UDP-In)](#active-directory-domain-controller---netbios-name-resolution-udp-in)|
+|139/TCP|File and Printer Sharing|[File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)|
+|42/TCP|WINS|[Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in)|
+|42/UDP|WINS|[Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in)|
+
+Additional firewall rules that are not DC-specific might be required to enable core networking functionality and server remote management:
+
+|Port|Service|Rule Reference|
+|---|---|---|
 |N/A|ICMPv6|[Core Networking - Destination Unreachable (ICMPv6-In)](#core-networking---destination-unreachable-icmpv6-in)|
 |N/A|ICMPv4|[Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)](#core-networking---destination-unreachable-fragmentation-needed-icmpv4-in)|
 |N/A|ICMPv6|[Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)](#core-networking---neighbor-discovery-advertisement-icmpv6-in)|
@@ -1967,11 +1979,6 @@ Dynamic RPC ports, listed in the following table, can be set to static port thro
 |N/A|ICMPv6|[Core Networking - Packet Too Big (ICMPv6-In)](#core-networking---packet-too-big-icmpv6-in)|
 |N/A|ICMPv6|[Core Networking - Parameter Problem (ICMPv6-In)](#core-networking---parameter-problem-icmpv6-in)|
 |N/A|ICMPv6|[Core Networking - Time Exceeded (ICMPv6-In)](#core-networking---time-exceeded-icmpv6-in)|
-|42/TCP|WINS|[Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in)|
-|42/UDP|WINS|[Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in)|
-|137/UDP|File and Printer Sharing|[File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in)|
-|139/TCP|File and Printer Sharing|[File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)|
-|9389/TCP|AD Web Services|[Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in)|
 |5985/TCP|WinRM|[Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)|
 |5986/TCP|WinRM|[Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)|
 |49152-65535/TCP|WMI|[Windows Management Instrumentation (WMI-In)](#windows-management-instrumentation-wmi-in)|
@@ -2353,38 +2360,6 @@ This rule is governed by the [EnableNetbiosDatagramService](#enablenetbiosdatagr
 | Description | Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path. |
 | Scope | Any |
 
-#### Windows Internet Naming Service (WINS) (TCP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | WINS-Service-In-TCP |
-| Group       | Windows Internet Naming Service (WINS) |
-| Direction   | Inbound |
-| Protocol    | TCP |
-| Port        | 42 |
-| Program     | `%SystemRoot%\System32\wins.exe` |
-| Service     | `WINS` |
-| Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42] |
-| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableWINS](#enablewins) setting.
-
-#### Windows Internet Naming Service (WINS) (UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | WINS-Service-In-UDP |
-| Group       | Windows Internet Naming Service (WINS) |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 42 |
-| Program     | `%SystemRoot%\System32\wins.exe` |
-| Service     | `WINS` |
-| Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42] |
-| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableWINS](#enablewins) setting.
-
 #### File and Printer Sharing (NB-Name-In)
 
 | Property    | Value |
@@ -2414,134 +2389,6 @@ This rule is governed by the [EnableNetbiosNameService](#enablenetbiosnameservic
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossessionservice) setting.
-
-#### DHCP Server v4 (UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | Microsoft-Windows-DHCP-ClientSvc-DHCPv4-In |
-| Group       | DHCP Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 67 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `dhcpserver` |
-| Description | An inbound rule to allow traffic to the IPv4 Dynamic Host Control Protocol Server. [UDP 67] |
-| Remote Addresses | Any |
-
-This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
-
-#### DHCP Server v4 (UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | Microsoft-Windows-DHCP-SrvSvc-DHCPv4-In |
-| Group       | DHCP Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 68 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `dhcpserver` |
-| Description | An inbound rule to allow traffic so that rogue detection works in V4. [UDP 68] |
-| Remote Addresses | Any |
-
-This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
-
-#### DHCP Server v6 (UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | Microsoft-Windows-DHCP-SrvSvc-DHCPv6-In |
-| Group       | DHCP Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 546 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `dhcpserver` |
-| Description | An inbound rule to allow traffic so that rogue detection works in V6. [UDP 546] |
-| Remote Addresses | Any |
-
-This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
-
-#### DHCP Server v6 (UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | Microsoft-Windows-DHCP-ClientSvc-DHCPv6-In |
-| Group       | DHCP Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 547 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `dhcpserver` |
-| Description | An inbound rule to allow traffic to the IPv6 Dynamic Host Control Protocol Server. [UDP 547] |
-| Remote Addresses | Any |
-
-This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
-
-#### Network Policy Server (Legacy RADIUS Authentication - UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | NPS-NPSSvc-In-UDP-1645 |
-| Group       | Network Policy Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 1645 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `ias` |
-| Description | Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1645] |
-| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableNPS](#enablenps) setting.
-
-#### Network Policy Server (Legacy RADIUS Accounting - UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | NPS-NPSSvc-In-UDP-1646 |
-| Group       | Network Policy Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 1646 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `ias` |
-| Description | Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1646] |
-| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableNPS](#enablenps) setting.
-
-#### Network Policy Server (RADIUS Authentication - UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | NPS-NPSSvc-In-UDP-1812 |
-| Group       | Network Policy Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 1812 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `ias` |
-| Description | Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1812] |
-| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableNPS](#enablenps) setting.
-
-#### Network Policy Server (RADIUS Accounting - UDP-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | NPS-NPSSvc-In-UDP-1813 |
-| Group       | Network Policy Server |
-| Direction   | Inbound |
-| Protocol    | UDP |
-| Port        | 1813 |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `ias` |
-| Description | Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1813] |
-| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableNPS](#enablenps) setting.
 
 ### Management Traffic
 
@@ -2639,21 +2486,6 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Remote Addresses | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
-
-#### OpenSSH SSH Server (sshd)
-
-| Property    | Value |
-|-------------|----------------------------------------------------------|
-| Name        | OpenSSH-Server-In-TCP |
-| Group       | OpenSSH Server |
-| Direction   | Inbound |
-| Protocol    | TCP |
-| Port        | 22 |
-| Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
-| Description | Inbound rule for OpenSSH SSH Server (sshd) |
-| Remote Addresses | [Management Computers](#managementaddresses) |
-
-This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting.
 
 #### DFS Management (TCP-In)
 
@@ -2807,22 +2639,6 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 
 This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 
-#### Windows Internet Naming Service (WINS) - Remote Management (RPC)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | WINS-Service-In-RPC |
-| Group       | Windows Internet Naming Service (WINS) - Remote Management |
-| Direction   | Inbound |
-| Protocol    | TCP |
-| Port        | RPC |
-| Program     | `%SystemRoot%\System32\wins.exe` |
-| Service     | `WINS` |
-| Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableWINS](#enablewins) setting.
-
 #### Windows Defender Firewall Remote Management (RPC)
 
 | Property    | Value |
@@ -2838,37 +2654,6 @@ This rule is governed by the [EnableWINS](#enablewins) setting.
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting.
-
-#### DHCP Server (RPC-In)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | Microsoft-Windows-DHCP-ClientSvc-RPC-TCP-In |
-| Group       | DHCP Server Management |
-| Direction   | Inbound |
-| Protocol    | TCP |
-| Port        | RPC |
-| Program     | `%systemroot%\system32\svchost.exe` |
-| Service     | `dhcpserver` |
-| Description | An inbound rule to allow traffic to allow RPC traffic for DHCP Server management. |
-| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
-
-#### Network Policy Server (RPC)
-
-| Property    | Value |
-|-------------|---------------------------------------------------|
-| Name        | NPS-NPSSvc-In-RPC |
-| Group       | Network Policy Server |
-| Direction   | Inbound |
-| Protocol    | TCP |
-| Port        | RPC |
-| Program     | `%systemroot%\system32\iashost.exe` |
-| Description | Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
-
-This rule is governed by the [EnableNPS](#enablenps) setting.
 
 ### Replication Traffic
 
@@ -2904,6 +2689,131 @@ This protocol uses a dynamic RPC port by default, but it can be [reconfigured to
 
 This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#frsstaticport).
 
+### Additional Server Roles and Features
+
+#### Server Role Co-Location
+
+As a security best-practice, it is recommended not to deploy additional server roles on domain controller servers. Unfortunately, real-world environments do not always follow this recommendation and domain controllers often serve as branch office DHCP and RADIUS servers as well. This chapter therefore contains a list of optional firewall rules that can be enabled to support such scenarios.
+
+For now, the following Windows Server roles and features are covered:
+
+- [Windows Internet Naming Service (WINS)](#windows-internet-naming-service-wins-tcp-in)
+- [Dynamic Host Configuration Protocol (DHCP) Server](#dhcp-server-v4-udp-in)
+- [Network Policy Server (NPS)](#network-policy-server-legacy-radius-authentication---udp-in)
+- [OpenSSH SSH Server](#openssh-ssh-server-sshd)
+
+#### Windows Internet Naming Service (WINS) (TCP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-In-TCP |
+| Group       | Windows Internet Naming Service (WINS) |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 42 |
+| Program     | `%SystemRoot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42] |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableWINS](#enablewins) setting.
+
+#### Windows Internet Naming Service (WINS) (UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-In-UDP |
+| Group       | Windows Internet Naming Service (WINS) |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 42 |
+| Program     | `%SystemRoot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42] |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableWINS](#enablewins) setting.
+
+#### Windows Internet Naming Service (WINS) - Remote Management (RPC)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WINS-Service-In-RPC |
+| Group       | Windows Internet Naming Service (WINS) - Remote Management |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\System32\wins.exe` |
+| Service     | `WINS` |
+| Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableWINS](#enablewins) setting.
+
+#### DHCP Server v4 (UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | Microsoft-Windows-DHCP-ClientSvc-DHCPv4-In |
+| Group       | DHCP Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 67 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `dhcpserver` |
+| Description | An inbound rule to allow traffic to the IPv4 Dynamic Host Control Protocol Server. [UDP 67] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
+
+#### DHCP Server v4 (UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | Microsoft-Windows-DHCP-SrvSvc-DHCPv4-In |
+| Group       | DHCP Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 68 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `dhcpserver` |
+| Description | An inbound rule to allow traffic so that rogue detection works in V4. [UDP 68] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
+
+#### DHCP Server v6 (UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | Microsoft-Windows-DHCP-SrvSvc-DHCPv6-In |
+| Group       | DHCP Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 546 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `dhcpserver` |
+| Description | An inbound rule to allow traffic so that rogue detection works in V6. [UDP 546] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
+
+#### DHCP Server v6 (UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | Microsoft-Windows-DHCP-ClientSvc-DHCPv6-In |
+| Group       | DHCP Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 547 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `dhcpserver` |
+| Description | An inbound rule to allow traffic to the IPv6 Dynamic Host Control Protocol Server. [UDP 547] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
+
 #### DHCP Server Failover (TCP-In)
 
 | Property    | Value |
@@ -2919,3 +2829,115 @@ This protocol uses a dynamic RPC port by default, but it can be [reconfigured to
 | Remote Addresses | [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
+
+If the DHCP server role is co-located with the domain controller role, it is highly probable that other DCs are configured in the same way. It would therefore make sense to allow DHCP failover betweeen DCs.
+
+#### DHCP Server (RPC-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | Microsoft-Windows-DHCP-ClientSvc-RPC-TCP-In |
+| Group       | DHCP Server Management |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `dhcpserver` |
+| Description | An inbound rule to allow traffic to allow RPC traffic for DHCP Server management. |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
+
+#### Network Policy Server (Legacy RADIUS Authentication - UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | NPS-NPSSvc-In-UDP-1645 |
+| Group       | Network Policy Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 1645 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `ias` |
+| Description | Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1645] |
+| Remote Addresses | [RADIUS Clients](#radiusclientaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableNPS](#enablenps) setting.
+
+#### Network Policy Server (Legacy RADIUS Accounting - UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | NPS-NPSSvc-In-UDP-1646 |
+| Group       | Network Policy Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 1646 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `ias` |
+| Description | Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1646] |
+| Remote Addresses | [RADIUS Clients](#radiusclientaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableNPS](#enablenps) setting.
+
+#### Network Policy Server (RADIUS Authentication - UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | NPS-NPSSvc-In-UDP-1812 |
+| Group       | Network Policy Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 1812 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `ias` |
+| Description | Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1812] |
+| Remote Addresses | [RADIUS Clients](#radiusclientaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableNPS](#enablenps) setting.
+
+#### Network Policy Server (RADIUS Accounting - UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | NPS-NPSSvc-In-UDP-1813 |
+| Group       | Network Policy Server |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | 1813 |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `ias` |
+| Description | Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1813] |
+| Remote Addresses | [RADIUS Clients](#radiusclientaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableNPS](#enablenps) setting.
+
+#### Network Policy Server (RPC)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | NPS-NPSSvc-In-RPC |
+| Group       | Network Policy Server |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\iashost.exe` |
+| Description | Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP. |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableNPS](#enablenps) setting.
+
+#### OpenSSH SSH Server (sshd)
+
+| Property    | Value |
+|-------------|----------------------------------------------------------|
+| Name        | OpenSSH-Server-In-TCP |
+| Group       | OpenSSH Server |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 22 |
+| Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
+| Description | Inbound rule for OpenSSH SSH Server (sshd) |
+| Remote Addresses | [Management Computers](#managementaddresses) |
+
+This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting.
