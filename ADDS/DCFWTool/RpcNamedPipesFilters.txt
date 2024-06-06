@@ -96,9 +96,27 @@ add rule layer=um actiontype=block filterkey=0a239867-73db-45e6-b287-d006fe3c8b1
 add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
 add filter
 
+# Restrict [MS-FSRVP]: File Server Remote VSS Protocol, Named pipe: \PIPE\FssagentRpc
+# Limit access to Domain Admins only.
+add rule layer=um actiontype=permit filterkey=869a3c6c-60dd-4558-a58b-8d9e86b0da5f
+add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
+add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
+add filter
+
+# Block MS-FSRVP by default
+add rule layer=um actiontype=block filterkey=4bce314a-d956-41cf-86f1-75067362cae6
+add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
+add filter
+
 # Block [MS-DNSP]: Domain Name Service (DNS) Server Management Protocol, Named pipe: \PIPE\DNSSERVER
 # This rule only blocks RPC over Named Pipes, while RPC over TCP is still allowed.
 add rule layer=um actiontype=block filterkey=50754fe4-aa2d-42ff-8196-e90ea8fd2527
 add condition field=protocol matchtype=equal data=ncacn_np
 add condition field=if_uuid matchtype=equal data=50abc2a4-574d-40b3-9d66-ee4fd5fba076
+add filter
+
+# Block the MimiCom protocol used by Mimikatz
+rpc filter
+add rule layer=um actiontype=block filterkey=644291ca-9530-4066-b654-e7b838ebdc06
+add condition field=if_uuid matchtype=equal data=17FC11E9-C258-4B8D-8D07-2F4125156244
 add filter
