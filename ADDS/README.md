@@ -2593,9 +2593,9 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
 | Service     | `adws` |
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
- The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+ The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Remote Management (HTTP-In)
 
@@ -2608,9 +2608,9 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Port        | 5985 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5985] |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Remote Management (HTTPS-In)
 
@@ -2623,9 +2623,9 @@ This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremot
 | Port        | 5986 |
 | Program     | `System` |
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5986] |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Management Instrumentation (WMI-In)
 
@@ -2639,9 +2639,9 @@ This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindo
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `winmgmt` |
 | Description | Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport). The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport). The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 > [!NOTE]
 > The WMI protocol also supports receiving asynchronous callbacks through the `%systemroot%\system32\wbem\unsecapp.exe` binary. This feature is rarely used and we are unaware of a practical use case for async clients running on domain controllers.
@@ -2658,9 +2658,9 @@ This protocol uses a dynamic RPC port by default, but it can be [reconfigured to
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Desktop - User Mode (TCP-In)
 
@@ -2674,9 +2674,9 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### DFS Management (TCP-In)
 
@@ -2689,9 +2689,9 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Port        | RPC |
 | Program     | `%systemroot%\system32\dfsfrsHost.exe` |
 | Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
- The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+ The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### RPC (TCP, Incoming)
 
@@ -2705,9 +2705,9 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Program     | `%systemroot%\System32\dns.exe` |
 | Service     | `dns` |
 | Description | Inbound rule to allow remote RPC/TCP access to the DNS service. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
- The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+ The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Backup (RPC)
 
@@ -2721,9 +2721,9 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Program     | `%systemroot%\system32\wbengine.exe` |
 | Service     | `wbengine` |
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Performance Logs and Alerts (TCP-In)
 
@@ -2736,9 +2736,9 @@ This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) se
 | Port        | Any |
 | Program     | `%systemroot%\system32\plasrv.exe` |
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### COM+ Remote Administration (DCOM-In)
 
@@ -2752,9 +2752,9 @@ This rule is governed by the [EnablePerformanceLogAccess](#enableperformanceloga
 | Program     | `%systemroot%\system32\dllhost.exe` |
 | Service     | `COMSysApp` |
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Event Log Management (RPC)
 
@@ -2768,9 +2768,9 @@ This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement)
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `Eventlog` |
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.  The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.  The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Scheduled Tasks Management (RPC)
 
@@ -2784,9 +2784,9 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `schedule` |
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Service Management (RPC)
 
@@ -2799,9 +2799,9 @@ This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtas
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\services.exe` |
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Volume Management - Virtual Disk Service (RPC)
 
@@ -2815,9 +2815,9 @@ This rule is governed by the [EnableServiceManagement](#enableservicemanagement)
 | Program     | `%SystemRoot%\system32\vds.exe` |
 | Service     | `vds` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Volume Management - Virtual Disk Service Loader (RPC)
 
@@ -2830,9 +2830,9 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Port        | RPC |
 | Program     | `%SystemRoot%\system32\vdsldr.exe` |
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Defender Firewall Remote Management (RPC)
 
@@ -2846,9 +2846,9 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Program     | `%SystemRoot%\system32\svchost.exe` |
 | Service     | `policyagent` |
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 ### Replication Traffic
 
@@ -2895,6 +2895,12 @@ For now, the following Windows Server roles and features are covered:
 - [Windows Internet Naming Service (WINS)](#windows-internet-naming-service-wins-tcp-in)
 - [Dynamic Host Configuration Protocol (DHCP) Server](#dhcp-server-v4-udp-in)
 - [Network Policy Server (NPS)](#network-policy-server-legacy-radius-authentication---udp-in)
+- [Web Server (IIS)](#world-wide-web-services-http-traffic-in)
+- [Windows Deployment Services (WDS)](#windows-deployment-services-rpc-in)
+- [Key Management Service (KMS)](#key-management-service-tcp-in)
+- [File Server Resource Manager (FSRM)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+- [Print Spooler](#file-and-printer-sharing-spooler-service---rpc) (highly discouraged)
+- [Windows Server Update Services (WSUS)](#windows-server-update-services-http-in)
 - [OpenSSH SSH Server](#openssh-ssh-server-sshd)
 
 #### Windows Internet Naming Service (WINS) (TCP-In)
@@ -2941,9 +2947,9 @@ This rule is governed by the [EnableWINS](#enablewins) setting.
 | Program     | `%SystemRoot%\System32\wins.exe` |
 | Service     | `WINS` |
 | Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableWINS](#enablewins) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableWINS](#enablewins) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### DHCP Server v4 (UDP-In)
 
@@ -3039,9 +3045,9 @@ If the DHCP server role is co-located with the domain controller role, it is hig
 | Program     | `%systemroot%\system32\svchost.exe` |
 | Service     | `dhcpserver` |
 | Description | An inbound rule to allow traffic to allow RPC traffic for DHCP Server management. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Network Policy Server (Legacy RADIUS Authentication - UDP-In)
 
@@ -3118,9 +3124,9 @@ This rule is governed by the [EnableNPS](#enablenps) setting.
 | Port        | RPC |
 | Program     | `%systemroot%\system32\iashost.exe` |
 | Description | Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableNPS](#enablenps) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableNPS](#enablenps) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### World Wide Web Services (HTTP Traffic-In)
 
@@ -3168,6 +3174,9 @@ This rule is governed by the [EnableWebServer](#enablewebserver) setting.
 
 This rule is governed by the [EnableWDS](#enablewds) setting.
 
+> [!NOTE]
+> TODO: List WDS UDP ports
+
 #### Windows Deployment Services (RPC-In)
 
 | Property    | Value |
@@ -3183,6 +3192,9 @@ This rule is governed by the [EnableWDS](#enablewds) setting.
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWDS](#enablewds) setting.
+
+> [!NOTE]
+> TODO: List WDS TCP ports
 
 #### Key Management Service (TCP-In)
 
@@ -3212,9 +3224,9 @@ This rule is governed by the [EnableKMS](#enablekms) setting.
 | Program     | `%systemroot%\system32\svchost.exe` |
 | Service     | `SrmSvc` |
 | Description | Inbound rule for the File Server Resource Manager service to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)
 
@@ -3228,9 +3240,9 @@ This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setti
 | Program     | `%systemroot%\system32\srmhost.exe` |
 | Service     | `SrmReports` |
 | Description | Inbound rule for the File Server Storage Reports Manager service to be remotely managed via RPC/TCP. |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### File and Printer Sharing (Spooler Service - RPC)
 
@@ -3289,6 +3301,6 @@ This rule is governed by the [EnableWSUS](#enablewsus) setting.
 | Port        | 22 |
 | Program     | `%SystemRoot%\system32\OpenSSH\sshd.exe` |
 | Description | Inbound rule for OpenSSH SSH Server (sshd) |
-| Remote Addresses | [Management Computers](#managementaddresses) |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
