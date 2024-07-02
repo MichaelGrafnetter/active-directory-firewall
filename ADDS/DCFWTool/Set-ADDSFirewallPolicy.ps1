@@ -159,6 +159,9 @@ class ScriptSettings {
     # Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed.
     [bool]             $EnableWebServer               = $true
     
+    # Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed.
+    [bool]             $EnableFSRMManagement          = $true
+
     # Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
     [bool]             $EnablePrintSpooler            = $true
 
@@ -1489,7 +1492,9 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Protocol TCP `
                     -LocalPort 80 `
                     -RemoteAddress Any `
-                    -Program 'System'
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
 
 # Create Inbound rule "World Wide Web Services (HTTPS Traffic-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1497,14 +1502,158 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -DisplayName 'World Wide Web Services (HTTPS Traffic-In)' `
                     -Group 'Secure World Wide Web Services (HTTPS)' `
                     -Description 'An inbound rule to allow HTTPS traffic for Internet Information Services (IIS) [TCP 443]' `
-                    -Enabled True `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWebServer) `
                     -Profile Any `
                     -Direction Inbound `
-                    -Action (ConvertTo-NetSecurityEnabled $configuration.EnableWebServer) `
+                    -Action Allow `
                     -Protocol TCP `
                     -LocalPort 443 `
                     -RemoteAddress Any `
-                    -Program 'System'
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Deployment Services (UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WDS-WdsServer-In-UDP' `
+                    -DisplayName 'Windows Deployment Services (UDP-In)' `
+                    -Group 'Windows Deployment Services' `
+                    -Description 'Inbound rule for Windows Deployment Services to allow UDP traffic.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWDS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort Any `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'WdsServer' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Deployment Services (RPC-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WDS-RPC-In-TCP' `
+                    -DisplayName 'Windows Deployment Services (RPC-In)' `
+                    -Group 'Windows Deployment Services' `
+                    -Description 'Inbound rule for Windows Deployment Services to allow RPC/TCP traffic.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWDS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'WdsServer' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Key Management Service (TCP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'SPPSVC-In-TCP' `
+                    -DisplayName 'Key Management Service (TCP-In)' `
+                    -Group 'Key Management Service' `
+                    -Description 'Inbound rule for the Key Management Service to allow for machine counting and license compliance. [TCP 1688]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableKMS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 1688 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\sppextcomobj.exe' `
+                    -Service 'sppsvc' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Remote File Server Resource Manager Management - FSRM Service (RPC-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FSRM-SrmSvc-In (RPC)' `
+                    -DisplayName 'Remote File Server Resource Manager Management - FSRM Service (RPC-In)' `
+                    -Group 'Remote File Server Resource Manager Management' `
+                    -Description 'Inbound rule for the File Server Resource Manager service to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableFSRMManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'SrmSvc' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FSRM-SrmReports-In (RPC)' `
+                    -DisplayName 'Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)' `
+                    -Group 'Remote File Server Resource Manager Management' `
+                    -Description 'Inbound rule for the File Server Storage Reports Manager service to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableFSRMManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\srmhost.exe' `
+                    -Service 'SrmReports' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "File and Printer Sharing (Spooler Service - RPC)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FPS-SpoolSvc-In-TCP' `
+                    -DisplayName 'File and Printer Sharing (Spooler Service - RPC)' `
+                    -Group 'File and Printer Sharing' `
+                    -Description 'Inbound rule for File and Printer Sharing to allow the Print Spooler Service to communicate via TCP/RPC.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnablePrintSpooler) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $allAddresses `
+                    -Program '%SystemRoot%\system32\spoolsv.exe' `
+                    -Service 'Spooler' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Server Update Services (HTTP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WSUS-In-HTTP' `
+                    -DisplayName 'Windows Server Update Services (HTTP-In)' `
+                    -Group 'Windows Server Update Services (WSUS)' `
+                    -Description 'Inbound rule for Windows Server Update Services to allow HTTP traffic. [TCP 8530]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWSUS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 8530 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
+
+# Create Inbound rule "Windows Server Update Services (HTTPS-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WSUS-In-HTTPS' `
+                    -DisplayName 'Windows Server Update Services (HTTPS-In)' `
+                    -Group 'Windows Server Update Services (WSUS)' `
+                    -Description 'Inbound rule for Windows Server Update Services to allow HTTPS traffic. [TCP 8531]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWSUS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 8531 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose `
+                    -ErrorAction Stop | Out-Null
 
 Write-Verbose -Message 'Saving the GPO changes...' -Verbose
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop

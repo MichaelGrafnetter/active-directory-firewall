@@ -1200,6 +1200,7 @@ It is essential to properly configure all the settings, do not use the samples f
   "EnableWDS": false,
   "EnableWebServer": false,
   "EnablePrintSpooler": false,
+  "EnableFSRMManagement": false,
   "EnableNetworkProtection": true,
   "BlockWmiCommandExecution": true,
   "EnableRpcFilters": true,
@@ -1848,6 +1849,18 @@ Possible values: true / false
 ### EnableWebServer
 
 Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+### EnableFSRMManagement
+
+Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed.
 
 ```yaml
 Type: Boolean
@@ -3138,6 +3151,132 @@ This rule is governed by the [EnableWebServer](#enablewebserver) setting.
 | Remote Addresses | Any |
 
 This rule is governed by the [EnableWebServer](#enablewebserver) setting.
+
+#### Windows Deployment Services (UDP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WDS-WdsServer-In-UDP |
+| Group       | Windows Deployment Services |
+| Direction   | Inbound |
+| Protocol    | UDP |
+| Port        | Any |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `WdsServer` |
+| Description | Inbound rule for Windows Deployment Services to allow UDP traffic. |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableWDS](#enablewds) setting.
+
+#### Windows Deployment Services (RPC-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WDS-RPC-In-TCP |
+| Group       | Windows Deployment Services |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `WdsServer` |
+| Description | Inbound rule for Windows Deployment Services to allow RPC/TCP traffic. |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableWDS](#enablewds) setting.
+
+#### Key Management Service (TCP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | SPPSVC-In-TCP |
+| Group       | Key Management Service |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 1688 |
+| Program     | `%SystemRoot%\system32\sppextcomobj.exe` |
+| Service     | `sppsvc` |
+| Description | Inbound rule for the Key Management Service to allow for machine counting and license compliance. [TCP 1688] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableKMS](#enablekms) setting.
+
+#### Remote File Server Resource Manager Management - FSRM Service (RPC-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | FSRM-SrmSvc-In (RPC) |
+| Group       | Remote File Server Resource Manager Management |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\svchost.exe` |
+| Service     | `SrmSvc` |
+| Description | Inbound rule for the File Server Resource Manager service to be remotely managed via RPC/TCP. |
+| Remote Addresses | [Management Computers](#managementaddresses) |
+
+This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+
+#### Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | FSRM-SrmReports-In (RPC) |
+| Group       | Remote File Server Resource Manager Management |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%systemroot%\system32\srmhost.exe` |
+| Service     | `SrmReports` |
+| Description | Inbound rule for the File Server Storage Reports Manager service to be remotely managed via RPC/TCP. |
+| Remote Addresses | [Management Computers](#managementaddresses) |
+
+This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+
+#### File and Printer Sharing (Spooler Service - RPC)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | FPS-SpoolSvc-In-TCP |
+| Group       | File and Printer Sharing |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | RPC |
+| Program     | `%SystemRoot%\system32\spoolsv.exe` |
+| Service     | `Spooler` |
+| Description | Inbound rule for File and Printer Sharing to allow the Print Spooler Service to communicate via TCP/RPC. |
+| Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnablePrintSpooler](#enableprintspooler) setting.
+
+#### Windows Server Update Services (HTTP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WSUS-In-HTTP |
+| Group       | Windows Server Update Services (WSUS) |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 8530 |
+| Program     | `System` |
+| Description | Inbound rule for Windows Server Update Services to allow HTTP traffic. [TCP 8530] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableWSUS](#enablewsus) setting.
+
+#### Windows Server Update Services (HTTPS-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | WSUS-In-HTTPS |
+| Group       | Windows Server Update Services (WSUS) |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 8531 |
+| Program     | `System` |
+| Description | Inbound rule for Windows Server Update Services to allow HTTPS traffic. [TCP 8531] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableWSUS](#enablewsus) setting.
 
 #### OpenSSH SSH Server (sshd)
 

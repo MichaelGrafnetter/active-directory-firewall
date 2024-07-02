@@ -42,6 +42,7 @@
     "EnableWSUS": false,
     "EnableWDS": false,
     "EnableWebServer": false,
+    "EnableFSRMManagement": false,
     "EnablePrintSpooler": false,
     "EnableNetworkProtection": true,
     "BlockWmiCommandExecution": true,

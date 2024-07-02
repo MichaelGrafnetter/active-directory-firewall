@@ -449,6 +449,11 @@
         "default": true,
         "description": "Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed."
       },
+      "EnableFSRMManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed."
+      },
       "EnablePrintSpooler": {
         "type": "boolean",
         "default": true,
