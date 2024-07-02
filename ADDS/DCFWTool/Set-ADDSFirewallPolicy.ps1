@@ -9,7 +9,7 @@ Specifies the name of the configuration file from which some firewall settings a
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 1.0
+Version: 2.0
 
 #>
 
@@ -38,6 +38,9 @@ class ScriptSettings {
 
     # The comment that will be added to the Group Policy Object (GPO).
     [string]           $GroupPolicyObjectComment      = 'This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.'
+
+    # The domain in which the Group Policy Object (GPO) will be created or updated.
+    [string]           $TargetDomain                  = $null
 
     # Indicates whether the packets dropped by the firewall should be logged.
     [bool]             $LogDroppedPackets             = $false
@@ -86,6 +89,9 @@ class ScriptSettings {
 
     # Indicates whether the Multicast DNS (mDNS) client should be disabled.
     [Nullable[bool]]   $DisableMDNS                   = $null
+
+    # Indicates whether management traffic from other domain controllers should be blocked.
+    [bool]             $BlockManagementFromDomainControllers = $false
 
     # Indicates whether remote service management should be enabled.
     [bool]             $EnableServiceManagement       = $true
@@ -140,6 +146,21 @@ class ScriptSettings {
 
     # Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed.
     [bool]             $EnableNPS                     = $true
+
+    # Indicates whether inbound Key Management Service (KMS) traffic should be allowed.
+    [bool]             $EnableKMS                     = $true
+
+    # Indicates whether inbound Windows Server Update Services (WSUS) traffic should be allowed.
+    [bool]             $EnableWSUS                    = $true
+    
+    # Indicates whether inbound Windows Deployment Services (WDS) traffic should be allowed.
+    [bool]             $EnableWDS                     = $true
+    
+    # Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed.
+    [bool]             $EnableWebServer               = $true
+    
+    # Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
+    [bool]             $EnablePrintSpooler            = $true
 
     # Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled.
     [Nullable[bool]]   $EnableNetworkProtection       = $null
@@ -214,7 +235,18 @@ if($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
 # Open the GPO
 # Note: The Open-NetGPO cmdlet by default contacts a random DC instead of PDC-E
 Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName) -Verbose
-[Microsoft.ActiveDirectory.Management.ADDomain] $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
+
+[Microsoft.ActiveDirectory.Management.ADDomain] $domain = $null
+
+if([string]::IsNullOrWhiteSpace($configuration.TargetDomain)) {
+    # Use the current domain if no target domain is specified
+    $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
+}
+else {
+    # Use the specified target domain
+    $domain = Get-ADDomain -Identity $configuration.TargetDomain -ErrorAction Stop
+}
+
 [string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $domain.PDCEmulator -ErrorAction Stop
 
 # Remove any pre-existing firewall rules
@@ -294,7 +326,7 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -ErrorAction Stop
 
 [string[]] $allAddresses =
-    ($configuration.ClientAddresses + $configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
+    @($configuration.ClientAddresses + $configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
     Sort-Object -Unique
 
 if($allAddresses -contains 'Any') {
@@ -302,17 +334,21 @@ if($allAddresses -contains 'Any') {
     $allAddresses = @('Any')
 }
 
-[string[]] $dcAndManagementAddresses =
-    ($configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
-    Sort-Object -Unique
+[string[]] $remoteManagementAddresses = $configuration.ManagementAddresses
 
-if($dcAndManagementAddresses -contains 'Any') {
+if(-not $configuration.BlockManagementFromDomainControllers) {
+    # Add the domain controller addresses to the remote management addresses
+    $remoteManagementAddresses = @($configuration.ManagementAddresses + $configuration.DomainControllerAddresses) |
+        Sort-Object -Unique
+}
+
+if($remoteManagementAddresses -contains 'Any') {
     # Consolidate the remote addresses
-    $dcAndManagementAddresses = @('Any')
+    $remoteManagementAddresses = @('Any')
 }
 
 [string[]] $radiusClientAndDomainControllerAddresses =
-    ($configuration.RadiusClientAddresses + $configuration.DomainControllerAddresses) |
+    @($configuration.RadiusClientAddresses + $configuration.DomainControllerAddresses) |
     Sort-Object -Unique
 
 if($radiusClientAndDomainControllerAddresses -contains 'Any') {
@@ -800,7 +836,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\System32\wins.exe' `
                     -Service 'WINS' `
                     -Verbose `
@@ -937,7 +973,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 9389 `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe' `
                     -Service 'adws' `
                     -Verbose `
@@ -955,7 +991,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 5985 `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -972,7 +1008,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 5986 `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program 'System' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -989,7 +1025,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort Any `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'winmgmt' `
                     -Verbose `
@@ -1007,7 +1043,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol UDP `
                     -LocalPort 3389 `
-                    -RemoteAddress $configuration.ManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'termservice' `
                     -Verbose `
@@ -1025,7 +1061,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 3389 `
-                    -RemoteAddress $configuration.ManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'termservice' `
                     -Verbose `
@@ -1043,7 +1079,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\dfsfrsHost.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -1060,7 +1096,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\System32\dns.exe' `
                     -Service 'dns' `
                     -Verbose `
@@ -1078,7 +1114,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\wbengine.exe' `
                     -Service 'wbengine' `
                     -Verbose `
@@ -1096,7 +1132,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort Any `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\plasrv.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -1113,7 +1149,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'Eventlog' `
                     -Verbose `
@@ -1131,7 +1167,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'schedule' `
                     -Verbose `
@@ -1149,7 +1185,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\services.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -1167,7 +1203,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\dllhost.exe' `
                     -Service 'COMSysApp' `
                     -Verbose `
@@ -1185,7 +1221,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'policyagent' `
                     -Verbose `
@@ -1203,7 +1239,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\vds.exe' `
                     -Service 'vds' `
                     -Verbose `
@@ -1221,7 +1257,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\vdsldr.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -1238,7 +1274,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 22 `
-                    -RemoteAddress $configuration.ManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\OpenSSH\sshd.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
@@ -1345,7 +1381,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'dhcpserver' `
                     -Verbose `
@@ -1435,7 +1471,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort RPC `
-                    -RemoteAddress $dcAndManagementAddresses `
+                    -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\iashost.exe' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null

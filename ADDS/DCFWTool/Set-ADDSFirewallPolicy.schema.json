@@ -14,6 +14,11 @@
         "default": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
         "description": "The comment that will be added to the Group Policy Object (GPO)."
       },
+      "TargetDomain": {
+        "type": "string",
+        "default": null,
+        "description": "The domain in which the Group Policy Object (GPO) will be created or updated. This setting is only useful in multi-domain forests. If not specified, the script will attempt to determine the domain of the current user."
+      },
       "LogDroppedPackets": {
         "type": "boolean",
         "default": false,
@@ -329,6 +334,11 @@
         "default": null,
         "description": "Indicates whether the Multicast DNS (mDNS) client should be disabled."
       },
+      "BlockManagementFromDomainControllers": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether management traffic from other domain controllers should be blocked."
+      },
       "EnableServiceManagement": {
         "type": "boolean",
         "default": true,
@@ -418,6 +428,31 @@
         "type": "boolean",
         "default": true,
         "description": "Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed."
+      },
+      "EnableKMS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Key Management Service (KMS) traffic should be allowed."
+      },
+      "EnableWSUS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Windows Server Update Services (WSUS) traffic should be allowed."
+      },
+      "EnableWDS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Windows Deployment Services (WDS) traffic should be allowed."
+      },
+      "EnableWebServer": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed."
+      },
+      "EnablePrintSpooler": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed."
       },
       "EnableNetworkProtection": {
         "anyOf": [
