@@ -1476,6 +1476,36 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
+# Create Inbound rule "World Wide Web Services (HTTP Traffic-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'IIS-WebServerRole-HTTP-In-TCP' `
+                    -DisplayName 'World Wide Web Services (HTTP Traffic-In)' `
+                    -Group 'World Wide Web Services (HTTP)' `
+                    -Description 'An inbound rule to allow HTTP traffic for Internet Information Services (IIS) [TCP 80]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWebServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 80 `
+                    -RemoteAddress Any `
+                    -Program 'System'
+
+# Create Inbound rule "World Wide Web Services (HTTPS Traffic-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'IIS-WebServerRole-HTTPS-In-TCP' `
+                    -DisplayName 'World Wide Web Services (HTTPS Traffic-In)' `
+                    -Group 'Secure World Wide Web Services (HTTPS)' `
+                    -Description 'An inbound rule to allow HTTPS traffic for Internet Information Services (IIS) [TCP 443]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action (ConvertTo-NetSecurityEnabled $configuration.EnableWebServer) `
+                    -Protocol TCP `
+                    -LocalPort 443 `
+                    -RemoteAddress Any `
+                    -Program 'System'
+
 Write-Verbose -Message 'Saving the GPO changes...' -Verbose
 Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
 

@@ -25,7 +25,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
 
 '@ -f $PSItem.Name,
       $PSItem.DisplayName,
-      $PSItem.Group,
+      $PSItem.DisplayGroup,
       $PSItem.Description,
       $PSItem.Enabled,
       $PSItem.Profile,

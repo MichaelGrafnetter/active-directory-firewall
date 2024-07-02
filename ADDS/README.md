@@ -227,7 +227,7 @@ These keywords are briefly described in the [MS-FASP: Firewall and Advanced Secu
 
 The *Intranet* keyword is based on the Subnet definition from Active Directory Sites and Services. However, our tests have shown that the corresponding firewall rule scopes are not re-evaluated after adding or deleting a subnet. Even multiple server reboots do not seem to resolve this issue. Due to this unreliability, we have decided not to use the *Intranet* keyword in any firewall rules.
 
-![Subnets - The source for the Intranet keyword](../Images/Screenshots/firewall-keyword-Intranet.png)
+![Subnets - The source for the Intranet keyword](../Images/Screenshots/firewall-keyword-intranet.png)
 
 #### Internet
 
@@ -3108,6 +3108,36 @@ This rule is governed by the [EnableNPS](#enablenps) setting.
 | Remote Addresses | [Management Computers](#managementaddresses) |
 
 This rule is governed by the [EnableNPS](#enablenps) setting. The scope of this rule can further be managed by the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+
+#### World Wide Web Services (HTTP Traffic-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | IIS-WebServerRole-HTTP-In-TCP |
+| Group       | World Wide Web Services (HTTP) |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 80 |
+| Program     | `System` |
+| Description | An inbound rule to allow HTTP traffic for Internet Information Services (IIS) [TCP 80] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableWebServer](#enablewebserver) setting.
+
+#### World Wide Web Services (HTTPS Traffic-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | IIS-WebServerRole-HTTPS-In-TCP |
+| Group       | Secure World Wide Web Services (HTTPS) |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 443 |
+| Program     | `System` |
+| Description | An inbound rule to allow HTTPS traffic for Internet Information Services (IIS) [TCP 443] |
+| Remote Addresses | Any |
+
+This rule is governed by the [EnableWebServer](#enablewebserver) setting.
 
 #### OpenSSH SSH Server (sshd)
 

@@ -14,3 +14,5 @@ DHCP Server v6 (UDP-In),DHCP Server,UDP,547,,%systemroot%\system32\svchost.exe,d
 DHCP Server Failover (TCP-In),DHCP Server Management,TCP,647,,%systemroot%\system32\svchost.exe,dhcpserver,DC,An inbound rule to allow DHCP failover messages to the IPv4 Dynamic Host Configuration Protocol Server. [TCP 647]
 DHCP Server (RPC-In),DHCP Server Management,TCP,RPC,,%systemroot%\system32\svchost.exe,dhcpserver,Management,An inbound rule to allow traffic to allow RPC traffic for DHCP Server management.
 OpenSSH SSH Server (sshd),OpenSSH Server,TCP,22,,%SystemRoot%\system32\OpenSSH\sshd.exe,,Management,Inbound rule for OpenSSH SSH Server (sshd)
+World Wide Web Services (HTTP Traffic-In),World Wide Web Services (HTTP),TCP,80,,"System",,Client,An inbound rule to allow HTTP traffic for Internet Information Services (IIS) [TCP 80]
+World Wide Web Services (HTTPS Traffic-In),Secure World Wide Web Services (HTTPS),TCP,443,,"System",,Client,An inbound rule to allow HTTPS traffic for Internet Information Services (IIS) [TCP 443]
