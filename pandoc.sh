@@ -1,6 +1,6 @@
 #!/bin/sh
 
-alias pandock='docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra'
+alias pandock='docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.1.1'
 
 # Convert the Markdown file to PDF document using Pandoc
 # (This action is also performed automatically by GitHub actions when the README file is changed.)
