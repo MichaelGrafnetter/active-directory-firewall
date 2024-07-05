@@ -206,6 +206,38 @@ finally {
 
 #endregion Configuration
 
+#region Configuration Validation
+
+if($configuration.ManagementAddresses -contains 'Any' -or $configuration.DomainControllerAddresses -contains 'Any' -and -not $configuration.BlockManagementFromDomainControllers) {
+    Write-Warning -Message 'The current configuration allows management traffic from any IP address.'
+}
+
+if($configuration.EnableWINS -or $configuration.EnableDhcpServer -or $configuration.EnableNPS -or $configuration.EnableKMS -or $configuration.EnableWSUS -or $configuration.EnableWDS -or $configuration.EnableWebServer -or $configuration.EnableFSRMManagement) {
+    Write-Warning -Message 'It is not recommended to host additional Windows Server roles on Domain Controllers.'
+}
+
+if($configuration.EnablePrintSpooler) {
+    Write-Warning -Message 'The Print Spooler service should be disabled on Domain Controllers.'
+
+    if($configuration.EnableRpcFilters) {
+        Write-Warning -Message 'Older Windows clients use the SMB protocol to communicate with the Print Spooler service. RPC filters will block this traffic.'
+    }
+}
+
+if($configuration.EnableLegacyFileReplication) {
+    Write-Warning -Message 'The File Replication Service (FRS) is deprecated. Migration to Distributed File System Replication (DFSR) is highly recommended.'
+}
+
+if($configuration.EnableNetbiosNameService -or $configuration.EnableNetbiosDatagramService -or $configuration.EnableNetbiosSessionService -or -not $configuration.DisableNetbiosBroadcasts) {
+    Write-Warning -Message 'NetBIOS is a legacy protocol and should be disabled in modern networks.'
+}
+
+if(-not($configuration.DisableLLMNR -and $configuration.DisableMDNS -and $configuration.DisableNetbiosBroadcasts)) {
+    Write-Warning -Message 'Only the DNS protocol should be used for name resolution in modern networks.'
+}
+
+#endregion Configuration Validation
+
 #region Create and Configure the GPO
 
 # Try to fetch the target GPO
