@@ -236,6 +236,10 @@ if(-not($configuration.DisableLLMNR -and $configuration.DisableMDNS -and $config
     Write-Warning -Message 'Only the DNS protocol should be used for name resolution in modern networks.'
 }
 
+if(-not($configuration.LogMaxSizeKilobytes -ge 16384 -and $configuration.LogDroppedPackets -and $configuration.LogAllowedPackets)) {
+    Write-Warning -Message 'The firewall log settings do not meet the standardized security baselines.'
+}
+
 #endregion Configuration Validation
 
 #region Create and Configure the GPO
