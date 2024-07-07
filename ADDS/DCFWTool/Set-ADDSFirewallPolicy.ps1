@@ -9,7 +9,7 @@ Specifies the name of the configuration file from which some firewall settings a
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.0
+Version: 2.4
 
 #>
 
@@ -244,12 +244,31 @@ if(-not($configuration.LogMaxSizeKilobytes -ge 16384 -and $configuration.LogDrop
 
 #region Create and Configure the GPO
 
+[Microsoft.ActiveDirectory.Management.ADDomain] $domain = $null
+
+if([string]::IsNullOrWhiteSpace($configuration.TargetDomain)) {
+    # Use the current domain if no target domain is specified
+    $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
+}
+else {
+    # Use the specified target domain
+    $domain = Get-ADDomain -Identity $configuration.TargetDomain -ErrorAction Stop
+}
+
 # Try to fetch the target GPO
-[Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $configuration.GroupPolicyObjectName -ErrorAction SilentlyContinue
+[Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $configuration.GroupPolicyObjectName `
+                                           -Domain $domain.DNSRoot `
+                                           -Server $domain.PDCEmulator `
+                                           -ErrorAction SilentlyContinue
 
 if($null -eq $gpo) {
     # Create the GPO if it does not exist
-    $gpo = New-GPO -Name $configuration.GroupPolicyObjectName -Comment $configuration.GroupPolicyObjectComment -Verbose -ErrorAction Stop
+    $gpo = New-GPO -Name $configuration.GroupPolicyObjectName `
+                   -Comment $configuration.GroupPolicyObjectComment `
+                   -Domain $domain.DNSRoot `
+                   -Server $domain.PDCEmulator `
+                   -ErrorAction Stop `
+                   -Verbose -ErrorAction Stop
 }
 
 if($gpo.GpoStatus -ne [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled) {
@@ -274,17 +293,6 @@ if($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
 # Open the GPO
 # Note: The Open-NetGPO cmdlet by default contacts a random DC instead of PDC-E
 Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName) -Verbose
-
-[Microsoft.ActiveDirectory.Management.ADDomain] $domain = $null
-
-if([string]::IsNullOrWhiteSpace($configuration.TargetDomain)) {
-    # Use the current domain if no target domain is specified
-    $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
-}
-else {
-    # Use the specified target domain
-    $domain = Get-ADDomain -Identity $configuration.TargetDomain -ErrorAction Stop
-}
 
 [string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $domain.PDCEmulator -ErrorAction Stop
 
@@ -1705,6 +1713,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'DODownloadMode' `
                     -Value 99 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 # Set Allow Telemetry to Security [Enterprise Only]
@@ -1713,6 +1723,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'AllowTelemetry' `
                     -Value 0 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 # Turn off Application Telemetry
@@ -1721,6 +1733,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'AITEnable' `
                     -Value 0 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 <#
@@ -1747,6 +1761,8 @@ if($null -ne $configuration.EnableNetworkProtection) {
                         -ValueName 'EnableNetworkProtection' `
                         -Value $networkProtectionState `
                         -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
                         -Verbose | Out-Null
                             
     Set-GPRegistryValue -Guid $gpo.Id `
@@ -1754,18 +1770,24 @@ if($null -ne $configuration.EnableNetworkProtection) {
                         -ValueName 'AllowNetworkProtectionOnWinServer' `
                         -Value 1 `
                         -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
                         -Verbose | Out-Null
 } else {
     # Remove the Network Protection settings
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
                            -ValueName 'EnableNetworkProtection' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
     
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
                            -ValueName 'AllowNetworkProtectionOnWinServer' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 }
@@ -1787,6 +1809,8 @@ if($null -ne $configuration.BlockWmiCommandExecution) {
                         -ValueName 'ExploitGuard_ASR_Rules' `
                         -Value 1 `
                         -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
                         -Verbose | Out-Null
 
     Set-GPRegistryValue -Guid $gpo.Id `
@@ -1794,6 +1818,8 @@ if($null -ne $configuration.BlockWmiCommandExecution) {
                         -ValueName 'd1e49aac-8f56-4280-b9ba-993a6d77406c' `
                         -Value $blockPsExecAndWmi.ToString() `
                         -Type String `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
                         -Verbose | Out-Null
     
     Set-GPRegistryValue -Guid $gpo.Id `
@@ -1801,24 +1827,32 @@ if($null -ne $configuration.BlockWmiCommandExecution) {
                         -ValueName 'e6db77e5-3df2-4cf1-b95a-636979351e5b' `
                         -Value $blockPsExecAndWmi.ToString() `
                         -Type String `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
                         -Verbose | Out-Null
 } else {
     # Remove the ASR settings
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR' `
                            -ValueName 'ExploitGuard_ASR_Rules' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
                            -ValueName 'd1e49aac-8f56-4280-b9ba-993a6d77406c' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
                            -ValueName 'e6db77e5-3df2-4cf1-b95a-636979351e5b' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 }
@@ -1830,6 +1864,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'EnableICMPRedirect' `
                     -Value 0 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 # MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
@@ -1839,6 +1875,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'DisableIPSourceRouting' `
                     -Value 2 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 # MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)	
@@ -1848,6 +1886,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'DisableIPSourceRouting' `
                     -Value 2 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 # Disable MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)
@@ -1857,6 +1897,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'PerformRouterDiscovery' `
                     -Value 0 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 # MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers
@@ -1866,6 +1908,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -ValueName 'NoNameReleaseOnDemand' `
                     -Value 1 `
                     -Type DWord `
+                    -Domain $domain.DNSRoot `
+                    -Server $domain.PDCEmulator `
                     -Verbose | Out-Null
 
 if($null -ne $configuration.DisableNetbiosBroadcasts) {
@@ -1882,6 +1926,8 @@ if($null -ne $configuration.DisableNetbiosBroadcasts) {
                         -ValueName 'NodeType' `
                         -Value $nodeType `
                         -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
                         -Verbose | Out-Null
 
     # Configure NetBIOS settings
@@ -1896,59 +1942,130 @@ if($null -ne $configuration.DisableNetbiosBroadcasts) {
                         -ValueName 'EnableNetbios' `
                         -Value $enableNetbios `
                         -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
                         -Verbose | Out-Null
 } else {
     # Remove the NetBIOS-related settings
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\System\CurrentControlSet\Services\NetBT\Parameters' `
                            -ValueName 'NodeType' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
                            -ValueName 'EnableNetbios' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
                            -ErrorAction SilentlyContinue `
                            -Verbose | Out-Null
 }
 
 # Turn off Link-Local Multicast Name Resolution (LLMNR)
 if($configuration.DisableLLMNR -eq $true) {
-    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -Value 0 -Type DWord -Verbose | Out-Null
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
+                        -ValueName 'EnableMulticast' `
+                        -Value 0 `
+                        -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
+                        -Verbose | Out-Null
 } else {
-    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' -ValueName 'EnableMulticast' -ErrorAction SilentlyContinue -Verbose | Out-Null
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
+                           -ValueName 'EnableMulticast' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
 }
 
 # Turn off Multicast DNS (mDNS)
 # Note: This is not a managed GPO setting.
 if($null -ne $configuration.DisableMDNS) {
-    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -Value ([int](-not $configuration.DisableMDNS)) -Type DWord -Verbose | Out-Null
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' `
+                        -ValueName 'EnableMDNS' `
+                        -Value ([int](-not $configuration.DisableMDNS)) `
+                        -Type DWord -Verbose `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
+                        -Verbose | Out-Null
 } else {
-    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' -ValueName 'EnableMDNS' -ErrorAction SilentlyContinue -Verbose | Out-Null
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' `
+                           -ValueName 'EnableMDNS' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
 }
 
 # Configure the DRS-R protocol to use a specific port
 # Note: This is not a managed GPO setting.
 if($null -ne $configuration.NtdsStaticPort) {
-    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -Value ([int] $configuration.NtdsStaticPort) -Type DWord -Verbose | Out-Null
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' `
+                        -ValueName 'TCP/IP Port' `
+                        -Value ([int] $configuration.NtdsStaticPort) `
+                        -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
+                        -Verbose | Out-Null
 } else {
-    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' -ValueName 'TCP/IP Port' -ErrorAction SilentlyContinue -Verbose | Out-Null
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' `
+                           -ValueName 'TCP/IP Port' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
 }
 
 # Configure the NETLOGON protocol to use a specific port
 # Note: This is not a managed GPO setting.
 if($null -ne $configuration.NetlogonStaticPort) {
-    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -Value ([int] $configuration.NetlogonStaticPort) -Type DWord -Verbose | Out-Null
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' `
+                        -ValueName 'DCTcpipPort' `
+                        -Value ([int] $configuration.NetlogonStaticPort) `
+                        -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
+                        -Verbose | Out-Null
 } else {
-    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' -ValueName 'DCTcpipPort' -ErrorAction SilentlyContinue -Verbose | Out-Null
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' `
+                           -ValueName 'DCTcpipPort' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
 }
 
 # Configure the FRS protocol to use a specific port
 # Note: This is not a managed GPO setting.
 if($null -ne $configuration.FrsStaticPort) {
-    Set-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTFRS\Parameters' -ValueName 'RPC TCP/IP Port Assignment' -Value ([int] $configuration.FrsStaticPort) -Type DWord -Verbose | Out-Null
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTFRS\Parameters' `
+                        -ValueName 'RPC TCP/IP Port Assignment' `
+                        -Value ([int] $configuration.FrsStaticPort) `
+                        -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $domain.PDCEmulator `
+                        -Verbose | Out-Null
 } else {
-    Remove-GPRegistryValue -Guid $gpo.Id -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTFRS\Parameters' -ValueName 'RPC TCP/IP Port Assignment' -ErrorAction SilentlyContinue -Verbose | Out-Null
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTFRS\Parameters' `
+                           -ValueName 'RPC TCP/IP Port Assignment' `
+                           -Domain $domain.DNSRoot `
+                           -Server $domain.PDCEmulator `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose | Out-Null
 }
 
 #endregion Registry Settings
