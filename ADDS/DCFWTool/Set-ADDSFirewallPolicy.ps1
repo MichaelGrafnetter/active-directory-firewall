@@ -1427,6 +1427,8 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -ErrorAction Stop | Out-Null
                     
 # Create Inbound rule "Network Policy Server (Legacy RADIUS Authentication - UDP-In)"
+# Note: To maintain compatibility with Windows Server 2016, the rule does not specifically
+#       target the 'ias' service running in the '%systemroot%\system32\svchost.exe' process. 
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'NPS-NPSSvc-In-UDP-1645' `
                     -DisplayName 'Network Policy Server (Legacy RADIUS Authentication - UDP-In)' `
@@ -1439,12 +1441,12 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Protocol UDP `
                     -LocalPort 1645 `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
 # Create Inbound rule "Network Policy Server (Legacy RADIUS Accounting - UDP-In)"
+# Note: To maintain compatibility with Windows Server 2016, the rule does not specifically
+#       target the 'ias' service running in the '%systemroot%\system32\svchost.exe' process. 
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'NPS-NPSSvc-In-UDP-1646' `
                     -DisplayName 'Network Policy Server (Legacy RADIUS Accounting - UDP-In)' `
@@ -1457,12 +1459,12 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Protocol UDP `
                     -LocalPort 1646 `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
 # Create Inbound rule "Network Policy Server (RADIUS Authentication - UDP-In)"
+# Note: To maintain compatibility with Windows Server 2016, the rule does not specifically
+#       target the 'ias' service running in the '%systemroot%\system32\svchost.exe' process. 
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'NPS-NPSSvc-In-UDP-1812' `
                     -DisplayName 'Network Policy Server (RADIUS Authentication - UDP-In)' `
@@ -1475,12 +1477,12 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Protocol UDP `
                     -LocalPort 1812 `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
 # Create Inbound rule "Network Policy Server (RADIUS Accounting - UDP-In)"
+# Note: To maintain compatibility with Windows Server 2016, the rule does not specifically
+#       target the 'ias' service running in the '%systemroot%\system32\svchost.exe' process. 
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'NPS-NPSSvc-In-UDP-1813' `
                     -DisplayName 'Network Policy Server (RADIUS Accounting - UDP-In)' `
@@ -1493,8 +1495,6 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Protocol UDP `
                     -LocalPort 1813 `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
                     -Verbose `
                     -ErrorAction Stop | Out-Null
 
