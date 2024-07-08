@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--  (c) 2024 Michael Grafnetter  -->
 <policyDefinitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.1" schemaVersion="1.0"
   xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" xsi:schemaLocation="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions ../../ADMXSchema/PolicyDefinitionFiles.xsd">
   <policyNamespaces>
     <target prefix="dsinternals" namespace="DSInternals.Policies.Firewall" />
     <using prefix="windows" namespace="Microsoft.Policies.Windows" />
     <using prefix="dnsclient" namespace="Microsoft.Policies.DNSClient" />
   </policyNamespaces>
-  <resources minRequiredRevision="1.0" />
+  <resources minRequiredRevision="1.1" />
   <categories>
     <category name="RPCStaticPorts" displayName="$(string.RPCStaticPorts)" />
   </categories>
@@ -53,6 +53,20 @@
       </disabledList>
       <elements>
         <decimal id="RPCStaticPorts_NTFRS_Value" valueName="RPC TCP/IP Port Assignment" required="true" minValue="1024" maxValue="49151" />
+      </elements>
+    </policy>
+    <policy name="RPCStaticPorts_CertSvc" class="Machine" displayName="$(string.RPCStaticPorts_CertSvc)" explainText="$(string.RPCStaticPorts_CertSvc_Help)" key="SOFTWARE\Classes\AppID\{D99E6E74-FC88-11D0-B498-00A0C90312F3}" presentation="$(presentation.RPCStaticPorts_CertSvc)">
+      <parentCategory ref="RPCStaticPorts" />
+      <supportedOn ref="windows:SUPPORTED_Win2k" />
+      <disabledList>
+        <item key="SOFTWARE\Classes\AppID\{D99E6E74-FC88-11D0-B498-00A0C90312F3}" valueName="Endpoints">
+          <value>
+            <delete />
+          </value>
+        </item>
+      </disabledList>
+      <elements>
+        <multiText id="RPCStaticPorts_CertSvc_Value" valueName="Endpoints" required="true" maxStrings="1" />
       </elements>
     </policy>
     <policy name="DNS_Turn_Off_MulticastDNS" class="Machine" displayName="$(string.DNS_Turn_Off_MulticastDNS)" explainText="$(string.DNS_Turn_Off_MulticastDNS_Help)" key="SYSTEM\CurrentControlSet\Services\DNSCache\Parameters" valueName="EnableMDNS">
