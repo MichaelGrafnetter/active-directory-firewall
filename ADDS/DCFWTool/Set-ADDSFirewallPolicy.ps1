@@ -247,8 +247,10 @@ if(-not($configuration.LogMaxSizeKilobytes -ge 16384 -and $configuration.LogDrop
 [Microsoft.ActiveDirectory.Management.ADDomain] $domain = $null
 
 if([string]::IsNullOrWhiteSpace($configuration.TargetDomain)) {
-    # Use the current domain if no target domain is specified
-    $domain = Get-ADDomain -Current LoggedOnUser -ErrorAction Stop
+    # Use the current domain if no target domain is specified.
+    # Detection of the current domain based on the local computer works well with RDP/WinRM connections
+    # to multiple domains made by Enterprise Admins.
+    $domain = Get-ADDomain -Current LocalComputer -ErrorAction Stop
 }
 else {
     # Use the specified target domain
