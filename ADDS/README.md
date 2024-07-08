@@ -1112,6 +1112,16 @@ The script will register all RPC filters defined in `RpcNamedPipesFilters.txt` f
 netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85-D29FEBDFF6D6}\Machine\Scripts\Startup\RpcNamedPipesFilters.txt"
 ```
 
+### NPS Fix for Downlevel Windows Servers
+
+Windows Server 2016 and 2019
+
+[EnableNPS](#enablenps)
+
+```bat
+sc.exe sidtype IAS unrestricted
+```
+
 #### Sample Startup Script
 
 ```shell
@@ -1134,6 +1144,9 @@ netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\lo
 
 echo Register the RPC filters.
 netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
+
+echo Fix the NPS service to work with Windows Firewall on downlevel Windows Server versions.
+sc.exe sidtype IAS unrestricted
 ```
 
 ## Configuration
@@ -1989,14 +2002,17 @@ Changes to some settings require a reboot of the target domain controller to get
 - [WmiStaticPort](#wmistaticport)
 - [EnableRpcFilters](#enablerpcfilters)
 - [LogFilePath](#logfilepath)
+- [EnableNPS](#enablenps)
 
 If a full system reboot of all domain controllers is undesirable, the following steps can be performed instead:
 
 1. Make sure that the Group Policy changes are replicated to all domain controllers.
 2. Invoke the `gpupdate.exe` command for the changed policies to be applied immediately.
 3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
-4. Execute the `net.exe stop ntds && net.exe start ntds` command to restart the AD DS Domain Controller service.
-5. Repeat steps 2-4 on all domain controllers.
+4. Execute the `net.exe stop NTDS && net.exe start NTDS` command to restart the AD DS Domain Controller service.
+5. Execute the `net.exe stop IAS && net.exe start IAS` command to restart the Network Policy Server service, if present.
+6. Execute the `net.exe stop NtFrs && net.exe start NtFrs` command to restart the File Replication service, if migration to DFS-R has not been performed yet.
+7. Repeat steps 2-6 on all domain controllers.
 
 ### Installation
 
