@@ -17,6 +17,7 @@
       "TargetDomain": {
         "type": "string",
         "default": null,
+        "examples": [ "contoso.com" ],
         "description": "The domain in which the Group Policy Object (GPO) will be created or updated. This setting is only useful in multi-domain forests. If not specified, the script will attempt to determine the domain of the current user."
       },
       "LogDroppedPackets": {
