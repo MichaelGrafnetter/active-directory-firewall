@@ -1,15 +1,24 @@
 <#
 .SYNOPSIS
-Creates a Group Policy Object (GPO) that configures the Windows Firewall for Domain Controllers (DCs).
+Creates or modifies a Group Policy Object (GPO) that configures the Windows Firewall for Domain Controllers (DCs).
 
 .DESCRIPTION
 
 .PARAMETER ConfigurationFileName
 Specifies the name of the configuration file from which some firewall settings are applied.
 
+.EXAMPLE
+PS> .\Set-ADDSFirewallPolicy.ps1 -Verbose
+
+.EXAMPLE
+PS> .\Set-ADDSFirewallPolicy.ps1 -ConfigurationFileName Set-ADDSFirewallPolicy.Contoso.json -Verbose
+
+.LINK
+Online documentation: https://github.com/MichaelGrafnetter/active-directory-firewall
+
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.4
+Version: 2.5
 
 #>
 
@@ -26,8 +35,17 @@ param(
 # Apply additional runtime validation
 Set-StrictMode -Version Latest -ErrorAction Stop
 
+# Stop script execution if any error occurs, to be on the safe side.
+# Overrides the -ErrorAction parameter of all cmdlets.
+$script:ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+
+# Not all cmdlets inherit the -Verbose parameter, so we need to explicitly override it.
+[bool] $isVerbose = $VerbosePreference -eq [System.Management.Automation.ActionPreference]::Continue
+
 # Preload the required modules
-Import-Module -Name NetSecurity,GroupPolicy,ActiveDirectory -ErrorAction Stop
+# Ignore any warnings, including 'Unable to find a default server with Active Directory Web Services running.'
+# Suppress the verbosity for module loading
+Import-Module -Name NetSecurity,GroupPolicy,ActiveDirectory -WarningAction SilentlyContinue -Verbose:$false
 
 #region Configuration
 
@@ -55,16 +73,16 @@ class ScriptSettings {
     [uint16]           $LogMaxSizeKilobytes           = [int16]::MaxValue
 
     # List of client IP adresses from which inbound traffic should be allowed.
-    [string[]]         $ClientAddresses               = 'Any'
+    [string[]]         $ClientAddresses               = @('Any')
 
     # List of IP addresses from which inbound management traffic should be allowed.
-    [string[]]         $ManagementAddresses           = 'Any'
+    [string[]]         $ManagementAddresses           = @('Any')
 
-    # List of domain controller IP addresses, between which replication and management traffic will be allowed.
-    [string[]]         $DomainControllerAddresses     = 'Any'
+    # List of domain controller IP addresses, between which replication and optionally management traffic should be allowed.
+    [string[]]         $DomainControllerAddresses     = @('Any')
 
     # List of RADIUS client IP adresses from which inbound traffic should be allowed.
-    [string[]]         $RadiusClientAddresses         = 'Any'
+    [string[]]         $RadiusClientAddresses         = @('Any')
 
     # Static port to be used for inbound Active Directory RPC traffic.
     [Nullable[uint16]] $NtdsStaticPort                = $null
@@ -176,12 +194,15 @@ class ScriptSettings {
 
     # Indicates whether local IPSec rules should be enabled.
     [bool]             $EnableLocalIPsecRules         = $true
+
+    # Specifies the name(s) of additional script file(s) containing firewall rules that will be imported into the Group Policy Object (GPO).
+    [string[]]         $CustomRuleFileNames           = $null
 }
 
 [ScriptSettings] $configuration = [ScriptSettings]::new()
 
 # Load the configuration from the JSON file
-[string] $configurationFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ConfigurationFileName -ErrorAction Stop
+[string] $configurationFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ConfigurationFileName
 
 [bool] $configurationFileExists = Test-Path -Path $configurationFilePath -PathType Leaf
 
@@ -191,6 +212,7 @@ if(-not $configurationFileExists) {
     throw [System.IO.FileNotFoundException]::new($message, $ConfigurationFileName)
 }
 
+Write-Verbose -Message "Reading the $ConfigurationFileName configuration file."
 [System.Runtime.Serialization.Json.DataContractJsonSerializer] $serializer = [System.Runtime.Serialization.Json.DataContractJsonSerializer]::new([ScriptSettings])
 [System.IO.FileStream] $stream = [System.IO.File]::Open($configurationFilePath, [System.IO.FileMode]::Open)
 try {
@@ -250,17 +272,20 @@ if([string]::IsNullOrWhiteSpace($configuration.TargetDomain)) {
     # Use the current domain if no target domain is specified.
     # Detection of the current domain based on the local computer works well with RDP/WinRM connections
     # to multiple domains made by Enterprise Admins.
-    $domain = Get-ADDomain -Current LocalComputer -ErrorAction Stop
+    $domain = Get-ADDomain -Current LocalComputer
 }
 else {
     # Use the specified target domain
-    $domain = Get-ADDomain -Identity $configuration.TargetDomain -ErrorAction Stop
+    $domain = Get-ADDomain -Identity $configuration.TargetDomain
 }
+
+# To avoid potential replication conflicts, GPOs should only be edited on the PDC Emulator.
+[string] $targetDomainController = $domain.PDCEmulator
 
 # Try to fetch the target GPO
 [Microsoft.GroupPolicy.Gpo] $gpo = Get-GPO -Name $configuration.GroupPolicyObjectName `
                                            -Domain $domain.DNSRoot `
-                                           -Server $domain.PDCEmulator `
+                                           -Server $targetDomainController `
                                            -ErrorAction SilentlyContinue
 
 if($null -eq $gpo) {
@@ -268,24 +293,73 @@ if($null -eq $gpo) {
     $gpo = New-GPO -Name $configuration.GroupPolicyObjectName `
                    -Comment $configuration.GroupPolicyObjectComment `
                    -Domain $domain.DNSRoot `
-                   -Server $domain.PDCEmulator `
-                   -ErrorAction Stop `
-                   -Verbose -ErrorAction Stop
+                   -Server $targetDomainController `
+                   -Verbose:$isVerbose
 }
 
 if($gpo.GpoStatus -ne [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled) {
     # Fix the GPO status
-    Write-Verbose -Message ('Disabling user settings for GPO {0}.' -f $gpo.DisplayName) -Verbose
+    Write-Verbose -Message ('Disabling user settings for GPO {0}.' -f $gpo.DisplayName)
     $gpo.GpoStatus = [Microsoft.GroupPolicy.GpoStatus]::UserSettingsDisabled
 }
 
 if($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
     # Fix the GPO description
-    Write-Verbose -Message ('Updating the description for GPO {0}.' -f $gpo.DisplayName) -Verbose
+    Write-Verbose -Message ('Updating the description for GPO {0}.' -f $gpo.DisplayName)
     $gpo.Description = $configuration.GroupPolicyObjectComment
 }
 
 #endregion Create and configure the GPO
+
+#region Helper Functions
+
+<#
+.SYNOPSIS
+Converts a boolean value to a NetSecurity.GpoBoolean enumeration value, which is accepted by the Set-NetFirewallProfile cmdlet.
+
+.PARAMETER Value
+The boolean value to convert.
+
+#>
+function ConvertTo-GpoBoolean {
+    [OutputType([Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean])]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [bool] $Value
+    )
+
+    if($Value) {
+        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
+    }
+    else {
+        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
+    }
+}
+
+<#
+.SYNOPSIS
+Converts a boolean value to a NetSecurity.Enabled enumeration value, which is accepted by the New-NetFirewallRule cmdlet.
+
+.PARAMETER Value
+The boolean value to convert.
+
+#>
+function ConvertTo-NetSecurityEnabled {
+    [OutputType([Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled])]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [bool] $Value
+    )
+
+    if($Value) {
+        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled]::True
+    }
+    else {
+        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled]::False
+    }
+}
+
+#endregion Helper Functions
 
 #region Firewall Profiles
 
@@ -294,9 +368,9 @@ if($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
 
 # Open the GPO
 # Note: The Open-NetGPO cmdlet by default contacts a random DC instead of PDC-E
-Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName) -Verbose
+Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName)
 
-[string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $domain.PDCEmulator -ErrorAction Stop
+[string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $targetDomainController
 
 # Remove any pre-existing firewall rules
 # Note: As Microsoft removed the -GPOSession parameter from the Remove-NetFirewallRule in Windows Server 2022, low-level CIM operations need to be used instead.
@@ -307,7 +381,7 @@ Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName) -Verbose
 $cimOperationOptions.SetCustomOption('GPOSession', $gpoSession, $false)
 
 # Open a temporary local CIM session
-[CimSession] $localSession = New-CimSession -ErrorAction Stop
+[CimSession] $localSession = New-CimSession -Verbose:$false
 
 try {
     # Fetch all firewall rules from the GPO
@@ -315,7 +389,7 @@ try {
 
     # Remove all firewall rules from the GPO
     foreach($rule in $gpoFirewallRules) {
-        Write-Verbose -Message ('Deleting firewall rule {0}.' -f $rule.Name) -Verbose
+        Write-Verbose -Message ('Deleting firewall rule {0}.' -f $rule.Name)
         $localSession.DeleteInstance('ROOT\StandardCimv2', $rule, $cimOperationOptions)
     }
 }
@@ -324,35 +398,11 @@ finally {
     Remove-CimSession -CimSession $localSession -ErrorAction SilentlyContinue
 }
 
-# Determine the dropped packet logging settings
-[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logBlocked =
-    [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
-
-if($configuration.LogDroppedPackets) {
-    $logBlocked = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
-}
-
-# Determine the allowed packet logging settings
-[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $logAllowed =
-    [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
-
-if($configuration.LogAllowedPackets) {
-    $logAllowed = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
-}
-
 # Sanitize the maximum log file size
 if($configuration.LogMaxSizeKilobytes -gt [int16]::MaxValue -or $configuration.LogMaxSizeKilobytes -le 0) {
     # Windows only accepts 1KB-32MB as the maximum log file size.
+    Write-Warning -Message 'The LogMaxSizeKilobytes value is out of the supported range. Setting it to the value of 32MB.'
     $configuration.LogMaxSizeKilobytes = [int16]::MaxValue # = 32MB
-}
-
-# Determine if local IPSec rules should be enabled
-# Note: This is here only for compliace, as we are not configuring IPSec rules in this script.
-[Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean] $allowLocalIPsecRules =
-    [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::False
-
-if($configuration.EnableLocalIPsecRules) {
-    $allowLocalIPsecRules = [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.GpoBoolean]::True
 }
 
 # Configure all firewall profiles (Domain, Private, and Public)
@@ -363,16 +413,14 @@ Set-NetFirewallProfile -GPOSession $gpoSession `
                        -DefaultInboundAction Block `
                        -DefaultOutboundAction Allow `
                        -AllowLocalFirewallRules False `
-                       -AllowLocalIPsecRules $allowLocalIPsecRules `
+                       -AllowLocalIPsecRules (ConvertTo-GpoBoolean -Value $configuration.EnableLocalIPsecRules) `
                        -AllowUnicastResponseToMulticast False `
                        -NotifyOnListen False `
                        -LogFileName $configuration.LogFilePath `
                        -LogMaxSizeKilobytes $configuration.LogMaxSizeKilobytes `
-                       -LogBlocked $logBlocked `
-                       -LogAllowed $logAllowed `
-                       -LogIgnored False `
-                       -Verbose `
-                       -ErrorAction Stop
+                       -LogBlocked (ConvertTo-GpoBoolean -Value $configuration.LogDroppedPackets) `
+                       -LogAllowed (ConvertTo-GpoBoolean -Value $configuration.LogAllowedPackets) `
+                       -LogIgnored False
 
 [string[]] $allAddresses =
     @($configuration.ClientAddresses + $configuration.DomainControllerAddresses + $configuration.ManagementAddresses) |
@@ -407,33 +455,6 @@ if($radiusClientAndDomainControllerAddresses -contains 'Any') {
 
 #endregion Firewall Profiles
 
-#region Helper Functions
-
-<#
-.SYNOPSIS
-Converts a boolean value to a NetSecurity.Enabled enumeration value, which is accepted by the New-NetFirewallRule cmdlet.
-
-.PARAMETER Value
-The boolean value to convert.
-
-#>
-function ConvertTo-NetSecurityEnabled {
-    [OutputType([Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled])]
-    param(
-        [Parameter(Mandatory = $true, Position = 0)]
-        [bool] $Value
-    )
-
-    if($Value) {
-        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled]::True
-    }
-    else {
-        return [Microsoft.PowerShell.Cmdletization.GeneratedTypes.NetSecurity.Enabled]::False
-    }
-}
-
-#endregion Helper Functions
-
 #region Inbound Firewall Rules
 
 # Create Inbound rule "Active Directory Domain Controller - W32Time (NTP-UDP-In)"
@@ -452,8 +473,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\svchost.exe' `
                     -Service 'w32time' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller (RPC-EPMAP)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -470,8 +490,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'rpcss' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Kerberos Key Distribution Center - PCR (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -487,8 +506,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 464 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Kerberos Key Distribution Center - PCR (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -504,8 +522,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 464 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -521,8 +538,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort RPC `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - LDAP (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -538,8 +554,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 389 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - LDAP (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -555,8 +570,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 389 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - Secure LDAP (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -572,8 +586,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 636 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - LDAP for Global Catalog (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -589,8 +602,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 3268 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - Secure LDAP for Global Catalog (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -606,8 +618,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 3269 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DNS (UDP, Incoming)"
 # As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
@@ -625,8 +636,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%systemroot%\System32\dns.exe' `
                     -Service 'dns' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DNS (TCP, Incoming)"
 # As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
@@ -644,8 +654,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%systemroot%\System32\dns.exe' `
                     -Service 'dns' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "File Replication (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -662,8 +671,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%SystemRoot%\system32\NTFRS.exe' `
                     -Service 'NTFRS' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Kerberos Key Distribution Center (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -679,8 +687,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 88 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Kerberos Key Distribution Center (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -696,8 +703,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 88 `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\System32\lsass.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - SAM/LSA (NP-UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -713,8 +719,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 445 `
                     -RemoteAddress $allAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - SAM/LSA (NP-TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -730,8 +735,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 445 `
                     -RemoteAddress $allAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DFS Replication (RPC-In)"
 # Note that a static port 5722 was used before Windows Server 2012
@@ -749,8 +753,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%SystemRoot%\system32\dfsrs.exe' `
                     -Service 'Dfsr' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - Echo Request (ICMPv4-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -766,8 +769,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 8 `
                     -RemoteAddress $allAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - Echo Request (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -783,8 +785,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 128 `
                     -RemoteAddress $allAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Active Directory Domain Controller - NetBIOS name resolution (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -800,8 +801,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 138 `
                     -RemoteAddress $allAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "File and Printer Sharing (NB-Name-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -817,8 +817,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 137 `
                     -RemoteAddress $allAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "File and Printer Sharing (NB-Session-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -834,8 +833,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 139 `
                     -RemoteAddress $allAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Internet Naming Service (WINS) (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -852,8 +850,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $allAddresses `
                     -Program '%SystemRoot%\System32\wins.exe' `
                     -Service 'WINS' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Internet Naming Service (WINS) (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -870,8 +867,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $allAddresses `
                     -Program '%SystemRoot%\System32\wins.exe' `
                     -Service 'WINS' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Internet Naming Service (WINS) - Remote Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -888,8 +884,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\System32\wins.exe' `
                     -Service 'WINS' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Core Networking - Destination Unreachable (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -905,8 +900,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 1 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -922,8 +916,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 3:4 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -939,8 +932,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 136 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -956,8 +948,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 135 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Core Networking - Packet Too Big (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -973,8 +964,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 2 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Core Networking - Parameter Problem (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -990,8 +980,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 4 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Core Networking - Time Exceeded (ICMPv6-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1007,8 +996,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -IcmpType 3 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
                    
 # Create Inbound rule "Active Directory Web Services (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1025,8 +1013,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe' `
                     -Service 'adws' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Remote Management (HTTP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1042,8 +1029,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 5985 `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Remote Management (HTTPS-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1059,8 +1045,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 5986 `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Management Instrumentation (WMI-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1077,8 +1062,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'winmgmt' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote Desktop - User Mode (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1095,8 +1079,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'termservice' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote Desktop - User Mode (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1113,8 +1096,24 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'termservice' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
+
+# Create Inbound rule "Remote Desktop (TCP-In)"
+# Note: This redundant rule is created for backward compatibility with Windows Server 2008 R2 and earlier.
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteDesktop-In-TCP' `
+                    -DisplayName 'Remote Desktop (TCP-In)' `
+                    -Group 'Remote Desktop' `
+                    -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableRemoteDesktop) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 3389 `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program 'System' `
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DFS Management (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1130,8 +1129,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort RPC `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\dfsfrsHost.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "RPC (TCP, Incoming)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1148,8 +1146,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\System32\dns.exe' `
                     -Service 'dns' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Backup (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1166,8 +1163,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\wbengine.exe' `
                     -Service 'wbengine' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Performance Logs and Alerts (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1183,8 +1179,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort Any `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\plasrv.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote Event Log Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1201,8 +1196,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'Eventlog' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote Scheduled Tasks Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1219,8 +1213,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'schedule' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote Service Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1236,8 +1229,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort RPC `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\services.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "COM+ Remote Administration (DCOM-In)"
 # This rule is required for remote connections using the Computer Management console.
@@ -1255,8 +1247,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\dllhost.exe' `
                     -Service 'COMSysApp' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Defender Firewall Remote Management (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1273,8 +1264,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\svchost.exe' `
                     -Service 'policyagent' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote Volume Management - Virtual Disk Service (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1291,8 +1281,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\vds.exe' `
                     -Service 'vds' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote Volume Management - Virtual Disk Service Loader (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1308,8 +1297,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort RPC `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\vdsldr.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "OpenSSH SSH Server (sshd)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1325,8 +1313,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 22 `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%SystemRoot%\system32\OpenSSH\sshd.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DHCP Server v4 (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1343,8 +1330,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'dhcpserver' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DHCP Server v4 (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1361,8 +1347,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'dhcpserver' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DHCP Server v6 (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1379,8 +1364,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'dhcpserver' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DHCP Server v6 (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1397,8 +1381,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'dhcpserver' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DHCP Server Failover (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1415,8 +1398,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $configuration.DomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'dhcpserver' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "DHCP Server (RPC-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1433,8 +1415,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'dhcpserver' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
                     
 # Create Inbound rule "Network Policy Server (Legacy RADIUS Authentication - UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1451,8 +1432,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Network Policy Server (Legacy RADIUS Accounting - UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1469,8 +1449,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Network Policy Server (RADIUS Authentication - UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1487,8 +1466,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Network Policy Server (RADIUS Accounting - UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1505,8 +1483,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $radiusClientAndDomainControllerAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'ias' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Network Policy Server (RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1522,8 +1499,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort RPC `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\iashost.exe' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "World Wide Web Services (HTTP Traffic-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1539,8 +1515,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 80 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "World Wide Web Services (HTTPS Traffic-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1556,8 +1531,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 443 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Deployment Services (UDP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1574,8 +1548,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'WdsServer' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Deployment Services (RPC-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1592,8 +1565,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $allAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'WdsServer' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Key Management Service (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1610,8 +1582,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program '%SystemRoot%\system32\sppextcomobj.exe' `
                     -Service 'sppsvc' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote File Server Resource Manager Management - FSRM Service (RPC-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1628,8 +1599,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\svchost.exe' `
                     -Service 'SrmSvc' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1646,8 +1616,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $remoteManagementAddresses `
                     -Program '%systemroot%\system32\srmhost.exe' `
                     -Service 'SrmReports' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "File and Printer Sharing (Spooler Service - RPC)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1664,8 +1633,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress $allAddresses `
                     -Program '%SystemRoot%\system32\spoolsv.exe' `
                     -Service 'Spooler' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Server Update Services (HTTP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1681,8 +1649,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 8530 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Windows Server Update Services (HTTPS-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
@@ -1698,11 +1665,33 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -LocalPort 8531 `
                     -RemoteAddress Any `
                     -Program 'System' `
-                    -Verbose `
-                    -ErrorAction Stop | Out-Null
+                    -Verbose:$isVerbose > $null
 
-Write-Verbose -Message 'Saving the GPO changes...' -Verbose
-Save-NetGPO -GPOSession $gpoSession -ErrorAction Stop
+# Import custom firewall rules from script files
+foreach($ruleFileName in $configuration.CustomRuleFileNames) {
+    [string] $ruleFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ruleFileName
+
+    [bool] $ruleFileExists = Test-Path -Path $ruleFilePath -PathType Leaf
+
+    if($ruleFileExists) {
+        Write-Verbose -Message "Importing custom firewall rules from '$ruleFilePath'..."
+        # Execute the custom rule script file, while suppressing any output.
+        & $ruleFilePath -GPOSession $gpoSession `
+                        -DomainControllerAddresses $configuration.DomainControllerAddresses `
+                        -RemoteManagementAddresses $remoteManagementAddresses `
+                        -AllAddresses $allAddresses > $null
+    } else {
+        [System.Exception] $ex = [System.IO.FileNotFoundException]::new('Could not locate the custom rule file.', $ruleFilePath)
+        Write-Error -Exception $ex `
+                    -Category OpenError `
+                    -ErrorId CustomRuleOpenError `
+                    -TargetObject $ruleFilePath
+    }
+}
+
+# Commit the firewall-related GPO changes
+Write-Verbose -Message 'Saving the GPO changes...'
+Save-NetGPO -GPOSession $gpoSession
 
 #endregion Inbound Firewall Rules
 
@@ -1716,8 +1705,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 99 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 # Set Allow Telemetry to Security [Enterprise Only]
 Set-GPRegistryValue -Guid $gpo.Id `
@@ -1726,8 +1715,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 0 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 # Turn off Application Telemetry
 Set-GPRegistryValue -Guid $gpo.Id `
@@ -1736,8 +1725,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 0 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 <#
 TODO: Add more registry settings
@@ -1764,8 +1753,8 @@ if($null -ne $configuration.EnableNetworkProtection) {
                         -Value $networkProtectionState `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
                             
     Set-GPRegistryValue -Guid $gpo.Id `
                         -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
@@ -1773,25 +1762,25 @@ if($null -ne $configuration.EnableNetworkProtection) {
                         -Value 1 `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     # Remove the Network Protection settings
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
                            -ValueName 'EnableNetworkProtection' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
     
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection' `
                            -ValueName 'AllowNetworkProtectionOnWinServer' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 # Block process creations originating from PSExec and WMI commands
@@ -1812,8 +1801,8 @@ if($null -ne $configuration.BlockWmiCommandExecution) {
                         -Value 1 `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 
     Set-GPRegistryValue -Guid $gpo.Id `
                         -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
@@ -1821,8 +1810,8 @@ if($null -ne $configuration.BlockWmiCommandExecution) {
                         -Value $blockPsExecAndWmi.ToString() `
                         -Type String `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
     
     Set-GPRegistryValue -Guid $gpo.Id `
                         -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
@@ -1830,33 +1819,33 @@ if($null -ne $configuration.BlockWmiCommandExecution) {
                         -Value $blockPsExecAndWmi.ToString() `
                         -Type String `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     # Remove the ASR settings
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR' `
                            -ValueName 'ExploitGuard_ASR_Rules' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
                            -ValueName 'd1e49aac-8f56-4280-b9ba-993a6d77406c' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\ASR\Rules' `
                            -ValueName 'e6db77e5-3df2-4cf1-b95a-636979351e5b' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 # Disable MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes
@@ -1867,8 +1856,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 0 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 # MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
 # Note: This is not a managed GPO setting.
@@ -1878,8 +1867,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 2 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 # MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)	
 # Note: This is not a managed GPO setting.
@@ -1889,8 +1878,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 2 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 # Disable MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)
 # Note: This is not a managed GPO setting.
@@ -1900,8 +1889,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 0 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 # MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers
 # Note: This is not a managed GPO setting.
@@ -1911,8 +1900,8 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Value 1 `
                     -Type DWord `
                     -Domain $domain.DNSRoot `
-                    -Server $domain.PDCEmulator `
-                    -Verbose | Out-Null
+                    -Server $targetDomainController `
+                    -Verbose:$isVerbose > $null
 
 if($null -ne $configuration.DisableNetbiosBroadcasts) {
     # NetBT NodeType configuration
@@ -1929,8 +1918,8 @@ if($null -ne $configuration.DisableNetbiosBroadcasts) {
                         -Value $nodeType `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 
     # Configure NetBIOS settings
     [int] $enableNetbios = 3 # Default to learning mode
@@ -1945,25 +1934,25 @@ if($null -ne $configuration.DisableNetbiosBroadcasts) {
                         -Value $enableNetbios `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     # Remove the NetBIOS-related settings
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\System\CurrentControlSet\Services\NetBT\Parameters' `
                            -ValueName 'NodeType' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
                            -ValueName 'EnableNetbios' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 # Turn off Link-Local Multicast Name Resolution (LLMNR)
@@ -1974,16 +1963,16 @@ if($configuration.DisableLLMNR -eq $true) {
                         -Value 0 `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
                            -ValueName 'EnableMulticast' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 # Turn off Multicast DNS (mDNS)
@@ -1993,18 +1982,18 @@ if($null -ne $configuration.DisableMDNS) {
                         -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' `
                         -ValueName 'EnableMDNS' `
                         -Value ([int](-not $configuration.DisableMDNS)) `
-                        -Type DWord -Verbose `
+                        -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' `
                            -ValueName 'EnableMDNS' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 # Configure the DRS-R protocol to use a specific port
@@ -2016,16 +2005,16 @@ if($null -ne $configuration.NtdsStaticPort) {
                         -Value ([int] $configuration.NtdsStaticPort) `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTDS\Parameters' `
                            -ValueName 'TCP/IP Port' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 # Configure the NETLOGON protocol to use a specific port
@@ -2037,16 +2026,16 @@ if($null -ne $configuration.NetlogonStaticPort) {
                         -Value ([int] $configuration.NetlogonStaticPort) `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Netlogon\Parameters' `
                            -ValueName 'DCTcpipPort' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 # Configure the FRS protocol to use a specific port
@@ -2058,16 +2047,16 @@ if($null -ne $configuration.FrsStaticPort) {
                         -Value ([int] $configuration.FrsStaticPort) `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
-                        -Server $domain.PDCEmulator `
-                        -Verbose | Out-Null
+                        -Server $targetDomainController `
+                        -Verbose:$isVerbose > $null
 } else {
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SYSTEM\CurrentControlSet\Services\NTFRS\Parameters' `
                            -ValueName 'RPC TCP/IP Port Assignment' `
                            -Domain $domain.DNSRoot `
-                           -Server $domain.PDCEmulator `
+                           -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
-                           -Verbose | Out-Null
+                           -Verbose:$isVerbose > $null
 }
 
 #endregion Registry Settings
@@ -2075,28 +2064,28 @@ if($null -ne $configuration.FrsStaticPort) {
 #region Startup Script
 
 # Fetch the GPO info from the PDC emulator
-[Microsoft.ActiveDirectory.Management.ADObject] $gpoContainer = Get-ADObject -Identity $gpo.Path -Properties 'gPCFileSysPath','gPCMachineExtensionNames' -Server $domain.PDCEmulator -ErrorAction Stop
-[string] $startupScriptDirectory = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\Startup' -ErrorAction Stop
-[string] $startupScriptPath = Join-Path -Path $startupScriptDirectory -ChildPath 'FirewallConfiguration.bat' -ErrorAction Stop
-[string] $scriptsIniPath = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\scripts.ini' -ErrorAction Stop
+[Microsoft.ActiveDirectory.Management.ADObject] $gpoContainer = Get-ADObject -Identity $gpo.Path -Properties 'gPCFileSysPath','gPCMachineExtensionNames' -Server $targetDomainController
+[string] $startupScriptDirectory = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\Startup'
+[string] $startupScriptPath = Join-Path -Path $startupScriptDirectory -ChildPath 'FirewallConfiguration.bat'
+[string] $scriptsIniPath = Join-Path -Path $gpoContainer.gPCFileSysPath -ChildPath 'Machine\Scripts\scripts.ini'
 
 # Create the directory for startup scripts if it does not exist
-New-Item -Path $startupScriptDirectory -ItemType Directory -Force -Verbose | Out-Null
+New-Item -Path $startupScriptDirectory -ItemType Directory -Force -Verbose:$isVerbose > $null
 
 # Startup script header
 [System.Text.StringBuilder] $startupScript = [System.Text.StringBuilder]::new()
-$startupScript.AppendLine('@ECHO OFF') | Out-Null
-$startupScript.AppendLine('REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.') | Out-Null
+$startupScript.AppendLine('@ECHO OFF') > $null
+$startupScript.AppendLine('REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.') > $null
 
 # Configure the WMI  protocol to use the deafult static port 24158
 if($configuration.WmiStaticPort -eq $true) {
-    $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.') | Out-Null
-    $startupScript.AppendLine('winmgmt.exe /standalonehost 6') | Out-Null
+    $startupScript.AppendLine() > $null
+    $startupScript.AppendLine('echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.') > $null
+    $startupScript.AppendLine('winmgmt.exe /standalonehost 6') > $null
 } elseif($configuration.WmiStaticPort -eq $false) {
-    $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('echo Move the WMI service into the shared Svchost process.') | Out-Null
-    $startupScript.AppendLine('winmgmt.exe /sharedhost') | Out-Null
+    $startupScript.AppendLine() > $null
+    $startupScript.AppendLine('echo Move the WMI service into the shared Svchost process.') > $null
+    $startupScript.AppendLine('winmgmt.exe /sharedhost') > $null
 }
 
 # Configure the DFS-R protocol to use a specific port
@@ -2108,51 +2097,51 @@ if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
 '@
 
 if($configuration.DfsrStaticPort -ge 1) {
-    $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine($dfsrDiagInstallScript) | Out-Null
-    $startupScript.AppendLine('echo Set static RPC port for DFS Replication.') | Out-Null
-    $startupScript.AppendFormat('dfsrdiag.exe StaticRPC /Port:{0}', $configuration.DfsrStaticPort) | Out-Null
-    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine() > $null
+    $startupScript.AppendLine($dfsrDiagInstallScript) > $null
+    $startupScript.AppendLine('echo Set static RPC port for DFS Replication.') > $null
+    $startupScript.AppendFormat('dfsrdiag.exe StaticRPC /Port:{0}', $configuration.DfsrStaticPort) > $null
+    $startupScript.AppendLine() > $null
 } elseif($configuration.DfsrStaticPort -eq 0) {
-    $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine($dfsrDiagInstallScript) | Out-Null
-    $startupScript.AppendLine('echo Set dynamic RPC port for DFS Replication.') | Out-Null
-    $startupScript.AppendLine('dfsrdiag.exe StaticRPC /Port:0') | Out-Null
+    $startupScript.AppendLine() > $null
+    $startupScript.AppendLine($dfsrDiagInstallScript) > $null
+    $startupScript.AppendLine('echo Set dynamic RPC port for DFS Replication.') > $null
+    $startupScript.AppendLine('dfsrdiag.exe StaticRPC /Port:0') > $null
 }
 
 # Create the firewall log file
-$startupScript.AppendLine() | Out-Null
-$startupScript.AppendLine('echo Create the firewall log file and configure its DACL.') | Out-Null
-$startupScript.AppendFormat('netsh.exe advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) | Out-Null
-$startupScript.AppendLine() | Out-Null
+$startupScript.AppendLine() > $null
+$startupScript.AppendLine('echo Create the firewall log file and configure its DACL.') > $null
+$startupScript.AppendFormat('netsh.exe advfirewall set allprofiles logging filename "{0}"', $configuration.LogFilePath) > $null
+$startupScript.AppendLine() > $null
 
 # Register RPC filters
 [string] $rpcFilterScriptName = 'RpcNamedPipesFilters.txt'
-[string] $rpcFilterScriptSourcePath = Join-Path -Path $PSScriptRoot -ChildPath $rpcFilterScriptName -ErrorAction Stop
-[string] $rpcFilterScriptTargetPath = Join-Path -Path $startupScriptDirectory -ChildPath $rpcFilterScriptName -ErrorAction Stop
+[string] $rpcFilterScriptSourcePath = Join-Path -Path $PSScriptRoot -ChildPath $rpcFilterScriptName
+[string] $rpcFilterScriptTargetPath = Join-Path -Path $startupScriptDirectory -ChildPath $rpcFilterScriptName
 
 if($configuration.EnableRpcFilters -eq $true) {
-    $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('echo Register the RPC filters.') | Out-Null
-    $startupScript.AppendFormat('netsh.exe -f "%~dp0{0}"', $rpcFilterScriptName) | Out-Null
-    $startupScript.AppendLine() | Out-Null
+    $startupScript.AppendLine() > $null
+    $startupScript.AppendLine('echo Register the RPC filters.') > $null
+    $startupScript.AppendFormat('netsh.exe -f "%~dp0{0}"', $rpcFilterScriptName) > $null
+    $startupScript.AppendLine() > $null
 } elseif($null -ne $configuration.EnableRpcFilters) {
-    $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('echo Remove all RPC filters.') | Out-Null
-    $startupScript.AppendLine('netsh.exe rpc filter delete filter filterkey=all') | Out-Null
+    $startupScript.AppendLine() > $null
+    $startupScript.AppendLine('echo Remove all RPC filters.') > $null
+    $startupScript.AppendLine('netsh.exe rpc filter delete filter filterkey=all') > $null
 }
 
 # Fix the Network Policy Server (NPS) to work with Windows Firewall on Windows Server 2016 and Windows Server 2019.
 # This is not required on Windows Server 2022.
 if($configuration.EnableNPS -eq $true) {
-    $startupScript.AppendLine() | Out-Null
-    $startupScript.AppendLine('echo Fix the NPS service to work with Windows Firewall on downlevel Windows Server versions.') | Out-Null
-    $startupScript.AppendLine('sc.exe sidtype IAS unrestricted') | Out-Null
+    $startupScript.AppendLine() > $null
+    $startupScript.AppendLine('echo Fix the NPS service to work with Windows Firewall on downlevel Windows Server versions.') > $null
+    $startupScript.AppendLine('sc.exe sidtype IAS unrestricted') > $null
 }
 
 # Overwrite the script files
-Set-Content -Path $startupScriptPath -Value $startupScript.ToString() -Encoding Ascii -Force -ErrorAction Stop -Verbose
-Copy-Item -Path $rpcFilterScriptSourcePath -Destination $rpcFilterScriptTargetPath -Verbose -Force -Confirm:$false -ErrorAction Stop
+Set-Content -Path $startupScriptPath -Value $startupScript.ToString() -Encoding Ascii -Force -Verbose:$isVerbose
+Copy-Item -Path $rpcFilterScriptSourcePath -Destination $rpcFilterScriptTargetPath -Force -Confirm:$false -Verbose:$isVerbose
 
 # Register the startup script in the scripts.ini file
 [string] $scriptsIni = @'
@@ -2161,7 +2150,7 @@ Copy-Item -Path $rpcFilterScriptSourcePath -Destination $rpcFilterScriptTargetPa
 0Parameters=
 '@
 
-Set-Content -Path $scriptsIniPath -Value $scriptsIni -Encoding Ascii -Force -ErrorAction Stop -Verbose
+Set-Content -Path $scriptsIniPath -Value $scriptsIni -Encoding Ascii -Verbose:$isVerbose -Force
 
 # Register the Scripts client-side extension in AD if necessary
 [string] $machineScriptsExtension = '[{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B6664F-4972-11D1-A7CA-0000F87571E3}]'
@@ -2177,7 +2166,7 @@ if(-not $gpoContainer.gPCMachineExtensionNames.Contains($machineScriptsExtension
     $updatedMachineExtensionNames = '[' + ($sortedExtensions -join '][') + ']'
 
     # Update the GPO
-    Set-ADObject -Identity $gpoContainer -Replace @{ gPCMachineExtensionNames = $updatedMachineExtensionNames } -Server $domain.PDCEmulator -ErrorAction Stop -Verbose
+    Set-ADObject -Identity $gpoContainer -Replace @{ gPCMachineExtensionNames = $updatedMachineExtensionNames } -Server $targetDomainController  -Verbose:$isVerbose
 }
 
 #endregion Startup Script
@@ -2185,14 +2174,14 @@ if(-not $gpoContainer.gPCMachineExtensionNames.Contains($machineScriptsExtension
 #region Administrative Templates
 
 # Resolve the paths to the ADMX files
-[string] $policiesDirectory = Split-Path -Path $gpoContainer.gPCFileSysPath -Parent -ErrorAction Stop
-[string] $admxTargetDirectory = Join-Path -Path $policiesDirectory -ChildPath 'PolicyDefinitions' -ErrorAction Stop
-[string] $admxSourceDirectory = Join-Path -Path $PSScriptRoot -ChildPath 'PolicyDefinitions' -ErrorAction Stop
+[string] $policiesDirectory = Split-Path -Path $gpoContainer.gPCFileSysPath -Parent
+[string] $admxTargetDirectory = Join-Path -Path $policiesDirectory -ChildPath 'PolicyDefinitions'
+[string] $admxSourceDirectory = Join-Path -Path $PSScriptRoot -ChildPath 'PolicyDefinitions'
 
 # Check if the ADMX Central Store exists
 if(Test-Path -Path $admxTargetDirectory -PathType Container) {
     # Copy the ADMX and ADML files to the Central Store
-    Copy-Item -Path $admxSourceDirectory -Destination $policiesDirectory -Container -Recurse -Force -Verbose -ErrorAction Stop | Out-Null
+    Copy-Item -Path $admxSourceDirectory -Destination $policiesDirectory -Container -Recurse -Verbose:$isVerbose -Force > $null
 }
 else {
     Write-Warning -Message 'The ADMX Central Store does not exist. ADMX files have not been copied.'

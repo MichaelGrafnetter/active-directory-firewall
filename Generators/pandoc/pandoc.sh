@@ -2,6 +2,8 @@
 
 alias pandock='docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.1.1'
 
+pushd ../../
+
 # Convert the Markdown file to PDF document using Pandoc
 # (This action is also performed automatically by GitHub actions when the README file is changed.)
 pandock \
@@ -15,7 +17,7 @@ pandock \
   --toc-depth=2 \
   --number-sections \
   --template=eisvogel \
-  --lua-filter=pandoc.lua \
+  --lua-filter=Generators/pandoc/pandoc.lua \
   --variable=lof:true \
   --variable=classoption:oneside \
   --variable=geometry:a4paper,margin=2cm \
@@ -38,5 +40,7 @@ pandock \
   --table-of-contents \
   --toc-depth=2 \
   --resource-path=ADDS \
-  --lua-filter=pandoc.lua \
+  --lua-filter=Generators/pandoc/pandoc.lua \
   ADDS/README.md
+
+popd

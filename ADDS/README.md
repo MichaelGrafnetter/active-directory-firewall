@@ -93,7 +93,7 @@ This tool provides a flexible and repeatable way to deploy a secure configuratio
 
 ![Windows Firewall with Advanced Security](../Images/Screenshots/dc-firewall.png)
 
-[![MIT License](../Images/Badges/license-mit.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
+[![](../Images/Badges/license-mit.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
 
 ## Design
 
@@ -746,7 +746,7 @@ Enumerated zone list:
 Command completed successfully.
 ```
 
-The [ServerLevelPluginDll](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/9500a7e8-165d-4b13-be86-0ddc43100eef) operation of the `MS-DNSP` protocol can be misused to remotely execute code on domain controllers, which makes this protocol interesting from the attacker's perspective. Although the built-in Windows tools only use the TCP/IP transport, the protocol is exposed over the `\\PIPE\\DNSSERVER` named pipe as well. The latter transport layer could be blocked by executing the following sequence of `netsh.exe` commands:
+The [ServerLevelPluginDll](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/9500a7e8-165d-4b13-be86-0ddc43100eef) operation of the `MS-DNSP` protocol can be misused to remotely execute code on domain controllers, which makes this protocol interesting from the attacker's perspective. Although the built-in Windows tools only use the TCP/IP transport, the protocol is exposed over the `\PIPE\DNSSERVER` named pipe as well. The latter transport layer could be blocked by executing the following sequence of `netsh.exe` commands:
 
 ```txt
 rpc filter
@@ -1217,7 +1217,11 @@ It is essential to properly configure all the settings, do not use the samples f
   "EnableNetworkProtection": true,
   "BlockWmiCommandExecution": true,
   "EnableRpcFilters": true,
-  "EnableLocalIPsecRules": false
+  "EnableLocalIPsecRules": false,
+  "CustomRuleFileNames": [
+      "CustomRules.BackupAgent.ps1",
+      "CustomRules.ManagementAgent.ps1"
+   ]
 }
 ```
 
@@ -1957,6 +1961,23 @@ Recommended value: false
 Possible values: true / false
 ```
 
+### CustomRuleFileNames
+
+Specifies the name(s) of additional script file(s) containing firewall rules that will be imported into the Group Policy Object (GPO).
+
+There are several practical advantages to keeping customer-specific firewall rules in separate files:
+
+- The main script file can easily be updated without the need to re-apply customer modifications.
+- Custom rule scripts can be shared among multiple server roles. As an example, rules enabling communication with a backup agent will probably be the same for domain controller (DC) and certification authority (CA).
+
+See the `CustomRules.Sample.ps1` sample file, which can be used as a template.
+
+```yaml
+Type: String[]
+Required: false
+Default value: null
+```
+
 ## Deployment
 
 ### Prerequisites
@@ -2188,7 +2209,7 @@ Additional firewall rules that are not DC-specific might be required to enable c
 |5986/TCP|WinRM|[Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)|
 |49152-65535/TCP|WMI|[Windows Management Instrumentation (WMI-In)](#windows-management-instrumentation-wmi-in)|
 |3389/UDP|Remote Desktop|[Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in)|
-|3389/TCP|Remote Desktop|[Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in)|
+|3389/TCP|Remote Desktop|[Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in),[Remote Desktop (TCP-In)](#remote-desktop-tcp-in)|
 |22/TCP|SSH|[OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd)|
 |49152-65535/TCP|DFS Management|[DFS Management (TCP-In)](#dfs-management-tcp-in)|
 |49152-65535/TCP|DNS RPC|[RPC (TCP, Incoming)](#rpc-tcp-incoming)|
@@ -2691,6 +2712,24 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Service     | `termservice` |
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+
+#### Remote Desktop (TCP-In)
+
+| Property    | Value |
+|-------------|---------------------------------------------------|
+| Name        | RemoteDesktop-In-TCP |
+| Group       | Remote Desktop |
+| Direction   | Inbound |
+| Protocol    | TCP |
+| Port        | 3389 |
+| Program     | `System` |
+| Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
+| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+> [!NOTE]
+> This legacy rule is created for backward compatibility with Windows Server 2008 R2 and earlier. It was superseded by the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in) rule in Windows Server 2012.
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 

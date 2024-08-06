@@ -1,0 +1,80 @@
+site_name: Active Directory Firewall
+site_author: Michael Grafnetter
+docs_dir: ../../docs
+site_dir: ../../site
+site_url: !ENV [SITE_URL, http://localhost:8000]
+repo_url: !ENV [REPO_URL, https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main]
+edit_uri_template: '{path}?plain=1'
+extra_css:
+  - assets/stylesheets/extra.css
+nav:
+  - Domain Controller Firewall:
+    - 🌐 Whitepaper (HTML): ADDS/README.md
+    - 📄 Whitepaper (PDF): https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest
+    - 🛠️ DCFWTool (PowerShell): https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest
+    - 📜 GPO Report (HTML): ADDS/GPOReport.html
+theme:
+  name: material
+  locale: en
+  icon:
+    logo: fontawesome/solid/book
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/link
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off
+        name: Switch to system preference
+  features:
+    - content.action.edit
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - toc.follow
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.expand
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - sane_lists
+  - md_in_html
+  - pymdownx.highlight:
+      use_pygments: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - markdown_captions
+  - github-callouts
+  - toc:
+      toc_depth: 3
+plugins:
+  - search
+  - minify:
+      minify_html: true
+      minify_css: true
+      cache_safe: true
+      css_files:
+        - assets/stylesheets/extra.css
+extra:
+  social:
+    - icon: fontawesome/solid/globe
+      link: https://www.dsinternals.com
+    - icon: fontawesome/brands/github
+      link: https://github.com/MichaelGrafnetter
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/MichaelGrafnetter

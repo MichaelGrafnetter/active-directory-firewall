@@ -47,5 +47,6 @@
     "EnableNetworkProtection": true,
     "BlockWmiCommandExecution": true,
     "EnableRpcFilters": true,
-    "EnableLocalIPsecRules": false
+    "EnableLocalIPsecRules": false,
+    "CustomRuleFileNames": null
 }

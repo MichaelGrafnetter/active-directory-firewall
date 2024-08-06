@@ -10,9 +10,9 @@ This project aims to provide production-ready and well-tested guidelines on conf
 
 The following materials are currently available:
 
-- 🛠️[Domain Controller Firewall Tool (DCFWTool)](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest) (zipped distribution of the [source code](../ADDS/DCFWTool/))
-- 📄[Whitepaper](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest) (PDF [generated](workflows/generate-whitepaper.yml) from the [ADDS/README.md](../ADDS/README.md) file)
-- 📜[Sample Firewall GPO HTML Report](../ADDS/GPOReport.html)
+- 🛠️[DCFWTool: Domain Controller Firewall Tool](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/download/v0.8/DCFWTool.zip) (zipped distribution of the [source code](../ADDS/DCFWTool/))
+- 📄 Whitepaper in [HTML](https://firewall.dsinternals.com/adds) and [PDF](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/download/v0.8/Domain_Controller_Firewall_Draft_v0_8.pdf) formats (both [generated](workflows/generate-whitepaper.yml) from the [ADDS/README.md](../ADDS/README.md) file)
+- 📜[Sample Firewall GPO HTML Report](https://firewall.dsinternals.com/adds/GPOReport.html)
 - 📋[List of Built-In Firewall Rules](../ADDS/inbound-builtin-firewall-rules.csv)
 
 ## References

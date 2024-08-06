@@ -500,6 +500,24 @@
         "type": "boolean",
         "default": true,
         "description": "Indicates whether local IPSec rules should be enabled."
+      },
+      "CustomRuleFileNames": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        ],
+        "default": null,
+        "examples": [ ["CustomRules.BackupAgent.ps1", "CustomRules.ManagementAgent.ps1"] ],
+        "description": "Specifies the name(s) of additional script file(s) containing firewall rules that will be imported into the Group Policy Object (GPO)."
       }
     },
     "required": [
