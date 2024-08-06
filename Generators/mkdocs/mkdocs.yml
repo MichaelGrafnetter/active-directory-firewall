@@ -8,6 +8,7 @@ edit_uri_template: '{path}?plain=1'
 extra_css:
   - assets/stylesheets/extra.css
 nav:
+  - Home: README.md
   - Domain Controller Firewall:
     - 🌐 Whitepaper (HTML): ADDS/README.md
     - 📄 Whitepaper (PDF): https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest

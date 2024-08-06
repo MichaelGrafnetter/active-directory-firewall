@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main", "draft2"]
     paths:
+        - README.md
         - ADDS/README.md
         - ADDS/GPOReport.html
         - Generators/mkdocs/*

@@ -12,6 +12,7 @@ cp "$ScriptRoot/extra.css" "$RepoRoot/docs/assets/stylesheets/extra.css"
 
 # Copy markdown and HTML files
 mkdir -p "$RepoRoot/docs/ADDS"
+cp "$RepoRoot/README.md" "$RepoRoot/docs/"
 cp "$RepoRoot/ADDS/README.md" "$RepoRoot/docs/ADDS/"
 cp "$RepoRoot/ADDS/GPOReport.html" "$RepoRoot/docs/ADDS/"
 
@@ -20,8 +21,11 @@ mkdir -p "$RepoRoot/docs/assets/images"
 rsync --archive --no-relative --exclude='*.md' "$RepoRoot/Images/"**/* "$RepoRoot/docs/assets/images"
 
 # Fix image paths in markdown files
-# Example: Replace paths like ../Images/Screenshots/ with ../../docs/assets/images/
+# Case 1: Replace paths like ../Images/Screenshots/ with ../assets/images/
 find "$RepoRoot/docs" -name "*.md" -exec sed -i 's/\.\.\/Images\/\w\+\//..\/assets\/images\//g' {} \;
+
+# Case 2: Replace paths like Images/Screenshots/ with assets/images/
+find "$RepoRoot/docs" -name "*.md" -exec sed -i 's/(Images\/\w\+\//(assets\/images\//g' {} \;
 
 # Normalize named anchors in markdown files by replacing 3 consecutive hyphens with a single one
 # Example: Replace #active-directory-domain-controller---ldap-tcp-in with #active-directory-domain-controller-ldap-tcp-in
