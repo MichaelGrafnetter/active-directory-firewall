@@ -1,0 +1,6 @@
+markdown-callouts
+markdown-captions
+mkdocs
+mkdocs-material
+mkdocs-minify-plugin
+pymdown-extensions

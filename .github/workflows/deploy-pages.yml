@@ -30,8 +30,17 @@ jobs:
         id: setup
         uses: actions/configure-pages@v5
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+          cache: pip
+          cache-dependency-path: Generators/mkdocs/requirements.txt
+
+      - name: Install MKDocs
+        run: pip install mkdocs
+
       - name: Build site with MKDocs
-        shell: bash
         run: Generators/mkdocs/mkdocs.sh
         env:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}

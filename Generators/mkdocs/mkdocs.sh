@@ -27,8 +27,11 @@ find "$RepoRoot/docs" -name "*.md" -exec sed -i 's/\.\.\/Images\/\w\+\//..\/asse
 # Example: Replace #active-directory-domain-controller---ldap-tcp-in with #active-directory-domain-controller-ldap-tcp-in
 find "$RepoRoot/docs" -name "*.md" -exec sed -i 's/\(\w\)---\(\w\)/\1-\2/g' {} \;
 
+# Update the requirements file. MkDocs itself must already be installed.
+mkdocs get-deps --config-file="$ScriptRoot/mkdocs.yml" > "$ScriptRoot/requirements.txt"
+
 # Install Python dependencies
-pip install --quiet $(mkdocs get-deps --config-file="$ScriptRoot/mkdocs.yml")
+pip install --quiet --requirement "$ScriptRoot/requirements.txt"
 
 # Build the site
 mkdocs build --config-file="$ScriptRoot/mkdocs.yml"
