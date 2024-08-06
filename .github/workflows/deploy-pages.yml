@@ -6,6 +6,7 @@ on:
     paths:
         - ADDS/README.md
         - ADDS/GPOReport.html
+        - Generators/mkdocs/*
         - .github/workflows/deploy-pages.yml
 
 permissions:
