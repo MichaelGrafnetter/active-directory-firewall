@@ -26,6 +26,7 @@ footer-right: "\\hspace{1cm}"
 | Date       | Version | Author                     | Description     |
 |------------|--------:|----------------------------|-----------------|
 | 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft    |
+| 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
 |            |         |                            |                 |
 
 ## Glossary {.unnumbered}

@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: ["main", "draft2"]
+    branches: ["main"]
     paths:
         - README.md
         - ADDS/README.md
