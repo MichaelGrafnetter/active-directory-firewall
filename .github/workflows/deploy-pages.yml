@@ -3,8 +3,12 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: ["main"]
-
-  workflow_dispatch:
+    paths:
+        - README.md
+        - ADDS/README.md
+        - ADDS/GPOReport.html
+        - Generators/mkdocs/*
+        - .github/workflows/deploy-pages.yml
 
 permissions:
   contents: read
@@ -16,21 +20,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
+    name: MKDocs Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Pages
+        id: setup
         uses: actions/configure-pages@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+          cache: pip
+          cache-dependency-path: Generators/mkdocs/requirements.txt
+
+      - name: Install MKDocs
+        run: pip install mkdocs
+
+      - name: Build site with MKDocs
+        run: Generators/mkdocs/mkdocs.sh
+        env:
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}
+          SITE_URL: ${{ steps.setup.outputs.base_url }}
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ADDS/GPOReport.html
+          path: site
+    
+  deploy:
+    name: GitHub Pages Deployment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

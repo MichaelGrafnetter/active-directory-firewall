@@ -14,6 +14,12 @@
         "default": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
         "description": "The comment that will be added to the Group Policy Object (GPO)."
       },
+      "TargetDomain": {
+        "type": "string",
+        "default": null,
+        "examples": [ "contoso.com" ],
+        "description": "The domain in which the Group Policy Object (GPO) will be created or updated. This setting is only useful in multi-domain forests. If not specified, the script will attempt to determine the domain of the current user."
+      },
       "LogDroppedPackets": {
         "type": "boolean",
         "default": false,
@@ -171,6 +177,51 @@
         "default": [ "Any" ],
         "description": "List of domain controller IP addresses, between which replication and management traffic will be allowed."
       },
+      "RadiusClientAddresses": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ],
+        "default": [ "Any" ],
+        "description": "List of RADIUS client IP adresses from which inbound traffic should be allowed."
+      },
       "NtdsStaticPort": {
         "oneOf": [
           {
@@ -284,6 +335,11 @@
         "default": null,
         "description": "Indicates whether the Multicast DNS (mDNS) client should be disabled."
       },
+      "BlockManagementFromDomainControllers": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether management traffic from other domain controllers should be blocked."
+      },
       "EnableServiceManagement": {
         "type": "boolean",
         "default": true,
@@ -364,6 +420,46 @@
         "default": true,
         "description": "Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed."
       },
+      "EnableDhcpServer": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed."
+      },
+      "EnableNPS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed."
+      },
+      "EnableKMS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Key Management Service (KMS) traffic should be allowed."
+      },
+      "EnableWSUS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Windows Server Update Services (WSUS) traffic should be allowed."
+      },
+      "EnableWDS": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Windows Deployment Services (WDS) traffic should be allowed."
+      },
+      "EnableWebServer": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed."
+      },
+      "EnableFSRMManagement": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed."
+      },
+      "EnablePrintSpooler": {
+        "type": "boolean",
+        "default": true,
+        "description": "Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed."
+      },
       "EnableNetworkProtection": {
         "anyOf": [
           {
@@ -404,6 +500,24 @@
         "type": "boolean",
         "default": true,
         "description": "Indicates whether local IPSec rules should be enabled."
+      },
+      "CustomRuleFileNames": {
+        "anyOf": [
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        ],
+        "default": null,
+        "examples": [ ["CustomRules.BackupAgent.ps1", "CustomRules.ManagementAgent.ps1"] ],
+        "description": "Specifies the name(s) of additional script file(s) containing firewall rules that will be imported into the Group Policy Object (GPO)."
       }
     },
     "required": [

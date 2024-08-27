@@ -20,7 +20,7 @@ jobs:
         run: echo "date=$(date '+%B %e, %Y')" > $GITHUB_OUTPUT
 
       - name: Generate the whitepaper using Pandoc
-        uses: docker://pandoc/extra
+        uses: docker://pandoc/extra:3.1.1
         with:
           args: >-
             --output=Domain_Controller_Firewall.pdf
@@ -33,7 +33,7 @@ jobs:
             --toc-depth=2
             --number-sections
             --template=eisvogel
-            --lua-filter=pandoc.lua
+            --lua-filter=Generators/pandoc/pandoc.lua
             --variable=lof:true
             --variable=classoption:oneside
             --variable=geometry:a4paper,margin=2cm

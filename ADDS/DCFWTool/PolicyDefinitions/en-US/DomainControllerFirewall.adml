@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--  (c) 2024 Michael Grafnetter  -->
 <policyDefinitionResources xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.0" schemaVersion="1.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" revision="1.1" schemaVersion="1.0"
   xmlns="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions" xsi:schemaLocation="http://schemas.microsoft.com/GroupPolicy/2006/07/PolicyDefinitions ../../../ADMXSchema/PolicyDefinitionFiles.xsd">
   <displayName>RPC Static Ports</displayName>
   <description>Remote Procedure Call Static Port Number Settings</description>
@@ -15,7 +15,7 @@ If you enable this policy setting and specify a static port number, Active Direc
 
 If you disable or do not configure this policy setting, Active Directory RPC will use a dynamic port for communication.
 
-Note that the NTDS service must be restarted for the new setting to become effective.</string>
+Note that the Active Directory Domain Services (NTDS) must be restarted for the new setting to become effective.</string>
         <string id="RPCStaticPorts_NETLOGON">Domain Controller: Netlogon static port</string>
         <string id="RPCStaticPorts_NETLOGON_Help">This policy setting allows you to configure a static port number for the Netlogon service on a domain controller.
 
@@ -23,7 +23,7 @@ If you enable this policy setting and specify a static port number, the Netlogon
 
 If you disable or do not configure this policy setting, the Netlogon service will use a dynamic port for communication.
 
-Note that the NTDS service must be restarted for the new setting to become effective.</string>
+Note that the Active Directory Domain Services (NTDS) must be restarted for the new setting to become effective.</string>
         <string id="RPCStaticPorts_NTFRS">Domain Controller: File Replication Service (FRS) static port</string>
         <string id="RPCStaticPorts_NTFRS_Help">This policy setting allows you to configure a static port number for the File Replication Service (FRS) on a domain controller.
 
@@ -31,7 +31,15 @@ If you enable this policy setting and specify a static port number, the FRS will
 
 If you disable or do not configure this policy setting, the FRS will use a dynamic port for communication.
 
-Note that the File Replication Service must be restarted for the new setting to become effective.</string>
+Note that the File Replication (NtFrs) service must be restarted for the new setting to become effective.</string>
+        <string id="RPCStaticPorts_CertSvc">Certification Authority: Certificate request RPC static port</string>
+        <string id="RPCStaticPorts_CertSvc_Help">This policy setting allows you to configure a static port number used by Active Directory Certificate Services to accept certificate requests.
+
+If you enable this policy setting and specify a static RPC over TCP endpoint, the CA will use it for communication. The required format of the endpoint is "ncacn_ip_tcp,0,PortNumber". The port number is recommended to be between 1024 and 49151, e.g., "ncacn_ip_tcp,0,10509".
+
+If you disable or do not configure this policy setting, the CA will use a dynamic port for RPC communication.
+
+Note that the Active Directory Certificate Services (certSvc) must be restarted for the new setting to become effective.</string>
       <string id="DNS_Turn_Off_MulticastDNS">Turn off Multicast DNS (mDNS) client</string>
       <string id="DNS_Turn_Off_MulticastDNS_Help">This policy setting allows you to turn off the Multicast DNS (mDNS) client.
       
@@ -48,6 +56,9 @@ If you disable or do not configure this policy setting, the Multicast DNS (mDNS)
       </presentation>
       <presentation id="RPCStaticPorts_NTFRS">
         <decimalTextBox refId="RPCStaticPorts_NTFRS_Value" defaultValue="38903">Static port number:</decimalTextBox>
+      </presentation>
+      <presentation id="RPCStaticPorts_CertSvc">
+        <multiTextBox refId="RPCStaticPorts_CertSvc_Value" defaultHeight="1">Static RPC endpoint:</multiTextBox>
       </presentation>
     </presentationTable>
   </resources>
