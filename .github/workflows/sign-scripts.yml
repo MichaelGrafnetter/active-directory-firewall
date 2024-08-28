@@ -1,0 +1,52 @@
+name: Sign PowerShell Scripts
+
+on:
+  push:
+    branches: ["main", "draft3"]
+    paths:
+      - 'ADDS/DCFWTool/*.ps1'
+      - '.github/workflows/sign-scripts.yml'
+
+jobs:
+  sign:
+    name: Sign and Publish Scripts
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Install Azure KeyVault Code Signing Tool
+        run: dotnet tool install --global AzureSignTool
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.SIGNING_CLIENT_ID }}
+          tenant-id: ${{ secrets.SIGNING_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Sign PowerShell scripts
+        shell: cmd
+        env:
+          SIGNING_VAULT_URL: ${{ secrets.SIGNING_VAULT_URL }}
+          SIGNING_CERTIFICATE_NAME: ${{ secrets.SIGNING_CERTIFICATE_NAME }}
+        working-directory: ADDS/DCFWTool
+        timeout-minutes: 1
+        run: |
+          for /f %%i in ('az account get-access-token --resource "https://vault.azure.net" --query accessToken --output tsv') do set KEYVAULT_TOKEN=%%i
+          AzureSignTool sign ^
+          Set-ADDSFirewallPolicy.ps1 ^
+          Show-WindowsFirewallLog.ps1 ^
+          --file-digest sha256 ^
+          --timestamp-digest sha256 ^
+          --timestamp-rfc3161 http://timestamp.digicert.com ^
+          --azure-key-vault-url "%SIGNING_VAULT_URL%" ^
+          --azure-key-vault-accesstoken "%KEYVAULT_TOKEN%" ^
+          --azure-key-vault-certificate "%SIGNING_CERTIFICATE_NAME%"
+    
+      - name: Upload PowerShell scripts as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DCFWTool
+          path: ADDS/DCFWTool
