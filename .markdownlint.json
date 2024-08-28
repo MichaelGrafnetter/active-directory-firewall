@@ -1,0 +1,12 @@
+{
+    "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint/main/schema/markdownlint-config-schema.json",
+    "MD007": {
+        "$comment": "Increase unordered list indentation for MkDocs compatibility.",
+        "indent": 4
+    },
+    "MD013": {
+        "$comment": "Allow long lines for code blocks.",
+        "line_length": 120,
+        "tables": false
+    }
+}
