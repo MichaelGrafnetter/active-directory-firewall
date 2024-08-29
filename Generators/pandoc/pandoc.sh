@@ -1,12 +1,10 @@
-#!/bin/sh
-
-alias pandock='docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.1.1'
+#!/bin/bash
 
 pushd ../../
 
 # Convert the Markdown file to PDF document using Pandoc
 # (This action is also performed automatically by GitHub actions when the README file is changed.)
-pandock \
+docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.1.1 \
   --output='Domain_Controller_Firewall.pdf' \
   --from=markdown \
   --to=pdf \
@@ -34,7 +32,7 @@ pandock \
   ADDS/README.md
 
 # Convert the Markdown file to Word document using Pandoc
-pandock \
+docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.1.1 \
   --output='Domain_Controller_Firewall.docx' \
   --shift-heading-level-by=-1 \
   --table-of-contents \

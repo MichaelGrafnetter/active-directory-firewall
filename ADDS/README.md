@@ -162,9 +162,9 @@ It is therefore recommended to use PowerShell scripts to manage Windows Firewall
 ### Firewall Rule Merging
 
 As mentioned in the [Key Design Decisions](#key-design-decisions) section, the set of rules is only prepared
-for DC-related roles and are is adjusted for various agents or non-standard roles running on a DC.  
-If you need to add additional firewall rules for your environment (DC agents, SCCM management, etc.), it is recommended
-to create separate GPO and define all the custom rules there.  
+for DC-related roles and are is adjusted for various agents or non-standard roles running on a DC.
+If you need to add additional firewall rules for your environment (DC agents, SCCM management, etc.),
+it is recommended to create separate GPO and define all the custom rules there.
 Firewall rules, which are finally configured on a DC, are the outcome of all the rules merged from all the applied GPOs.
 
 > [!NOTE]
@@ -1227,7 +1227,7 @@ requirements out-of-the-box. The configuration file can easily be modified to ac
 ### Firewall Configuration
 
 Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file),
-the GPO will contain Windows Firewall profile settings:  
+the GPO will contain Windows Firewall profile settings:
 
 - [Log dropped packets](#logdroppedpackets)
 - [Log allowed packets](#logallowedpackets)
@@ -1247,9 +1247,9 @@ the GPO will contain set of inbound [firewall rules](#inbound-firewall-rules-ref
 ### Registry Settings
 
 Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file),
-the GPO will contain number of registry settings.  
+the GPO will contain number of registry settings.
 Most of them are managed, which means, once the GPO is not linked to the target,
-the settings revert back to the default state.  
+the settings revert back to the default state.
 Some of them are [unmanaged](#dealing-with-gpo-tattooing) though and need different approach,
 when you require reverting back to default.
 
@@ -1289,7 +1289,7 @@ Computer Configuration → Administrative Templates → MS Security Guide
 ### Startup Script
 
 Startup script is used to configure some of the required settings,
-that are not easily configurable through Group Policy.  
+that are not easily configurable through Group Policy.
 `FirewallConfiguration.bat` script, is automatically generated,
 based on the configuration defined in the `Set-ADDSFirewallPolicy.json` file.
 If enabled in the .json file, the script will execute the following actions:
@@ -1341,7 +1341,7 @@ netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\lo
 
 #### RPC Filters Script
 
-![RPC Filters configuration file](../Images/Screenshots/deploy-rpcnamedpipesfilter.png)  
+![RPC Filters configuration file](../Images/Screenshots/deploy-rpcnamedpipesfilter.png)
 
 The script will register all RPC filters defined in `RpcNamedPipesFilters.txt` file,
 which is located in the same path as the `FirewallConfiguration.bat`,
@@ -1393,12 +1393,12 @@ sc.exe sidtype IAS unrestricted
 ### Configuration File
 
 All settings that are used for the deployment by the script need to be stored
-in the file named `Set-ADDSFirewallPolicy.json`.  
-The file does not exist by default and needs to be created by you, before deployment.  
-To help you with the task, we're providing the 2 following files:  
+in the file named `Set-ADDSFirewallPolicy.json`.
+The file does not exist by default and needs to be created by you, before deployment.
+To help you with the task, we're providing the 2 following files:
 
 - `Set-ADDSFirewallPolicy.Starter.json`
-- `Set-ADDSFirewallPolicy.Sample.json`  
+- `Set-ADDSFirewallPolicy.Sample.json`
 
 `Set-ADDSFirewallPolicy.Starter.json` file contains only the minimum settings required for deployment.
 It is recommended to rename the file to `Set-ADDSFirewallPolicy.json` and add any additional settings
@@ -1512,7 +1512,7 @@ Default value: null
 Indicates whether the packets dropped by the firewall should be logged.
 
 If `true`, all dropped packets will be logged into the [firewall text log](#logfilepath).
-If `false`, no packets are logged.  
+If `false`, no packets are logged.
 
 ```yaml
 Type: Boolean
@@ -1527,7 +1527,7 @@ Possible values: true / false
 Indicates whether the packets allowed by the firewall should be logged.
 
 If `true`, all allowed packets will be logged into the [firewall text log](#logfilepath).
-If `false`, no packets are logged.  
+If `false`, no packets are logged.
 
 ```yaml
 Type: Boolean
@@ -1540,9 +1540,9 @@ Possible values: true / false
 ### LogFilePath
 
 Specifies the path to the log file that will be used to store information about the allowed and/or dropped packets,
-if [logging is enabled](#logdroppedpackets).  
+if [logging is enabled](#logdroppedpackets).
 As all 3 profiles (Domain/Private/Public) are configured identically, single log file is created for all of them,
-to allow easier search, troubleshooting and ingestion by log collectors.  
+to allow easier search, troubleshooting and ingestion by log collectors.
 
 [Startup script](#startup-script)
 
@@ -1581,12 +1581,13 @@ Supports also "Any" as an input.
 
 Specify IPv4 address, IPv4 subnet or address range of all your clients.
 Anything what acts as a client from a DC perspective is considered client here,
-so you should specify all your server and user/client subnets.  
+so you should specify all your server and user/client subnets.
 Everything that needs to interact with your DCs should be included here,
 except other DCs and secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.
 
 > [!WARNING]
-> This is a critical configuration setting! With improper configuration, this could cause network outage for your clients.
+> This is a critical configuration setting! With improper configuration,
+> this could cause network outage for your clients.
 
 ```yaml
 Type: String[]
@@ -1602,11 +1603,11 @@ Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a
 e.g., "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
 
 Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs)
-used to manage Domain Controllers or Tier 0.  
+used to manage Domain Controllers or Tier 0.
 
 > [!WARNING]
 > This is a critical configuration setting! With improper configuration,
-this could cause network outage for your management workstations.
+> this could cause network outage for your management workstations.
 
 ```yaml
 Type: String[]
@@ -2394,9 +2395,9 @@ If a full system reboot of all domain controllers is undesirable, the following 
 
 ### Installation
 
-Rename `Set-ADDSFirewallPolicy.Starter.json` to `Set-ADDSFirewallPolicy.json`.  
+Rename `Set-ADDSFirewallPolicy.Starter.json` to `Set-ADDSFirewallPolicy.json`.
 Review the available configuration items with sample values in `Set-ADDSFirewallPolicy.Sample.json` and use any,
-that you want to be configured in your environment.  
+that you want to be configured in your environment.
 All the configuration items with their possible values are documented in the [Configuration](#configuration) chapter.
 
 Once you are finished with modifying all the required configuration settings in the `Set-ADDSFirewallPolicy.json` file,
@@ -2414,7 +2415,7 @@ You might need to adjust your Powershell execution policy to allow execution of 
 
 > [!NOTE]
 > If you are using AppLocker, Device Guard or Constrained Language Mode,
-> you might need adjust the configured restrictions in order to run the script.  
+> you might need adjust the configured restrictions in order to run the script.
 
 Script logic:
 
@@ -2430,7 +2431,7 @@ If the script has finished without any errors, all required objects should be de
 
 The last step is to link the newly created GPO to Domain Controllers OU.
 
-Before doing that, you should **thoroughly review** the GPO!  
+Before doing that, you should **thoroughly review** the GPO!
 
 Once done, link the GPO to Domain Controllers OU.
 
@@ -2494,7 +2495,8 @@ Locate and open `FirewallConfiguration.bat` file, located in the "Startup" folde
 > The GUID in the path is randomly generated and will be different in each environment.
 > Also the path to `SYSVOL` might differ based on your DC configuration.
 
-Change the following line `winmgmt.exe /standalonehost 6` ⇒ `winmgmt /sharedhost`  
+Change the following line `winmgmt.exe /standalonehost 6` ⇒ `winmgmt /sharedhost`
+
 Change the following line `dfsrdiag.exe StaticRPC /Port:5722` ⇒ `dfsrdiag staticrpc /port:0`
 
 ![Rollback Startup Script](../Images/Screenshots/rollback-startup-script.png)
