@@ -89,10 +89,14 @@ footer-right: "\\hspace{1cm}"
 > [!NOTE]
 > TODO: The Summary section needs to be expanded.
 
-The purpose of this tool is to simplify the deployment of a specific set of firewall rules and filters that can
+Windows Firewall with Advanced Security might be tricky to configure securely and it is usually disabled or left open for all trafic in many organizations.
+
+The purpose of this project is to simplify the deployment of a specific set of firewall rules and filters that can
 significantly reduce the attack surface of Domain Controllers without impacting the functionality of Active Directory.
 
-This tool provides a flexible and repeatable way to deploy a secure configuration in your environment within minutes.
+The following guideline is comprehensive source of Windows Firewall related information and aims to provide you with detailed information about Windows Firewall configuration options, network protocols, configuration caveats, possible attacks, but above all should provide guidance how to configure Windows Firewall with Advanced Security in your environment securely. 
+
+To streamline the process, we offer the `DCFWTool`, that provides a flexible and repeatable way to deploy a secure configuration in the environment within minutes. All the `DCFWTool` configuration options are described in the following chapters.
 
 ![Windows Firewall with Advanced Security](../Images/Screenshots/dc-firewall.png)
 
@@ -179,7 +183,7 @@ Firewall rules, which are finally configured on a DC, are the outcome of all the
 #### The Good
 
 With some protocols, it is quite obvious that they should only be available from management networks or jump servers.
-This is the case of the **[Remote Desktop Protocol (RDP)](#remote-desktop---user-mode-tcp-in)**
+This is the case of the **[Remote Desktop Protocol (RDP)](#remote-desktop---user-mode-udp-in)**
 or **[Remote Event Log Management](#remote-event-log-management-rpc)**.
 
 #### The Bad
@@ -202,7 +206,7 @@ but not unimaginable, to see legitimate PowerShell scripts with the `Get-ADUser`
 Such scripts would stop working if ADWS is simply blocked on domain controllers.
 On the other hand, it is relatively easy to rewrite these scipts to use the built-in
 [DirectorySearcher](https://learn.microsoft.com/en-us/dotnet/api/system.directoryservices.directorysearcher) class,
-which relies on the [LDAP](#active-directory-domain-controller---ldap-tcp-in) protocol instead of ADWS.
+which relies on the [LDAP](#active-directory-domain-controller---ldap-udp-in) protocol instead of ADWS.
 The added value would be the removal of the [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/)
 PowerShell module dependency.
 
@@ -234,7 +238,7 @@ Many products in the Identity Threat Detection and Response (ITDR) category are 
 including [Microsoft Defender for Identity](https://learn.microsoft.com/en-us/defender-for-identity/what-is)
 and [Netwrix Threat Manager](https://www.netwrix.com/threat_detection_software.html).
 
-The protocol that causes the most confusion among network administrators is undeniably the **[Server Message Block (SMB)](#active-directory-domain-controller---samlsa-np-tcp-in)**.
+The protocol that causes the most confusion among network administrators is undeniably the **[Server Message Block (SMB)](#active-directory-domain-controller---samlsa-np-udp-in)**.
 Although its primary use is for file and printer sharing, it can also be used for remote
 system management through various RPC-based protocols. Because the functionality of AD heavily
 depends on the `SYSVOL` and `NETLOGON` file shares on domain controllers, the SMB protocol
@@ -242,7 +246,7 @@ cannot simply be blocked on DCs. Deep packet inspection has also become less eff
 with the advent of SMBv3 encryption. Our approach to this issue is
 to [selectively block remote management over SMB named pipes](#rpc-filters).
 
-Also worth mentioning is the **[Lightweight Directory Access Protocol (LDAP)](#active-directory-domain-controller---ldap-tcp-in)**,
+Also worth mentioning is the **[Lightweight Directory Access Protocol (LDAP)](#active-directory-domain-controller---ldap-udp-in)**,
 which gives Active Directory its name. It can surely be used for administrative operations,
 e.g., privileged group membership changes, but at least it does not provide the capability to directly
 execute arbitrary code on DCs. And with a well-configured SIEM or an ITDR solution,
@@ -354,6 +358,21 @@ only English rule names.
 
 > [!NOTE]
 > TODO: This section needs to be expanded.
+
+Windows Firewall offers three firewall profiles:
+- domain
+- private
+- public
+
+The domain profile applies to networks where the host system can authenticate to a domain controller. The private profile is used to designate private or home networks. Public profile is used to designate public networks such as Wi-Fi hotspots at coffee shops, airports, and other locations.
+
+Domain Controllers and other clients on your corporate network will commonly be assigned domain profile.
+
+Assignment of the profile depends on Microsoft Windows Network Location Awareness (NLA) proper function.
+
+Under specific circumstances, usually during recovery scenarios or complete power outage, NLA can improperly detect the network type during system start and therefore wrong firewall profile might be active. 
+
+`DCFWTool` configures all configured rules in all 3 profiles, to avoid unavailability of a DC in these cases.
 
 ![Windows Firewall profiles](../Images/Screenshots/firewall-profiles.png){ width=400px }
 
@@ -1477,7 +1496,7 @@ The rest of this chapter contains documentation to all the available settings.
 ### GroupPolicyObjectName
 
 The name of the Group Policy Object (GPO) that will be created or updated.
-Feel free to change it so that it complies with your naming policy.
+Feel free to change it so that it complies with your naming convention.
 
 ```yaml
 Type: String
@@ -1543,6 +1562,7 @@ Specifies the path to the log file that will be used to store information about 
 if [logging is enabled](#logdroppedpackets).
 As all 3 profiles (Domain/Private/Public) are configured identically, single log file is created for all of them,
 to allow easier search, troubleshooting and ingestion by log collectors.
+The specified value will be used by the startup script to configure the log.
 
 [Startup script](#startup-script)
 
@@ -1642,7 +1662,7 @@ If value is defined, this value will be set as static port for Active Directory 
 See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
 article for more information.
 If set to 0 (zero), the port is set to dynamic.
-If this is configured, you also need to configure the `NetlogonStaticPort` value.
+If this is configured, you also need to configure the [NetlogonStaticPort](#netlogonstaticport) value.
 
 > HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters  
 > Registry value: TCP/IP Port  
@@ -1666,7 +1686,7 @@ If value is defined, this value will be set as static port for Active Directory 
 See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
 article for more information.
 If set to 0 (zero), the port is set to dynamic.
-If this is configured, you also need to configure `NtdsStaticPort` value.
+If this is configured, you also need to configure [NtdsStaticPort](#ntdsstaticport) value.
 
 > HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters  
 > Registry value: DCTcpipPort  
@@ -1764,14 +1784,14 @@ article.
 
 `true`:
 
-The [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73)
-setting prevents replay attacks, verifies that none of the data transferred between the client and server
-has been modified and ensures that the data transferred can only be seen unencrypted by the client and the server.
-
 ```shell
 echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
 winmgmt.exe /standalonehost 6
 ```
+
+The [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73)
+setting prevents replay attacks, verifies that none of the data transferred between the client and server
+has been modified and ensures that the data transferred can only be seen unencrypted by the client and the server.
 
 `false`:
 
@@ -1825,6 +1845,14 @@ Possible values: true / false
 Indicates whether the Multicast DNS (mDNS) client should be disabled.
 
 If `true`, mDNS is disabled. If `false`, mDNS is enabled. If `null`, this setting is not managed through GPO.
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\DNSCache\\Parameters  
+> Registry value: EnableMDNS  
+> Value type: REG_DWORD  
+> Value data: (0 or 1)
+
+Restart the system for the new setting to become effective.
+
 For more info, see the following [Microsoft article](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777).
 
 ```yaml
@@ -1840,10 +1868,34 @@ Possible values: true / false / null
 Indicates whether management traffic from other domain controllers should be blocked.
 This setting affects the following firewall rules:
 
-> [!NOTE]
-> TODO: Provide a list of affected FW rules
+- [Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in)
+- [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)
+- [Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)
+- [Windows Management Instrumentation (WMI-In)](#windows-management-instrumentation-wmi-in)
+- [Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in)
+- [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in)
+- [Remote Desktop (TCP-In)](#remote-desktop-tcp-in)
+- [DFS Management (TCP-In)](#dfs-management-tcp-in)
+- [RPC (TCP, Incoming)](#rpc-tcp-incoming)
+- [Windows Backup (RPC)](#windows-backup-rpc)
+- [Performance Logs and Alerts (TCP-In)](#performance-logs-and-alerts-tcp-in)
+- [COM+ Remote Administration (DCOM-In)](#com-remote-administration-dcom-in)
+- [Remote Event Log Management (RPC)](#remote-event-log-management-rpc)
+- [Remote Scheduled Tasks Management (RPC)](#remote-scheduled-tasks-management-rpc)
+- [Remote Service Management (RPC)](#remote-service-management-rpc)
+- [Remote Volume Management - Virtual Disk Service (RPC)](#remote-volume-management---virtual-disk-service-rpc)
+- [Remote Volume Management - Virtual Disk Service Loader (RPC)](#remote-volume-management---virtual-disk-service-loader-rpc)
+- [Windows Defender Firewall Remote Management (RPC)](#windows-defender-firewall-remote-management-rpc)
+- [Windows Internet Naming Service (WINS) - Remote Management (RPC)](#windows-internet-naming-service-wins---remote-management-rpc)
+- [DHCP Server (RPC-In)](#dhcp-server-rpc-in)
+- [Network Policy Server (RPC)](#network-policy-server-rpc)
+- [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
+- [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+- [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd)
 
-If `true`... if `false`...
+If `true`, management traffic (the above firewall rules) will be blocked between Domain Controllers.
+
+If `false` management traffic (the above firewall rules) will be allowed between Domain Controllers.
 
 ```yaml
 Type: Boolean
@@ -2134,6 +2186,10 @@ Possible values: true / false
 
 Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed.
 
+If `true`, corresponding ports are open and Dynamic Host Configuration Protocol (DHCP) will be available.
+If `false`, DHCP ports are not open.
+The script achieves this by enabling or disabling the [DHCP Server v4 (UDP-In)](#dhcp-server-v4-udp-in), [DHCP Server v4 (UDP-In)](#dhcp-server-v4-udp-in-1), [DHCP Server v6 (UDP-In)](#dhcp-server-v6-udp-in), [DHCP Server v6 (UDP-In)](#dhcp-server-v6-udp-in-1), [DHCP Server Failover (TCP-In)](#dhcp-server-failover-tcp-in) and [DHCP Server (RPC-In)](#dhcp-server-rpc-in) firewall rules.
+
 ```yaml
 Type: Boolean
 Required: false
@@ -2146,6 +2202,10 @@ Possible values: true / false
 
 Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed.
 
+If `true`, corresponding ports are open and Network Policy Server (NPS) will be available.
+If `false`, NPS ports are not open.
+The script achieves this by enabling or disabling the [Network Policy Server (Legacy RADIUS Authentication - UDP-In)](#network-policy-server-legacy-radius-authentication---udp-in), [Network Policy Server (Legacy RADIUS Accounting - UDP-In)](#network-policy-server-legacy-radius-accounting---udp-in), [Network Policy Server (RADIUS Authentication - UDP-In)](#network-policy-server-radius-authentication---udp-in), [Network Policy Server (RADIUS Accounting - UDP-In)](#network-policy-server-radius-accounting---udp-in) and [Network Policy Server (RPC)](#network-policy-server-rpc) firewall rules.
+
 ```yaml
 Type: Boolean
 Required: false
@@ -2156,6 +2216,12 @@ Possible values: true / false
 
 ### RadiusClientAddresses
 
+List of Radius clients IP addresses, from which the traffic will be allowed.
+
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
+
+Specify IPv4 address, IPv4 subnet or address range of all your Radius clients.
+
 ```yaml
 Type: String[]
 Required: false
@@ -2165,6 +2231,10 @@ Default value: [ "Any" ]
 ### EnableKMS
 
 Indicates whether inbound Key Management Service (KMS) traffic should be allowed.
+
+If `true`, corresponding ports are open and Key Management Service (KMS) will be available.
+If `false`, KMS ports are not open.
+The script achieves this by enabling or disabling the [Key Management Service (TCP-In)](#key-management-service-tcp-in) firewall rule.
 
 ```yaml
 Type: Boolean
@@ -2178,6 +2248,10 @@ Possible values: true / false
 
 Indicates whether inbound Windows Server Update Services (WSUS) traffic should be allowed.
 
+If `true`, corresponding ports are open and Windows Server Update Services (WSUS) will be available.
+If `false`, WSUS ports are not open.
+The script achieves this by enabling or disabling the [Windows Server Update Services (HTTP-In)](#windows-server-update-services-http-in) and [Windows Server Update Services (HTTPS-In)](#windows-server-update-services-https-in) firewall rules.
+
 ```yaml
 Type: Boolean
 Required: false
@@ -2189,6 +2263,10 @@ Possible values: true / false
 ### EnableWDS
 
 Indicates whether inbound Windows Deployment Services (WDS) traffic should be allowed.
+
+If `true`, corresponding ports are open and Windows Deployment Services (WDS) will be available.
+If `false`, WDS ports are not open.
+The script achieves this by enabling or disabling the [Windows Deployment Services (UDP-In)](#windows-deployment-services-udp-in) and [Windows Deployment Services (RPC-In)](#windows-deployment-services-rpc-in) firewall rules.
 
 ```yaml
 Type: Boolean
@@ -2202,6 +2280,10 @@ Possible values: true / false
 
 Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed.
 
+If `true`, corresponding ports are open and HTTP/HTTPS will be available.
+If `false`, HTTP/HTTPS ports are not open.
+The script achieves this by enabling or disabling the [World Wide Web Services (HTTP Traffic-In)](#world-wide-web-services-http-traffic-in) and [World Wide Web Services (HTTPS Traffic-In)](#world-wide-web-services-https-traffic-in) firewall rules.
+
 ```yaml
 Type: Boolean
 Required: false
@@ -2214,6 +2296,10 @@ Possible values: true / false
 
 Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed.
 
+If `true`, corresponding ports are open and File Server Resource Manager (FSRM) will be available.
+If `false`, FSRM ports are not open.
+The script achieves this by enabling or disabling the [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in) [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in) firewall rules.
+
 ```yaml
 Type: Boolean
 Required: false
@@ -2225,6 +2311,13 @@ Possible values: true / false
 ### EnablePrintSpooler
 
 Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
+
+If `true`, corresponding ports are open and Print Spooler will be available.
+If `false`, Print Spooler traffic is not allowed.
+The script achieves this by enabling or disabling the [File and Printer Sharing (Spooler Service - RPC)](#file-and-printer-sharing-spooler-service---rpc) firewall rule.
+
+> [!WARNING]
+> Due to the possibility for exposure, it is highly recommended NOT to enable Printer spooler service on domain controllers.
 
 ```yaml
 Type: Boolean
@@ -2580,7 +2673,7 @@ and server remote management:
 |5986/TCP|WinRM|[Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)|
 |49152-65535/TCP|WMI|[Windows Management Instrumentation (WMI-In)](#windows-management-instrumentation-wmi-in)|
 |3389/UDP|Remote Desktop|[Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in)|
-|3389/TCP|Remote Desktop|[Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in),[Remote Desktop (TCP-In)](#remote-desktop-tcp-in)|
+|3389/TCP|Remote Desktop|[Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in), [Remote Desktop (TCP-In)](#remote-desktop-tcp-in)|
 |22/TCP|SSH|[OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd)|
 |49152-65535/TCP|DFS Management|[DFS Management (TCP-In)](#dfs-management-tcp-in)|
 |49152-65535/TCP|DNS RPC|[RPC (TCP, Incoming)](#rpc-tcp-incoming)|
@@ -3021,6 +3114,7 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
+
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3038,6 +3132,7 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
+
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3056,6 +3151,7 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport).
+
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3078,8 +3174,9 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule
-can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. 
+
+The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Desktop - User Mode (TCP-In)
 
@@ -3095,8 +3192,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule
-can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. 
+
+The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Desktop (TCP-In)
 
@@ -3116,7 +3214,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 > It was superseded by the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in) rule
 > in Windows Server 2012.
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### DFS Management (TCP-In)
@@ -3166,7 +3266,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting. The scope of this rule
+This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Performance Logs and Alerts (TCP-In)
@@ -3182,7 +3284,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting. The scope of this rule
+This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### COM+ Remote Administration (DCOM-In)
@@ -3199,7 +3303,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting. The scope of this rule can
+This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting. 
+
+The scope of this rule can
 further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Event Log Management (RPC)
@@ -3216,7 +3322,9 @@ further be limited by enabling the [BlockManagementFromDomainControllers](#block
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.  The scope of this rule
+This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.  
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Scheduled Tasks Management (RPC)
@@ -3233,7 +3341,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting. The scope of this rule
+This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Service Management (RPC)
@@ -3249,7 +3359,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting. The scope of this rule
+This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Volume Management - Virtual Disk Service (RPC)
@@ -3266,7 +3378,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Volume Management - Virtual Disk Service Loader (RPC)
@@ -3282,7 +3396,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Defender Firewall Remote Management (RPC)
@@ -3299,7 +3415,9 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting. The scope of this rule
+This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting. 
+
+The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 ### Replication Traffic
@@ -3351,9 +3469,9 @@ For now, the following Windows Server roles and features are covered:
 - [Dynamic Host Configuration Protocol (DHCP) Server](#dhcp-server-v4-udp-in)
 - [Network Policy Server (NPS)](#network-policy-server-legacy-radius-authentication---udp-in)
 - [Web Server (IIS)](#world-wide-web-services-http-traffic-in)
-- [Windows Deployment Services (WDS)](#windows-deployment-services-rpc-in)
+- [Windows Deployment Services (WDS)](#windows-deployment-services-udp-in)
 - [Key Management Service (KMS)](#key-management-service-tcp-in)
-- [File Server Resource Manager (FSRM)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+- [File Server Resource Manager (FSRM)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
 - [Print Spooler](#file-and-printer-sharing-spooler-service---rpc) (highly discouraged)
 - [Windows Server Update Services (WSUS)](#windows-server-update-services-http-in)
 - [OpenSSH SSH Server](#openssh-ssh-server-sshd)
