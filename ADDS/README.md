@@ -2514,6 +2514,9 @@ Script logic:
 
 Creates GPO – the GPO is NOT linked to any OU.
 
+> [!NOTE]
+> TODO: Describe the "atomic changes"
+
 Atomic changes…
 
 Creates startup script `FirewallConfiguration.bat` (batch file is used to avoid any issues with Powershell execution policy)
