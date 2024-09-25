@@ -113,16 +113,20 @@ The functionality and configuration options of the `DCFWTool` are described in t
 
 ## About the Authors
 
-This whitepaper was written by [Pavel Formánek](https://en.linkedin.com/in/pavel-formanek-9861397)
-and [Michael Grafnetter](https://en.linkedin.com/in/grafnetter),
-both of whom used to work as Identity and Security Premier Field Engineers (PFEs) at Microsoft.
+![](../Images/Profile/michael-grafnetter.jpg){ width=150px } [Michael Grafnetter](https://en.linkedin.com/in/grafnetter)
+is a [Microsoft MVP](https://mvp.microsoft.com/en-us/PublicProfile/5001919?fullName=Michael%20Grafnetter)
+and expert on Windows security and PowerShell.
+He is best known for inventing the Shadow Credentials attack primitive
+and for creating the [Directory Services Internals (DSInternals)](https://github.com/MichaelGrafnetter/DSInternals)
+PowerShell module. Michael enjoys sharing his knowledge during Active Directory security assessments,
+workshops, and tech talks.
 
-> [!NOTE]
-> TODO: Add bio.
-
-![](../Images/Profile/michael-grafnetter.jpg) Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-![](../Images/Profile/pavel-formanek.jpg) Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+![](../Images/Profile/pavel-formanek.jpg){ width=150px } [Pavel Formanek](https://en.linkedin.com/in/pavel-formanek-9861397)
+is CTO and co-founder of [Cloudi Support](https://www.cloudi.cz),
+which helps customers to secure their infrastructure, both on-prem and in the cloud.
+Prior to founding the company, Pavel worked many years at Microsoft as a Premier Field Engineer (PFE),
+responsible for security assessments and healthchecks of the largest EMEA Microsoft customers.
+He also created and delivered dozens of training sessions over the years.
 
 ## Design
 
