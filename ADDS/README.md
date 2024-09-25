@@ -37,6 +37,8 @@ footer-right: "\\hspace{1cm}"
 | ADDS         | [Active Directory Domain Services]                    |
 | AD           | Active Directory (Domain Services)                    |
 | DNS          | Domain Name System                                    |
+| DNSSEC       | Domain Name System Security Extensions                |
+| DoH          | DNS over HTTPS                                        |
 | FQDN         | Fully Qualified Domain Name                           |
 | GPO          | Group Policy Object                                   |
 | PS           | [PowerShell]                                          |
@@ -71,6 +73,8 @@ footer-right: "\\hspace{1cm}"
 | ITDR         | Identity Threat Detection and Response                |
 | EDR          | Endpoint Detection and Response                       |
 | EFS          | Encrypting File System                                |
+| IPSec        | Internet Protocol Security                            |
+| MITM         | Man-in-the-middle or on-path attack                   |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Configuration Manager]: https://learn.microsoft.com/en-us/mem/configmgr/core/understand/introduction
@@ -1047,7 +1051,21 @@ The following protocols need to be investigated in the future, as they are open 
 
 ### IPSec Rules
 
+IPSec (Internet Protocol Security) provides means to ensure the confidentiality,
+integrity, and authenticity of data transmissions.
+The deployment of IPSec in transport mode therefore used to be an integral part of enterprise security baselines.
+However, this IPSec mode has turned out to be too complex to implement for the majority of organizations.
+Moreover, native encryption layers have been added to protocols like SMB, RDP, and RPC,
+making IPSec mostly redundant in Windows networks.
 
+One of the few exceptions is the DNS protocol, where not even the DNSSEC extension
+makes it immune to man-in-the-middle (MITM) attacks.
+And while Windows contains rich configuration options for securing DNS traffic in corporate networks using IPSec,
+the industry seems to have chosen DNS over HTTPS (DoH) to protect DNS traffic in public networks instead.
+We can only hope for the DoH support in Windows Server and access points with captive portals to improve in the near future,
+so that DoH can seamlessly be enforced on corporate devices.
+
+As a conclusion, most organizations should not even consider deploying IPSec in transport mode.
 
 ### Distribution Contents
 
