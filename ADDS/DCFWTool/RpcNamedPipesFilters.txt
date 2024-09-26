@@ -1,6 +1,6 @@
 # Synopsis: This NETSH script is part of the Domain Controller Firewall project.
 # Author:   Michael Grafnetter
-# Version:  2.0
+# Version:  2.1
 # Usage:    netsh.exe -f RpcNamedPipesFilters.txt
 # Rollback: netsh.exe rpc filter delete filter filterkey=all
 # Check:    netsh.exe rpc filter show filter

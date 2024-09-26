@@ -1066,6 +1066,8 @@ We can only hope for the DoH support in Windows Server and access points with ca
 so that DoH can seamlessly be enforced on corporate devices.
 
 As a conclusion, most organizations should not even consider deploying IPSec in transport mode.
+They should rather focus on properly configuring the security measures that already available in application protocols,
+but are not enabled by default.
 
 ### Distribution Contents
 
@@ -1294,7 +1296,7 @@ the GPO will contain set of inbound [firewall rules](#inbound-firewall-rules-ref
 ### Registry Settings
 
 Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file),
-the GPO will contain number of registry settings.
+the GPO will contain a number of registry settings.
 Most of them are managed, which means, once the GPO is not linked to the target,
 the settings revert back to the default state.
 Some of them are [unmanaged](#dealing-with-gpo-tattooing) though and need different approach,
@@ -2310,7 +2312,12 @@ Indicates whether inbound http.sys-based web server traffic on default HTTP and 
 
 If `true`, corresponding ports are open and HTTP/HTTPS will be available.
 If `false`, HTTP/HTTPS ports are not open.
-The script achieves this by enabling or disabling the [World Wide Web Services (HTTP Traffic-In)](#world-wide-web-services-http-traffic-in) and [World Wide Web Services (HTTPS Traffic-In)](#world-wide-web-services-https-traffic-in) firewall rules.
+The script achieves this by enabling or disabling the [World Wide Web Services (HTTP Traffic-In)](#world-wide-web-services-http-traffic-in)
+and [World Wide Web Services (HTTPS Traffic-In)](#world-wide-web-services-https-traffic-in) firewall rules.
+
+> [!WARNING]
+> Deploying web servers on domain dontrollers is not recommended,
+> as it would excessively increase their attack surface.
 
 ```yaml
 Type: Boolean
@@ -2326,7 +2333,9 @@ Indicates whether inbound File Server Resource Manager (FSRM) management traffic
 
 If `true`, corresponding ports are open and File Server Resource Manager (FSRM) will be available.
 If `false`, FSRM ports are not open.
-The script achieves this by enabling or disabling the [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in) [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in) firewall rules.
+The script achieves this by enabling or disabling the [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
+and [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+firewall rules.
 
 ```yaml
 Type: Boolean
@@ -2340,12 +2349,13 @@ Possible values: true / false
 
 Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
 
-If `true`, corresponding ports are open and Print Spooler will be available.
+If `true`, the corresponding ephemeral port is open and Print Spooler will be available.
 If `false`, Print Spooler traffic is not allowed.
 The script achieves this by enabling or disabling the [File and Printer Sharing (Spooler Service - RPC)](#file-and-printer-sharing-spooler-service---rpc) firewall rule.
 
 > [!WARNING]
-> Due to the possibility for exposure, it is highly recommended NOT to enable Printer spooler service on domain controllers.
+> It is highly recommended to DISABLE the Printer Spooler service on domain controllers
+> to decrease the atack surface.
 
 ```yaml
 Type: Boolean
@@ -2738,7 +2748,9 @@ and server remote management:
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123] |
 | Remote Addresses | Any |
 
-As the NTP service might be used by non-Windows clients, we do not limit the remote addresses.
+> [!NOTE]
+> As the NTP service might be used by non-Windows clients,
+> we do not limit the remote addresses.
 
 #### Active Directory Domain Controller (RPC-EPMAP)
 
@@ -3148,7 +3160,6 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
-
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3166,9 +3177,11 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
-
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+
+> [!NOTE]
+> This is a custom firewall rule, as there is no built-in rule allowing traffic on port 5986/TCP.
 
 #### Windows Management Instrumentation (WMI-In)
 
@@ -3185,7 +3198,6 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport).
-
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3209,7 +3221,6 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
-
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3228,7 +3239,6 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
-
 The scope of this rule can further be limited by enabling
 the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3251,7 +3261,6 @@ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers
 > in Windows Server 2012.
 
 This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
-
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3303,7 +3312,6 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting. 
-
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3321,7 +3329,6 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting. 
-
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3340,7 +3347,6 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting. 
-
 The scope of this rule can
 further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3359,7 +3365,6 @@ further be limited by enabling the [BlockManagementFromDomainControllers](#block
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.  
-
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3377,8 +3382,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting. 
-
+This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3395,8 +3399,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting. 
-
+This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3414,8 +3417,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. 
-
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3432,8 +3434,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. 
-
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3451,8 +3452,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting. 
-
+This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3504,7 +3504,7 @@ For now, the following Windows Server roles and features are covered:
 - [Windows Internet Naming Service (WINS)](#windows-internet-naming-service-wins-tcp-in)
 - [Dynamic Host Configuration Protocol (DHCP) Server](#dhcp-server-v4-udp-in)
 - [Network Policy Server (NPS)](#network-policy-server-legacy-radius-authentication---udp-in)
-- [Web Server (IIS)](#world-wide-web-services-http-traffic-in)
+- [Web Server (IIS)](#world-wide-web-services-http-traffic-in) (highly discouraged)
 - [Windows Deployment Services (WDS)](#windows-deployment-services-udp-in)
 - [Key Management Service (KMS)](#key-management-service-tcp-in)
 - [File Server Resource Manager (FSRM)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
@@ -3787,8 +3787,14 @@ This rule is governed by the [EnableWebServer](#enablewebserver) setting.
 
 This rule is governed by the [EnableWDS](#enablewds) setting.
 
-> [!NOTE]
-> TODO: List WDS UDP ports
+The WDS service listens on the following UDP ports by default:
+
+| Port | Description |
+|------|-------------|
+| 67/UDP | DHCP Server (Required if options 66 and 67 are not sent by a standalone DHCP server) |
+| 68/UDP | DHCP Client (Required for DHCP server authorization) |
+| 69/UDP |TFTP |
+| 4011/UDP | DHCP Proxy |
 
 #### Windows Deployment Services (RPC-In)
 
@@ -3804,10 +3810,7 @@ This rule is governed by the [EnableWDS](#enablewds) setting.
 | Description | Inbound rule for Windows Deployment Services to allow RPC/TCP traffic. |
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableWDS](#enablewds) setting.
-
-> [!NOTE]
-> TODO: List WDS TCP ports
+This rule is governed by the [EnableWDS](#enablewds) setting. The WDS service uses port `5040/TCP` by default.
 
 #### Key Management Service (TCP-In)
 
