@@ -20,7 +20,7 @@ List of client IP adresses from which inbound traffic should be allowed. This li
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.5
+Version: 2.6
 
 #>
 
@@ -31,12 +31,6 @@ Version: 2.5
 param(
     [Parameter(Mandatory = $true)]
     [string] $GPOSession,
-
-    [ValidateNotNullOrEmpty()]
-    [string[]] $ClientAddresses = @('Any'),
-
-    [ValidateNotNullOrEmpty()]
-    [string[]] $ManagementAddresses = @('Any'),
 
     [ValidateNotNullOrEmpty()]
     [string[]] $DomainControllerAddresses = @('Any'),
@@ -58,7 +52,7 @@ Feel free to add your custom firewall rules below to match your environment.
 #>
 
 # Create Inbound rule "File and Printer Sharing over SMBDirect (iWARP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
+New-NetFirewallRule -GPOSession $GPOSession `
                     -Name 'FPSSMBD-iWARP-In-TCP' `
                     -DisplayName 'File and Printer Sharing over SMBDirect (iWARP-In)' `
                     -Group 'File and Printer Sharing over SMBDirect' `

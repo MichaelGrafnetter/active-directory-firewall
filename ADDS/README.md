@@ -75,6 +75,7 @@ footer-right: "\\hspace{1cm}"
 | EFS          | Encrypting File System                                |
 | IPSec        | Internet Protocol Security                            |
 | MITM         | Man-in-the-middle or on-path attack                   |
+| TFTP         | Trivial File Transfer Protocol                        |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Configuration Manager]: https://learn.microsoft.com/en-us/mem/configmgr/core/understand/introduction
@@ -1015,7 +1016,8 @@ rules:
 - [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-reference#block-persistence-through-wmi-event-subscription)
 
 > [!IMPORTANT]
-> System Center Configuration Manager (SCCM) agent will not work properly if these ASR rules are enabled.
+> System Center Configuration Manager (SCCM) client and Distribution Point (DP)
+> will not work properly if these ASR rules are enabled.
 
 #### Malicious C2 Protocols and Backdoors
 
@@ -2384,7 +2386,8 @@ Possible values: true / false / null
 
 ### BlockWmiCommandExecution
 
-Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR.
+Indicates whether to block [process creations originating from PSExec and WMI commands](#ms-wmi-windows-management-instrumentation-remote-protocol)
+using Defender ASR.
 This is achieved by enforcing the following Microsoft Defender Antivirus Attack Surface Reduction (ASR) rules:
 
 - [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
@@ -2396,7 +2399,8 @@ allowing you to evaluate the possible impact if the rules were enabled in block 
 If `null` MDA ASR rules are not configured, effectively disabling the rules.
 
 > [!IMPORTANT]
-> System Center Configuration Manager (SCCM) agent will not work properly if these ASR rules are enabled.
+> System Center Configuration Manager (SCCM) client and Distribution Point (DP)
+> will not work properly on domain controllers if this setting is enabled.
 
 ```yaml
 Type: Boolean
@@ -2450,7 +2454,26 @@ There are several practical advantages to keeping customer-specific firewall rul
   As an example, rules enabling communication with a backup agent will probably be the same
   for domain controller (DC) and certification authority (CA).
 
-See the `CustomRules.Sample.ps1` sample file, which can be used as a template.
+Below is an excerpt from a custom rule script file that enables communication with Zabbix monitoring agents:
+
+```powershell
+New-NetFirewallRule -GPOSession $GPOSession `
+                    -Name 'Zabbix-In-TCP' `
+                    -DisplayName 'Zabbix Agent (TCP-In)' `
+                    -Group 'Zabbix Agent' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 10050 `
+                    -RemoteAddress $RemoteManagementAddresses `
+                    -Program '%ProgramFiles%\Zabbix\zabbix_agentd.exe' `
+                    -Verbose:$isVerbose > $null
+```
+
+See the `CustomRules.Sample.ps1` sample file, which contains some additional boilerplate code
+and can be used as a template.
 
 ```yaml
 Type: String[]
@@ -2662,15 +2685,12 @@ Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Co
 
 ### Microsoft's Guidelines
 
+There are multiple official documents available that list the ports used by Windows Server and specifically Active Directory:
+
 - [How to configure a firewall for Active Directory domains and trusts](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/config-firewall-for-ad-domains-and-trusts)
 - [Service overview and network port requirements for Windows](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/service-overview-and-network-port-requirements)
 
-Dynamic RPC ports, listed in the table below, can be set to static port through [Configuration File](#configuration-file):
-
-- [NTDS static port](#ntdsstaticport)
-- [Netlogon static port](#netlogonstaticport)
-- [FRS static port](#frsstaticport)
-- [DFSR static port](#dfsr-static-port)
+The following table maps all the ports used by domain controllers to the corresponding Windows Firewall rules:
 
 |Port|Service|Rule Reference|
 |---|---|---|
@@ -2700,6 +2720,14 @@ Dynamic RPC ports, listed in the table below, can be set to static port through 
 |139/TCP|File and Printer Sharing|[File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)|
 |42/TCP|WINS|[Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in)|
 |42/UDP|WINS|[Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in)|
+
+A handful of services that use dynamic RPC ports by default (see the table above)
+can be configured to use static ones through the [Configuration File](#configuration-file):
+
+- [NTDS](#ntdsstaticport)
+- [Netlogon](#netlogonstaticport)
+- [FRS](#frsstaticport)
+- [DFSR](#dfsr-static-port)
 
 Additional firewall rules that are not DC-specific might be required to enable core networking functionality
 and server remote management:

@@ -18,7 +18,7 @@ Online documentation: https://github.com/MichaelGrafnetter/active-directory-fire
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.5
+Version: 2.6
 
 #>
 
@@ -254,12 +254,16 @@ if($configuration.EnableNetbiosNameService -or $configuration.EnableNetbiosDatag
     Write-Warning -Message 'NetBIOS is a legacy protocol and should be disabled in modern networks.'
 }
 
-if(-not($configuration.DisableLLMNR -and $configuration.DisableMDNS -and $configuration.DisableNetbiosBroadcasts)) {
-    Write-Warning -Message 'Only the DNS protocol should be used for name resolution in modern networks.'
+if(-not($configuration.DisableLLMNR -and $configuration.DisableMDNS)) {
+    Write-Warning -Message 'Only the DNS protocol should be used for name resolution in modern networks. Protocols using distributed name resolution, including LLMNR and mDNS, should be disabled on DCs.'
 }
 
 if(-not($configuration.LogMaxSizeKilobytes -ge 16384 -and $configuration.LogDroppedPackets -and $configuration.LogAllowedPackets)) {
     Write-Warning -Message 'The firewall log settings do not meet the standardized security baselines.'
+}
+
+if($configuration.BlockWmiCommandExecution -eq $true) {
+    Write-Warning -Message 'SCCM client and DP do not work properly on systems where command execution over WMI is blocked.'
 }
 
 #endregion Configuration Validation
