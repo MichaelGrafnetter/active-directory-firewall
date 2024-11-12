@@ -18,7 +18,7 @@ Online documentation: https://github.com/MichaelGrafnetter/active-directory-fire
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.6
+Version: 2.7
 
 #>
 
@@ -1700,44 +1700,6 @@ Save-NetGPO -GPOSession $gpoSession
 #endregion Inbound Firewall Rules
 
 #region Registry Settings
-
-# Set the Delivery Optimization Download Mode to Simple
-# DCs should not be downloading updates from peers.
-Set-GPRegistryValue -Guid $gpo.Id `
-                    -Key 'HKLM\Software\Policies\Microsoft\Windows\DeliveryOptimization' `
-                    -ValueName 'DODownloadMode' `
-                    -Value 99 `
-                    -Type DWord `
-                    -Domain $domain.DNSRoot `
-                    -Server $targetDomainController `
-                    -Verbose:$isVerbose > $null
-
-# Set Allow Telemetry to Security [Enterprise Only]
-Set-GPRegistryValue -Guid $gpo.Id `
-                    -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\DataCollection' `
-                    -ValueName 'AllowTelemetry' `
-                    -Value 0 `
-                    -Type DWord `
-                    -Domain $domain.DNSRoot `
-                    -Server $targetDomainController `
-                    -Verbose:$isVerbose > $null
-
-# Turn off Application Telemetry
-Set-GPRegistryValue -Guid $gpo.Id `
-                    -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat' `
-                    -ValueName 'AITEnable' `
-                    -Value 0 `
-                    -Type DWord `
-                    -Domain $domain.DNSRoot `
-                    -Server $targetDomainController `
-                    -Verbose:$isVerbose > $null
-
-<#
-TODO: Add more registry settings
-- OneSettings
-- Allow Diagnostic Data to Disabled.
-  Administrative Template > Windows Components > Data Collection and Preview Builds
-#>
 
 # Prevent users and apps from accessing dangerous websites
 # (Enables Microsoft Defender Exploit Guard Network Protection)
