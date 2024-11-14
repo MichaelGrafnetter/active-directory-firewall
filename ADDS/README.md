@@ -133,7 +133,7 @@ Prior to founding the company, Pavel worked many years at Microsoft as a Premier
 responsible for security assessments and healthchecks of the largest EMEA Microsoft customers.
 He also created and delivered dozens of training sessions over the years.
 
-## Design
+## Secure Firewall Policy Design
 
 ### Overview
 
@@ -390,8 +390,8 @@ If RSAT is absent, the UI may show references to missing DLL files instead of th
 
 ![Localized rule names not displayed correctly](../Images/Screenshots/localization-issue.png){ width=300px }
 
-To ensure consistent firewall rule name display regardless of RSAT or the OS locale, we have decided to use
-only English rule names.
+To ensure consistent firewall rule name display regardless of RSAT or the OS locale,
+all rule names should be hardcoded in the PowerShell script creating them.
 
 ### Firewall Profiles
 
@@ -548,19 +548,24 @@ Several Windows services that use RPC dynamic ports by default can be configured
 This allows for easier tracing and troubleshooting at the network level
 and simplifies rule configuration for network-based firewalls.
 
-The following services are supported by our solution:
+Static endpoints of some protocols can be set by modifying the registry.
+To simplify the changes through the Group Policy Editor,
+the [DomainControllerFirewall.admx](#administrative-templates) file is provided as part of the `DCFWTool`,
+but this administrative template can be used independently of the tool.
 
-| Service                         | Default Port | Applied Using                                         |
-|---------------------------------|-------------:|-------------------------------------------------------|
-| [NTDS](#ntdsstaticport)         |    38901/TCP | [Administrative Templates](#administrative-templates) |
-| [Netlogon](#netlogonstaticport) |    38902/TCP | [Administrative Templates](#administrative-templates) |
-| [FRS](#frsstaticport)           |    38903/TCP | [Administrative Templates](#administrative-templates) |
-| [DFSR](#dfsr-static-port)       |     5722/TCP | [Startup Script](#startup-script)                     |
-| [WMI](#wmi-static-port)         |    24158/TCP | [Startup Script](#startup-script)                     |
+Additional RPC static ports can be set using built-in command line tools.
+In order to maintain uniform domain controllers configuration,
+these tools are recommended to be executed from startup scripts targeting DCs.
 
-The port numbers can be changed by modifying the [configuration file](#configuration-file).
-To simplify the static port changes through the Group Policy Editor,
-the [DomainControllerFirewall.admx](#administrative-templates) file is provided as part of the solution.
+The following RPC-based protocols are supported by the `DCFWTool`:
+
+| Service                         | Default Port | Applied Using                                               |
+|---------------------------------|-------------:|-------------------------------------------------------------|
+| [NTDS](#ntdsstaticport)         |    38901/TCP | [Custom Administrative Template](#administrative-templates) |
+| [Netlogon](#netlogonstaticport) |    38902/TCP | [Custom Administrative Template](#administrative-templates) |
+| [FRS](#frsstaticport)           |    38903/TCP | [Custom Administrative Template](#administrative-templates) |
+| [DFSR](#dfsrstaticport)         |     5722/TCP | [Startup Script](#dfsr-static-port)                         |
+| [WMI](#wmistaticport)           |    24158/TCP | [Startup Script](#wmi-static-port)                          |
 
 References:
 
@@ -2920,7 +2925,8 @@ Two dynamic RPC ports are used by default, but the services can be [reconfigured
 | Description | Inbound rule to allow remote UDP access to the DNS service. |
 | Remote Addresses | Any |
 
-As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
+> [!NOTE]
+> As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
 #### DNS (TCP, Incoming)
 
@@ -2936,7 +2942,8 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Description | Inbound rule to allow remote TCP access to the DNS service. |
 | Remote Addresses | Any |
 
-As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
+> [!NOTE]
+> As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
 #### Kerberos Key Distribution Center (TCP-In)
 
@@ -2977,8 +2984,9 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [UDP 445] |
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445.
-However, it is part of the predefined firewall rules on Windows Server and is mentioned in several official documents.
+> [!NOTE]
+> We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445.
+> However, it is part of the predefined firewall rules on Windows Server and is mentioned in several official documents.
 
 #### Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
 
@@ -3339,7 +3347,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting. 
+This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3356,7 +3364,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting. 
+This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3374,7 +3382,7 @@ can further be limited by enabling the [BlockManagementFromDomainControllers](#b
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting. 
+This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting.
 The scope of this rule can
 further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
@@ -3392,7 +3400,7 @@ further be limited by enabling the [BlockManagementFromDomainControllers](#block
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.  
+This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.
 The scope of this rule
 can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
