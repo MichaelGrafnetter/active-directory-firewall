@@ -29,6 +29,15 @@ footer-right: "\\hspace{1cm}"
 | 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
 |            |         |                            |                 |
 
+Script files referenced by this document are versioned independently:
+
+| Script file name              | Latest version |
+|-------------------------------|---------------:|
+| `Set-ADDSFirewallPolicy.ps1`  |            2.7 |
+| `CustomRules.Sample.ps1`      |            2.6 |
+| `RpcNamedPipesFilters.txt`    |            2.1 |
+| `Show-WindowsFirewallLog.ps1` |            1.2 |
+
 ## Glossary {.unnumbered}
 
 | Abbreviation | Explanation                                           |
@@ -554,8 +563,8 @@ the [DomainControllerFirewall.admx](#administrative-templates) file is provided 
 but this administrative template can be used independently of the tool.
 
 Additional RPC static ports can be set using built-in command line tools.
-In order to maintain uniform domain controllers configuration,
-these tools are recommended to be executed from startup scripts targeting DCs.
+In order to maintain uniform configuration across all domain controllers,
+these commands are recommended to be executed from startup scripts targeting DCs.
 
 The following RPC-based protocols are supported by the `DCFWTool`:
 
@@ -1076,302 +1085,172 @@ As a conclusion, most organizations should not even consider deploying IPSec in 
 They should rather focus on properly configuring the security measures that already available in application protocols,
 but are not enabled by default.
 
-### Distribution Contents
+## DCFWTool Distribution Contents
 
 Below is a list of all files that are part of the solution, with their respective paths and brief descriptions.
 
-- `GPOReport.html`
+`DCFWTool\Set-ADDSFirewallPolicy.ps1`
+:   PowerShell script for deploying the DC Firewall GPO.
 
-   Sample Group Policy HTML report with all GPO settings configured by the tool
-- `inbound-builtin-firewall-rules.csv`
+`DCFWTool\Set-ADDSFirewallPolicy.Starter.json`
+:   Initial minimalistic configuration file that should be renamed
+    to `Set-ADDSFirewallPolicy.json` and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed.
 
-   List of all built-in FW rules utilized (not necessarily enabled) by the tool
-- `inbound-custom-firewall-rules.csv`
+`DCFWTool\Set-ADDSFirewallPolicy.Sample.json`
+:   Sample configuration file containing all supported configurations options.
 
-   List of all custom FW rules utilized by the tool
-- `DCFWTool\Set-ADDSFirewallPolicy.ps1`
+`DCFWTool\Set-ADDSFirewallPolicy.schema.json`
+:   Schema file for the JSON configuration files.
 
-   PowerShell script for deploying the DC Firewall GPO
-- `DCFWTool\Set-ADDSFirewallPolicy.Starter.json`
+`DCFWTool\RpcNamedPipesFilters.txt`
+:   `netsh.exe` script for creating RPC filters.
 
-   Initial minimalistic configuraton file that should be renamed to `Set-ADDSFirewallPolicy.json`
-   and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed
-- `DCFWTool\Set-ADDSFirewallPolicy.Sample.json`
+`DCFWTool\PolicyDefinitions\DomainControllerFirewall.admx`
+:   GPO template file for [custom configuration](#administrative-templates) settings.
 
-   Sample configuration file containing all supported configurations options
-- `DCFWTool\Set-ADDSFirewallPolicy.schema.json`
+`DCFWTool\PolicyDefinitions\MSS-legacy.admx`
+:   GPO template file for [MSS (Legacy)] settings.
 
-   Schema file for the JSON configuration files
-- `DCFWTool\RpcNamedPipesFilters.txt`
+`DCFWTool\PolicyDefinitions\SecGuide.admx`
+:   GPO template file for [MS Security Guide] settings.
 
-   `netsh.exe` script for creating RPC filters
-- `DCFWTool\PolicyDefinitions\DomainControllerFirewall.admx`
+`DCFWTool\PolicyDefinitions\en-US\DomainControllerFirewall.adml`
+:   English localization file for the `DomainControllerFirewall.admx` template.
 
-   GPO template file for [custom configuration](#administrative-templates) settings
-- `DCFWTool\PolicyDefinitions\MSS-legacy.admx`
+`DCFWTool\PolicyDefinitions\en-US\MSS-legacy.adml`
+:   English localization file for the `MSS-legacy.admx` template.
 
-   GPO template file for [MSS (Legacy)] settings
-- `DCFWTool\PolicyDefinitions\SecGuide.admx`
+`DCFWTool\PolicyDefinitions\en-US\SecGuide.adml`
+:   English localization file for the `SecGuide.admx` template.
 
-   GPO template file for [MS Security Guide] settings
-- `DCFWTool\PolicyDefinitions\en-US\DomainControllerFirewall.adml`
+`GPOReport.html`
+:   Sample Group Policy HTML report with all GPO settings configured by the tool.
 
-   English localization file for the `DomainControllerFirewall.admx` template
-- `DCFWTool\PolicyDefinitions\en-US\MSS-legacy.adml`
+`inbound-builtin-firewall-rules.csv`
+:   List of all built-in FW rules utilized (not necessarily enabled) by the tool.
 
-   English localization file for the `MSS-legacy.admx` template
-- `DCFWTool\PolicyDefinitions\en-US\SecGuide.adml`
+`inbound-custom-firewall-rules.csv`
+:   List of all custom FW rules utilized by the tool.
 
-   English localization file for the `SecGuide.admx` template
-
-- `DCFWTool\Show-WindowsFirewallLog.ps1`
-
-   PowerShell script for reading Windows Firewall log files.
+`DCFWTool\Show-WindowsFirewallLog.ps1`
+:   PowerShell script for reading Windows Firewall log files.
 
 [MSS (Legacy)]: https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055
 [MS Security Guide]: https://learn.microsoft.com/en-us/deployoffice/security/security-baseline#ms-security-guide-administrative-template
 
-### Security Standards Compliance
-
-#### Security Technical Implementation Guide (STIG)
-
-The [Security Technical Implementation Guide (STIG)](https://public.cyber.mil/stigs/) for Microsoft Windows Defender
-Firewall with Advanced Security was developed
-and [published](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip)
-by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) as a tool to improve
-the security of [Department of Defense (DOD)](https://www.defense.gov/) information systems.
-
-![](../Images/Logos/dod-disa-logo.jpg)
-
-Our firewall configuration is compliant with the majority of the STIG requirements out-of-the-box.
-The [configuration file](#configuration-file) can easily be modified to achieve full compliance.
-The following table of requirements corresponds to the Version 2, Release 2 of the STIG,
-published on November 9<sup>th</sup>, 2023.
-
-| Group ID   | Severity | Rule Title                                                    | Compliance                      |
-|------------|----------|---------------------------------------------------------------|---------------------------------|
-| [V-241989] | CAT II   | Windows Defender Firewall with Advanced Security must be enabled when connected to a domain. | ☑ |
-| [V-241990] | CAT II   | Windows Defender Firewall with Advanced Security must be enabled when connected to a private network. | ☑ |
-| [V-241991] | CAT II   | Windows Defender Firewall with Advanced Security must be enabled when connected to a public network. | ☑ |
-| [V-241992] | CAT I    | Windows Defender Firewall with Advanced Security must block unsolicited inbound connections when connected to a domain. | ☑ |
-| [V-241993] | CAT II   | Windows Defender Firewall with Advanced Security must allow outbound connections, unless a rule explicitly blocks the connection when connected to a domain. | ☑ |
-| [V-241994] | CAT III  | Windows Defender Firewall with Advanced Security log size must be configured for domain connections. | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| [V-241995] | CAT III  | Windows Defender Firewall with Advanced Security must log dropped packets when connected to a domain. | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| [V-241996] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a domain. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| [V-241997] | CAT I    | Windows Defender Firewall with Advanced Security must block unsolicited inbound connections when connected to a private network. | ☑ |
-| [V-241998] | CAT II   | Windows Defender Firewall with Advanced Security must allow outbound connections, unless a rule explicitly blocks the connection when connected to a private network. | ☑ |
-| [V-241999] | CAT III  | Windows Defender Firewall with Advanced Security log size must be configured for private network connections. | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be at least `16384`. |
-| [V-242000] | CAT III  | Windows Defender Firewall with Advanced Security must log dropped packets when connected to a private network. | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| [V-242001] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a private network. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| [V-242002] | CAT I    | Windows Defender Firewall with Advanced Security must block unsolicited inbound connections when connected to a public network. | ☑ |
-| [V-242003] | CAT II   | Windows Defender Firewall with Advanced Security must allow outbound connections, unless a rule explicitly blocks the connection when connected to a public network. | ☑ |
-| [V-242004] | CAT II   | Windows Defender Firewall with Advanced Security local firewall rules must not be merged with Group Policy settings when connected to a public network. | ☑ |
-| [V-242005] | CAT II   | Windows Defender Firewall with Advanced Security local connection rules must not be merged with Group Policy settings when connected to a public network. | ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
-| [V-242006] | CAT III  | Windows Defender Firewall with Advanced Security log size must be configured for public network connections. | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be at least `16384`. |
-| [V-242007] | CAT III  | Windows Defender Firewall with Advanced Security must log dropped packets when connected to a public network. | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| [V-242008] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a public network. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| [V-242009] | CAT II   | Inbound exceptions to the firewall on domain workstations must only allow authorized remote management hosts. | ☐ [ManagementAddresses](#managementaddresses) must be configured properly. |
-
-[V-241989]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241989
-[V-241990]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241990
-[V-241991]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241991
-[V-241992]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241992
-[V-241993]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241993
-[V-241994]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241994
-[V-241995]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241995
-[V-241996]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241996
-[V-241997]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241997
-[V-241998]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241998
-[V-241999]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241999
-[V-242000]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242000
-[V-242001]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242001
-[V-242002]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242002
-[V-242003]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242003
-[V-242004]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242004
-[V-242005]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242005
-[V-242006]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242006
-[V-242007]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242007
-[V-242008]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242008
-[V-242009]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242009
-
-#### Center for Internet Security (CIS) Benchmark
-
-[CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) are created using a consensus review process
-comprised of a global community of subject matter experts.
-The process combines real world experience with data-based information to create technology specific
-guidance to assist users to secure their environments. Consensus participants provide perspective
-from a diverse set of backgrounds including consulting, software development, audit and compliance,
-security research, operations, government, and legal.
-
-![](../Images/Logos/cis-logo.png){ width=200px }
-
-Our firewall configuration is compliant with the majority
-of the [CIS Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
-requirements out-of-the-box. The configuration file can easily be modified
-to achieve full compliance, with one negligible exception.
-
-| CIS Title | Compliance |
-|------------------------------------|-----------|
-| (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| ☑ |
-| (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| ☑ |
-| (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| ☑ |
-| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log | ☐ Partially[^cis-partially] |
-| (L1) Ensure Windows Firewall: Domain: Logging: Size limit (KB) is set to 16,384 KB or greater | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| (L1) Ensure Windows Firewall: Domain: Logging: Log dropped packets is set to Yes| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| (L1) Ensure Windows Firewall: Domain: Logging: Log successful connections is set to Yes | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
-| (L1) Ensure Windows Firewall: Private: Firewall state is set to On (recommended) | ☑ |
-| (L1) Ensure Windows Firewall: Private: Inbound connections is set to Block (default) | ☑ |
-| (L1) Ensure Windows Firewall: Private: Settings: Display a notification is set to No| ☑ |
-| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log | ☐ Partially[^cis-partially] |
-| (L1) Ensure Windows Firewall: Private: Logging: Size limit (KB) is set to 16,384 KB or greater | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| (L1) Ensure Windows Firewall: Private: Logging: Log dropped packets is set to Yes | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| (L1) Ensure Windows Firewall: Private: Logging: Log successful connections is set to Yes| ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
-| (L1) Ensure Windows Firewall: Public: Firewall state is set to On (recommended) | ☑ |
-| (L1) Ensure Windows Firewall: Public: Inbound connections is set to Block (default) | ☑ |
-| (L1) Ensure Windows Firewall: Public: Settings: Display a notification is set to No| ☑ |
-| (L1) Ensure Windows Firewall: Public: Settings: Apply local firewall rules is set to No| ☑ |
-| (L1) Ensure Windows Firewall: Public: Settings: Apply local connection security rules is set to No| ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
-| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log | ☐ Partially[^cis-partially] |
-| (L1) Ensure Windows Firewall: Public: Logging: Size limit (KB) is set to 16,384 KB or greater | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| (L1) Ensure Windows Firewall: Public: Logging: Log dropped packets is set to Yes| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| (L1) Ensure Windows Firewall: Public: Logging: Log successful connections is set to Yes | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
-
-[^cis-partially]: All the profiles share the same log file. See the [LogFilePath](#logfilepath) setting.
-
-#### Microsoft Security Compliance Toolkit
-
-The [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10)
-is a set of tools that allows enterprise security administrators to download, analyze, test, edit,
-and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
-
-![](../Images/Logos/microsoft-logo.png){ width=200px }
-
-Our firewall configuration is compliant with the majority
-of the [SCT Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
-requirements out-of-the-box. The configuration file can easily be modified to achieve full compliance.
-
-| Firewall Policy Path | Setting Name | Win 2016 DC Requirement | Win 2022 DC Requirement | Compliance |
-|-------------------|----------------|-----------|-----------|---------------------|
-| Domain Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| Domain Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| Domain Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| Domain Profile\\Settings | Display a notification | No | Not defined | ☑ |
-| Domain Profile\\State | Firewall state | On | On | ☑ |
-| Domain Profile\\State | Inbound connections | Block | Block | ☑ |
-| Domain Profile\\State | Outbound connections | Allow | Allow | ☑ |
-| Private Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| Private Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| Private Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| Private Profile\\Settings | Display a notification | No | Not defined | ☑ |
-| Private Profile\\State | Firewall state | On | On | ☑ |
-| Private Profile\\State | Inbound connections | Block | Block | ☑ |
-| Private Profile\\State | Outbound connections | Allow | Allow | ☑ |
-| Public Profile\\Logging | Log dropped packets | Yes | Not defined| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
-| Public Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
-| Public Profile\\Logging | Size limit (KB) | 16384 | Not defined| ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
-| Public Profile\\Settings | Apply local connection security rules | No | N/A | ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
-| Public Profile\\Settings | Apply local firewall rules | No | Not defined | ☑ |
-| Public Profile\\Settings | Display a notification | No | Not defined | ☑ |
-| Public Profile\\State | Firewall state | On | On | ☑ |
-| Public Profile\\State | Inbound connections | Block | Block | ☑ |
-| Public Profile\\State | Outbound connections | Allow | Allow | ☑ |
-
 ## Group Policy Object Contents
+
+The Group Policy Object created and managed by the `DCFWTool` contains a lot of settings,
+including firewall rules, registry values, and a startup script.
+This chapter contains a detailed description of these configuration items.
 
 ![Managed GPO contents](../Images/Screenshots/gpo-contents.png)
 
-### Firewall Configuration
+### Windows Firewall Configuration
 
-Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file),
-the GPO will contain Windows Firewall profile settings:
+Based on the configured options in the [Set-ADDSFirewallPolicy.json configuration file](#configuration-file),
+the resulting GPO will contain the following Windows Firewall settings applied to all profiles:
 
+- Turn on the Windows Firewall
+- Block inbound connections by default
+- Disable local firewall rules
 - [Log dropped packets](#logdroppedpackets)
 - [Log allowed packets](#logallowedpackets)
 - [Log file location](#logfilepath)
-- [Maximum log size](#logmaxsizekilobytes)
+- [Maximum log file size](#logmaxsizekilobytes)
 - [Enable local IPSec rule merge](#enablelocalipsecrules)
 
 ![GPO firewall configuration](../Images/Screenshots/gpo-firewall-config.png)
 
-### Inbound Firewall Rules
-
-Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file),
-the GPO will contain set of inbound [firewall rules](#inbound-firewall-rules-reference).
+A complete list of inbound firewall rules created by the tool is available in [the last chapter](#inbound-firewall-rules-reference).
 
 ![GPO inbound firewall rules](../Images/Screenshots/gpo-firewall-inbound-rules.png)
 
 ### Registry Settings
 
-Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file),
+Based on the configured options in [Set-ADDSFirewallPolicy.json configuration file](#configuration-file),
 the GPO will contain a number of registry settings.
-Most of them are managed, which means, once the GPO is not linked to the target,
+Most of them are managed, which means that once the GPO is not linked to the target,
 the settings revert back to the default state.
-Some of them are [unmanaged](#dealing-with-gpo-tattooing) though and need different approach,
-when you require reverting back to default.
+Some of them are [unmanaged](#dealing-with-gpo-tattooing) though
+and require attention when being reverted back to system defaults.
 
 ![GPO registry settings](../Images/Screenshots/gpo-registry.png)
 
 ### Administrative Templates
 
-The following ADMX and their respective ADML (in English) are copied to Central Store if it exists:
+The following ADMX files and their respective English ADML files are copied
+to the [Central ADMX Store](https://learn.microsoft.com/en-us/troubleshoot/windows-client/group-policy/create-and-manage-central-store)
+if it exists:
 
-`DomainControllerFirewall.admx`
+#### DomainControllerFirewall.admx
 
-- Contains template for configuration of the following settings:
-    - [NTDS Static Port](#ntdsstaticport)  
-      Computer Configuration → Administrative Templates → RPC Static Ports →
-      Domain Controller: Active Directory RPC static port
-    - [Netlogon Static Port](#netlogonstaticport)  
-      Computer Configuration → Administrative Templates → RPC Static Ports →
-      Domain Controller: Netlogon static port
-    - [FRS Static Port](#frsstaticport)  
-      Computer Configuration → Administrative Templates → RPC Static Ports →
-      Domain Controller: File Replication Service (FRS)
-      static port
-    - [mDNS Configuration](#disablemdns)  
-      Computer Configuration → Administrative Templates → Network → DNS Client →
-      Turn off Multicast DNS (mDNS) client
+This custom ADMX template enables for configuration of the following settings:
 
-`MSS-legacy.admx`
+[NTDS Static Port](#ntdsstaticport)
+:   Computer Configuration → Administrative Templates → RPC Static Ports →
+    Domain Controller: Active Directory RPC static port
 
-- Contains template for configuration of all the settings stored in:  
-Computer Configuration → Administrative Templates → MSS (Legacy)
+[Netlogon Static Port](#netlogonstaticport)  
+:   Computer Configuration → Administrative Templates → RPC Static Ports →
+    Domain Controller: Netlogon static port
 
-`SecGuide.admx`
+[FRS Static Port](#frsstaticport)  
+:   Computer Configuration → Administrative Templates → RPC Static Ports →
+    Domain Controller: File Replication Service (FRS) static port
 
-- Contains template for configuration of all the settings stored in:  
-Computer Configuration → Administrative Templates → MS Security Guide
+[mDNS Configuration](#disablemdns)  
+:   Computer Configuration → Administrative Templates → Network → DNS Client →
+    Turn off Multicast DNS (mDNS) client
+
+#### SecGuide.admx
+
+This template is provided by Microsoft as part of the [Security Compliance Toolkit](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10).
+
+The corresponding settings can be found under Computer Configuration → Administrative Templates → MS Security Guide.
+
+#### MSS-legacy.admx
+
+The [MSS (Legacy) template](https://techcommunity.microsoft.com/blog/microsoft-security-baselines/the-mss-settings/701055)
+is provided by Microsoft as part of the [Security Compliance Toolkit](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10).
+
+The corresponding settings can be found under Computer Configuration → Administrative Templates → MSS (Legacy).
 
 ### Startup Script
 
-Startup script is used to configure some of the required settings,
-that are not easily configurable through Group Policy.
-`FirewallConfiguration.bat` script, is automatically generated,
-based on the configuration defined in the `Set-ADDSFirewallPolicy.json` file.
-If enabled in the .json file, the script will execute the following actions:
+The managed GPO also contains a startup script called `FirewallConfiguration.bat`,
+which is used to configure some firewall-related settings
+that cannot be deployed through declarative Group Policy extensions.
+The script is automatically generated based on the configuration defined
+in the [Set-ADDSFirewallPolicy.json](#configuration-file)
+and it may execute the following actions:
 
-- Configure WMI static port
-- Installs DFS Management tools, if not already present on the machine
-- Configure DFSR static port
-- Creates firewall log and sets the permissions on it
-- Registers RPC filters, defined in `RpcNamedPipesFilters.txt`
+- Configure a fixed port for Windows Management Instrumentation (WMI).
+- Install DFS Management tools, if not already present on the machine.
+- Set up a static port for the Distributed File System Replication (DFSR).
+- Create a firewall log file and set appropriate permissions on it.
+- Register remote procedure call (RPC) filters.
 
 > [!WARNING]
-> Due to the [GPO foreground processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11))
-> requirement, when applying a startup script, the server needs to be restarted to apply the configuration items in the script.
+> As startup scripts depend on [foreground GPO processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11)),
+> target servers need to be restarted at least once for these settings to get applied.
+> Some workarounds are discussed in the chapter on [System Reboots](#system-reboots).
 
-#### WMI static port
+#### WMI Static Port
 
-The script will move the WMI service to a standalone process listening on TCP port 24158
+Depending on the [WmiStaticPort](#wmistaticport) setting, the startup script will reconfigure
+the WMI service to run in a standalone process listening on TCP port 24158
 with authentication level set to `RPC_C_AUTHN_LEVEL_PKT_PRIVACY`.
+This is achieved by executing the the following command:
 
 ```bat
 winmgmt.exe /standalonehost 6
 ```
 
-#### DFSR static port
+#### DFSR Static Port
 
-If the server doesn't have DFS Management tools installed, the script will istall it.
+Depending on the [DfsrStaticPort](#dfsrstaticport) setting,
+the startup script will ensure that the optional DFS Management tools are installed:
 
 ```bat
 if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
@@ -1379,7 +1258,7 @@ if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
 )
 ```
 
-Next, it will configure the DFSR to use static port.
+Next, it will configure the DFSR to use a static port:
 
 ```bat
 dfsrdiag.exe StaticRPC /Port:5722
@@ -1387,37 +1266,53 @@ dfsrdiag.exe StaticRPC /Port:5722
 
 #### Firewall Log File
 
+Due to a known bug in Windows, it is not enough to enable dropped packet logging
+through the Windows Firewall settings dialog window.
+
 ![Firewall log file configuration](../Images/Screenshots/firewall-log-config.png){ width=400px }
 
-Log file is not created by the GPO, ACLs need to be configured through command line.
+The log file needs to be created manually
+and write permissions must be granted to the firewall service.
+The startup script takes care of this additional step by executing the command line below:
 
 ```bat
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
+The optional [LogFilePath](#logfilepath) setting can be used if the default log path is undesirable.
+
 #### RPC Filters Script
+
+If the [EnableRpcFilters](#enablerpcfilters) setting is configured,
+the startup script will register all RPC filters defined in the `RpcNamedPipesFilters.txt` file
+by running the following command:
+
+```bat
+netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
+```
+
+The `RpcNamedPipesFilters.txt` file will be located in the `Startup` directory of the GPO:
 
 ![RPC Filters configuration file](../Images/Screenshots/deploy-rpcnamedpipesfilter.png)
 
-The script will register all RPC filters defined in `RpcNamedPipesFilters.txt` file,
-which is located in the same path as the `FirewallConfiguration.bat`,
-in the "Startup" folder under the recently created firewall GPO.
-
-```bat
-netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85-D29FEBDFF6D6}\Machine\Scripts\Startup\RpcNamedPipesFilters.txt"
-```
-
 ### NPS Fix for Downlevel Windows Servers
 
-Windows Server 2016 and 2019
+Due to a known bug in downlevel Windows versions,
+Windows Server 2022 firewall rules related to the Network Policy Server (NPS)
+do not work in Windows Server 2019 and 2016.
 
-[EnableNPS](#enablenps)
+If the presence of Network Policy Server is indicated using the [EnableNPS](#enablenps) setting,
+the startup script will contain
+a [simple fix](https://learn.microsoft.com/en-us/answers/questions/97643/windows-server-2019-nps-(network-policy-server)-so)
+for this issue:
 
 ```bat
 sc.exe sidtype IAS unrestricted
 ```
 
-#### Sample Startup Script
+#### Sample Startup Scripts
+
+Here is an example of a full startup script generated by the `DCFWTool`:
 
 ```shell
 @ECHO OFF
@@ -1442,6 +1337,30 @@ netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
 
 echo Fix the NPS service to work with Windows Firewall on downlevel Windows Server versions.
 sc.exe sidtype IAS unrestricted
+```
+
+And here is a script applying inverted settings:
+
+```shell
+@ECHO OFF
+REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.
+
+echo Move the WMI service into the shared Svchost process.
+winmgmt.exe /sharedhost
+
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set dynamic RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:0
+
+echo Create the firewall log file and configure its DACL.
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+
+echo Remove all RPC filters.
+netsh.exe rpc filter delete filter filterkey=all
 ```
 
 ## Configuration
@@ -2685,6 +2604,151 @@ startup script and RPC configuration file, you need to restart all DCs.
 5. Unlink the GPO
 
 Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Controllers container in GPO management console.
+
+## Security Standards Compliance
+
+### Security Technical Implementation Guide (STIG)
+
+The [Security Technical Implementation Guide (STIG)](https://public.cyber.mil/stigs/) for Microsoft Windows Defender
+Firewall with Advanced Security was developed
+and [published](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip)
+by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) as a tool to improve
+the security of [Department of Defense (DOD)](https://www.defense.gov/) information systems.
+
+![](../Images/Logos/dod-disa-logo.jpg)
+
+Our firewall configuration is compliant with the majority of the STIG requirements out-of-the-box.
+The [configuration file](#configuration-file) can easily be modified to achieve full compliance.
+The following table of requirements corresponds to the Version 2, Release 2 of the STIG,
+published on November 9<sup>th</sup>, 2023.
+
+| Group ID   | Severity | Rule Title                                                    | Compliance                      |
+|------------|----------|---------------------------------------------------------------|---------------------------------|
+| [V-241989] | CAT II   | Windows Defender Firewall with Advanced Security must be enabled when connected to a domain. | ☑ |
+| [V-241990] | CAT II   | Windows Defender Firewall with Advanced Security must be enabled when connected to a private network. | ☑ |
+| [V-241991] | CAT II   | Windows Defender Firewall with Advanced Security must be enabled when connected to a public network. | ☑ |
+| [V-241992] | CAT I    | Windows Defender Firewall with Advanced Security must block unsolicited inbound connections when connected to a domain. | ☑ |
+| [V-241993] | CAT II   | Windows Defender Firewall with Advanced Security must allow outbound connections, unless a rule explicitly blocks the connection when connected to a domain. | ☑ |
+| [V-241994] | CAT III  | Windows Defender Firewall with Advanced Security log size must be configured for domain connections. | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| [V-241995] | CAT III  | Windows Defender Firewall with Advanced Security must log dropped packets when connected to a domain. | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| [V-241996] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a domain. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| [V-241997] | CAT I    | Windows Defender Firewall with Advanced Security must block unsolicited inbound connections when connected to a private network. | ☑ |
+| [V-241998] | CAT II   | Windows Defender Firewall with Advanced Security must allow outbound connections, unless a rule explicitly blocks the connection when connected to a private network. | ☑ |
+| [V-241999] | CAT III  | Windows Defender Firewall with Advanced Security log size must be configured for private network connections. | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be at least `16384`. |
+| [V-242000] | CAT III  | Windows Defender Firewall with Advanced Security must log dropped packets when connected to a private network. | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| [V-242001] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a private network. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| [V-242002] | CAT I    | Windows Defender Firewall with Advanced Security must block unsolicited inbound connections when connected to a public network. | ☑ |
+| [V-242003] | CAT II   | Windows Defender Firewall with Advanced Security must allow outbound connections, unless a rule explicitly blocks the connection when connected to a public network. | ☑ |
+| [V-242004] | CAT II   | Windows Defender Firewall with Advanced Security local firewall rules must not be merged with Group Policy settings when connected to a public network. | ☑ |
+| [V-242005] | CAT II   | Windows Defender Firewall with Advanced Security local connection rules must not be merged with Group Policy settings when connected to a public network. | ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
+| [V-242006] | CAT III  | Windows Defender Firewall with Advanced Security log size must be configured for public network connections. | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be at least `16384`. |
+| [V-242007] | CAT III  | Windows Defender Firewall with Advanced Security must log dropped packets when connected to a public network. | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| [V-242008] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a public network. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| [V-242009] | CAT II   | Inbound exceptions to the firewall on domain workstations must only allow authorized remote management hosts. | ☐ [ManagementAddresses](#managementaddresses) must be configured properly. |
+
+[V-241989]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241989
+[V-241990]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241990
+[V-241991]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241991
+[V-241992]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241992
+[V-241993]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241993
+[V-241994]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241994
+[V-241995]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241995
+[V-241996]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241996
+[V-241997]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241997
+[V-241998]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241998
+[V-241999]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241999
+[V-242000]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242000
+[V-242001]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242001
+[V-242002]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242002
+[V-242003]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242003
+[V-242004]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242004
+[V-242005]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242005
+[V-242006]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242006
+[V-242007]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242007
+[V-242008]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242008
+[V-242009]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242009
+
+### Center for Internet Security (CIS) Benchmark
+
+[CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) are created using a consensus review process
+comprised of a global community of subject matter experts.
+The process combines real world experience with data-based information to create technology specific
+guidance to assist users to secure their environments. Consensus participants provide perspective
+from a diverse set of backgrounds including consulting, software development, audit and compliance,
+security research, operations, government, and legal.
+
+![](../Images/Logos/cis-logo.png){ width=200px }
+
+Our firewall configuration is compliant with the majority
+of the [CIS Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
+requirements out-of-the-box. The configuration file can easily be modified
+to achieve full compliance, with one negligible exception.
+
+| CIS Title | Compliance |
+|------------------------------------|-----------|
+| (L1) Ensure Windows Firewall: Domain: Firewall state is set to On (recommended)| ☑ |
+| (L1) Ensure Windows Firewall: Domain: Inbound connections is set to Block (default)| ☑ |
+| (L1) Ensure Windows Firewall: Domain: Settings: Display a notification is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Domain: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\domainfw.log | ☐ Partially[^cis-partially] |
+| (L1) Ensure Windows Firewall: Domain: Logging: Size limit (KB) is set to 16,384 KB or greater | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Domain: Logging: Log dropped packets is set to Yes| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Domain: Logging: Log successful connections is set to Yes | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+| (L1) Ensure Windows Firewall: Private: Firewall state is set to On (recommended) | ☑ |
+| (L1) Ensure Windows Firewall: Private: Inbound connections is set to Block (default) | ☑ |
+| (L1) Ensure Windows Firewall: Private: Settings: Display a notification is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Private: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\privatefw.log | ☐ Partially[^cis-partially] |
+| (L1) Ensure Windows Firewall: Private: Logging: Size limit (KB) is set to 16,384 KB or greater | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Private: Logging: Log dropped packets is set to Yes | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Private: Logging: Log successful connections is set to Yes| ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+| (L1) Ensure Windows Firewall: Public: Firewall state is set to On (recommended) | ☑ |
+| (L1) Ensure Windows Firewall: Public: Inbound connections is set to Block (default) | ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Display a notification is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Apply local firewall rules is set to No| ☑ |
+| (L1) Ensure Windows Firewall: Public: Settings: Apply local connection security rules is set to No| ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
+| (L1) Ensure Windows Firewall: Public: Logging: Name is set to %SystemRoot%\\System32\\logfiles\\firewall\\publicfw.log | ☐ Partially[^cis-partially] |
+| (L1) Ensure Windows Firewall: Public: Logging: Size limit (KB) is set to 16,384 KB or greater | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| (L1) Ensure Windows Firewall: Public: Logging: Log dropped packets is set to Yes| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| (L1) Ensure Windows Firewall: Public: Logging: Log successful connections is set to Yes | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`.  |
+
+[^cis-partially]: All the profiles share the same log file. See the [LogFilePath](#logfilepath) setting.
+
+### Microsoft Security Compliance Toolkit
+
+The [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10)
+is a set of tools that allows enterprise security administrators to download, analyze, test, edit,
+and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
+
+![](../Images/Logos/microsoft-logo.png){ width=200px }
+
+Our firewall configuration is compliant with the majority
+of the [SCT Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
+requirements out-of-the-box and the configuration file can easily be modified to achieve full compliance.
+
+| Firewall Policy Path | Setting Name | Win 2016 DC Requirement | Win 2022 DC Requirement | Compliance |
+|-------------------|----------------|-----------|-----------|---------------------|
+| Domain Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| Domain Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| Domain Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| Domain Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| Domain Profile\\State | Firewall state | On | On | ☑ |
+| Domain Profile\\State | Inbound connections | Block | Block | ☑ |
+| Domain Profile\\State | Outbound connections | Allow | Allow | ☑ |
+| Private Profile\\Logging | Log dropped packets | Yes | Not defined | ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| Private Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| Private Profile\\Logging | Size limit (KB) | 16384 | Not defined | ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| Private Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| Private Profile\\State | Firewall state | On | On | ☑ |
+| Private Profile\\State | Inbound connections | Block | Block | ☑ |
+| Private Profile\\State | Outbound connections | Allow | Allow | ☑ |
+| Public Profile\\Logging | Log dropped packets | Yes | Not defined| ☐ [LogDroppedPackets](#logdroppedpackets) must be set to `true`. |
+| Public Profile\\Logging | Log successful packets | Yes | Not defined | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
+| Public Profile\\Logging | Size limit (KB) | 16384 | Not defined| ☐ [LogMaxSizeKilobytes](#logmaxsizekilobytes) must be set to at least `16384`. |
+| Public Profile\\Settings | Apply local connection security rules | No | N/A | ☐ [EnableLocalIPsecRules](#enablelocalipsecrules) must be set to `false`. |
+| Public Profile\\Settings | Apply local firewall rules | No | Not defined | ☑ |
+| Public Profile\\Settings | Display a notification | No | Not defined | ☑ |
+| Public Profile\\State | Firewall state | On | On | ☑ |
+| Public Profile\\State | Inbound connections | Block | Block | ☑ |
+| Public Profile\\State | Outbound connections | Allow | Allow | ☑ |
 
 ## Inbound Firewall Rules Reference
 
