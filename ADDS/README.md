@@ -1090,49 +1090,64 @@ but are not enabled by default.
 Below is a list of all files that are part of the solution, with their respective paths and brief descriptions.
 
 `DCFWTool\Set-ADDSFirewallPolicy.ps1`
+
 :   PowerShell script for deploying the DC Firewall GPO.
 
 `DCFWTool\Set-ADDSFirewallPolicy.Starter.json`
+
 :   Initial minimalistic configuration file that should be renamed
     to `Set-ADDSFirewallPolicy.json` and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed.
 
 `DCFWTool\Set-ADDSFirewallPolicy.Sample.json`
+
 :   Sample configuration file containing all supported configurations options.
 
 `DCFWTool\Set-ADDSFirewallPolicy.schema.json`
+
 :   Schema file for the JSON configuration files.
 
 `DCFWTool\RpcNamedPipesFilters.txt`
+
 :   `netsh.exe` script for creating RPC filters.
 
 `DCFWTool\PolicyDefinitions\DomainControllerFirewall.admx`
+
 :   GPO template file for [custom configuration](#administrative-templates) settings.
 
 `DCFWTool\PolicyDefinitions\MSS-legacy.admx`
+
 :   GPO template file for [MSS (Legacy)] settings.
 
 `DCFWTool\PolicyDefinitions\SecGuide.admx`
+
 :   GPO template file for [MS Security Guide] settings.
 
 `DCFWTool\PolicyDefinitions\en-US\DomainControllerFirewall.adml`
+
 :   English localization file for the `DomainControllerFirewall.admx` template.
 
 `DCFWTool\PolicyDefinitions\en-US\MSS-legacy.adml`
+
 :   English localization file for the `MSS-legacy.admx` template.
 
 `DCFWTool\PolicyDefinitions\en-US\SecGuide.adml`
+
 :   English localization file for the `SecGuide.admx` template.
 
 `GPOReport.html`
+
 :   Sample Group Policy HTML report with all GPO settings configured by the tool.
 
 `inbound-builtin-firewall-rules.csv`
+
 :   List of all built-in FW rules utilized (not necessarily enabled) by the tool.
 
 `inbound-custom-firewall-rules.csv`
+
 :   List of all custom FW rules utilized by the tool.
 
 `DCFWTool\Show-WindowsFirewallLog.ps1`
+
 :   PowerShell script for reading Windows Firewall log files.
 
 [MSS (Legacy)]: https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055
@@ -1188,18 +1203,22 @@ if it exists:
 This custom ADMX template enables for configuration of the following settings:
 
 [NTDS Static Port](#ntdsstaticport)
+
 :   Computer Configuration → Administrative Templates → RPC Static Ports →
     Domain Controller: Active Directory RPC static port
 
 [Netlogon Static Port](#netlogonstaticport)  
+
 :   Computer Configuration → Administrative Templates → RPC Static Ports →
     Domain Controller: Netlogon static port
 
 [FRS Static Port](#frsstaticport)  
+
 :   Computer Configuration → Administrative Templates → RPC Static Ports →
     Domain Controller: File Replication Service (FRS) static port
 
 [mDNS Configuration](#disablemdns)  
+
 :   Computer Configuration → Administrative Templates → Network → DNS Client →
     Turn off Multicast DNS (mDNS) client
 
