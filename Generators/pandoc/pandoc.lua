@@ -61,4 +61,16 @@ function Para(para)
     }
   end
 end
-  
+
+if FORMAT:match 'latex' then
+  function Image(img)
+    -- TODO: Fix the image alignment.
+    if img.classes:includes("left") and false then
+      return {
+        pandoc.RawInline('latex', '\\begin{wrapfigure}{l}{0.4\\textwidth} \\centering '),
+        img,
+        pandoc.RawInline('latex', ' \\end{wrapfigure}')
+      }
+    end
+  end
+end
