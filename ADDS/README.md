@@ -13,10 +13,6 @@ keywords:
   - Group Policy
   - Security
   - RPC
-header-right: "\\hspace{1cm}"
-footer-left: "\\hspace{1cm}"
-footer-center: "Page \\thepage"
-footer-right: "\\hspace{1cm}"
 ---
 
 # Domain Controller Firewall
@@ -120,27 +116,37 @@ This PowerShell-based tool provides a flexible and repeatable way
 of deploying a secure DC firewall configuration within minutes.
 The functionality and configuration options of the `DCFWTool` are described in this document as well.
 
-[![](../Images/Badges/license-mit.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
+[![](../Images/Badges/license-mit.png "MIT License")](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
 
 > [!NOTE]
 > This document only focuses on the configuration of domain controller firewalls.
 > It is further expected that DCs are only running the recommended set of roles, such as ADDS, DNS, and NTP server.
-> Additional Windows Server roles, as well as management, backup, or logging agents, are out of the scope of this whitepaper. 
+> Additional Windows Server roles, as well as management, backup, or logging agents,
+> are out of the scope of this whitepaper.
 > This document also does not cover a broader DC hardening strategy.
 
 ## About the Authors
 
-![](../Images/Profile/michael-grafnetter.jpg){ width=150px .left }
+![](../Images/Profile/michael-grafnetter.jpg "Michael Grafnetter"){ width=150pt align=left }
 
 [Michael Grafnetter](https://en.linkedin.com/in/grafnetter)
 is a [Microsoft MVP](https://mvp.microsoft.com/en-us/PublicProfile/5001919?fullName=Michael%20Grafnetter)
 and expert on Windows security and PowerShell.
-He is best known for inventing the Shadow Credentials attack primitive
-and for creating the [Directory Services Internals (DSInternals)](https://github.com/MichaelGrafnetter/DSInternals)
-PowerShell module. Michael enjoys sharing his knowledge during Active Directory security assessments,
-workshops, and tech talks.
+He is best known for inventing the [Shadow Credentials](https://medium.com/@NightFox007/exploiting-and-detecting-shadow-credentials-and-msds-keycredentiallink-in-active-directory-9268a587d204)
+attack primitive and for creating the [Directory Services Internals (DSInternals)](https://github.com/MichaelGrafnetter/DSInternals)
+PowerShell module.
+He is also the author of the [Delinea Weak Password Finder](https://delinea.com/resources/weak-password-finder-tool-active-directory)
+(formerly Thycotic) and of the [DSInternals.Passkeys](https://github.com/MichaelGrafnetter/webauthn-interop) PowerShell module.
 
-![](../Images/Profile/pavel-formanek.jpg){ width=150px .right }
+Michael enjoys sharing his knowledge during Active Directory security assessments,
+workshops, and tech talks. He presented his [security research](https://www.dsinternals.com/en/projects/)
+at many international conferences, including [Black Hat Europe](https://www.blackhat.com/eu-19/speakers/Michael-Grafnetter.html),
+[BSides Lisbon](https://bsideslisbon.org/2019/speakers/#michaelgrafnetterWorkshop),
+[HipConf New York](https://www.youtube.com/playlist?list=PLDHg9RSgIEmMyz1eN2Je1HjTDhBjRpJP4),
+[SecTor Canada](https://www.blackhat.com/sector/),
+and [TROOPERS](https://troopers.de/).
+
+![](../Images/Profile/pavel-formanek.jpg "Pavel Formanek"){ width=150pt align=right }
 
 [Pavel Formanek](https://en.linkedin.com/in/pavel-formanek-9861397)
 is CTO and co-founder of [Cloudi Support](https://www.cloudi.cz),
@@ -1423,12 +1429,15 @@ the configuration file does not exist by default and needs to be created manuall
 To simplify the task of creation of a custom configuration file, the `DCFWTool` comes with 2 sample files:
 
 - `Set-ADDSFirewallPolicy.Starter.json`
-  Contains only the minimum settings required for firewall policy deployment.
-  It is recommended to rename the file to `Set-ADDSFirewallPolicy.json` and to add any additional customizations
-  of the policy object to be deployed.
+
+   Contains only the minimum settings required for firewall policy deployment.
+   It is recommended to rename the file to `Set-ADDSFirewallPolicy.json` and to add any additional customizations
+   of the policy object to be deployed.
+
 - `Set-ADDSFirewallPolicy.Sample.json`
-  Contains all the possible configuration items with sample values.
-  It is essential to thoroughly review and adjust all the settings. This sample file should never be used "AS IS".
+
+    Contains all the possible configuration items with sample values.
+    It is essential to thoroughly review and adjust all the settings. This sample file should never be used "AS IS".
 
 > [!CAUTION]
 > Improper configuration can cause network outages in your environment!
@@ -1884,7 +1893,10 @@ Recommended value: true
 Possible values: true / false / null
 ```
 
-If `true` NetBIOS node type is set to P-node. If `false` NetBIOS node type is set to H-node (hybrid).
+If `true` NetBIOS node type is set to P-node.
+
+If `false` NetBIOS node type is set to H-node (hybrid).
+
 If `null` NetBIOS node type is not managed through GPO.
 
 ### DisableLLMNR
@@ -1899,8 +1911,10 @@ Recommended value: true
 Possible values: true / false
 ```
 
-If `true`, Link Local Multicast Name Resolution (LLMNR) is disabled. If `false`, LLMNR is enabled.
-If `null` LLMNR configuration is not managed through GPO.
+If `true`, Link Local Multicast Name Resolution (LLMNR) is disabled.
+
+If `false`, LLMNR is enabled.
+
 For more info, please refer to the *AZ-WIN-00145* configuration item in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows).
 
 ### DisableMDNS
@@ -1938,7 +1952,8 @@ Recommended value: true
 Possible values: true / false
 ```
 
-This setting affects the following firewall rules:
+If `true`, management traffic will be blocked between Domain Controllers.
+The IP addressess of DCs will not be listed in the following remote management firewall rules in the target GPO:
 
 - [Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in)
 - [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)
@@ -1965,9 +1980,8 @@ This setting affects the following firewall rules:
 - [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
 - [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd)
 
-If `true`, management traffic (the above firewall rules) will be blocked between Domain Controllers.
-
-If `false` management traffic (the above firewall rules) will be allowed between Domain Controllers.
+If `false`, the IP addressess of domain controllers will be added to the firewall rules above.
+As a result, management traffic between DCs will be allowed.
 
 ### EnableServiceManagement
 
@@ -1981,9 +1995,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote services management will be available.
-If `false`, services cannot be managed remotely. The script achieves this by enabling or disabling
-the [Remote Service Management (RPC)](#remote-service-management-rpc) firewall rule.
+If `true`, the [Remote Service Management (RPC)](#remote-service-management-rpc) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableEventLogManagement
 
@@ -1997,10 +2012,10 @@ Recommended value: true
 Possible values: true / false
 ```
 
-If `true`, the corresponding port is open and remote Event Log management will be available.
-If `false`, Event Log cannot be managed remotely.
-The script achieves this by enabling or disabling the [Remote Event Log Management (RPC)](#remote-event-log-management-rpc)
-firewall rule.
+If `true`, the [Remote Event Log Management (RPC)](#remote-event-log-management-rpc) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableScheduledTaskManagement
 
@@ -2014,15 +2029,14 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote scheduled tasks management will be available.
-If `false`, scheduled tasks cannot be managed remotely.
-The script achieves this by enabling or disabling the [Remote Scheduled Tasks Management (RPC)](#remote-scheduled-tasks-management-rpc)
-firewall rule.
+If `true`, the [Remote Scheduled Tasks Management (RPC)](#remote-scheduled-tasks-management-rpc) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableWindowsRemoteManagement
 
 Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled.
-This protocol is used by PowerShell Remoting, Server Manager, and [PowerShell CIM cmdlets](https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/?view=powershell-7.4).
 
 ```yaml
 Type: Boolean
@@ -2032,12 +2046,15 @@ Recommended value: true
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and WinRM will be available.
-If `false`, WinRM ports won’t be open.
-The script achieves this by enabling or disabling the [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)
-and [Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in) firewall rules.
+If `true`, the following WinRM firewall rules will be enabled in the target GPO:
 
-For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
+- [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)
+- [Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)
+
+If `false`, the WinRM rules will be disabled.
+
+The [WinRM protocol](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management)
+is used by PowerShell Remoting, Server Manager, and [PowerShell CIM cmdlets](https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/?view=powershell-7.4).
 
 ### EnablePerformanceLogAccess
 
@@ -2051,10 +2068,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote Performance Log management will be available.
-If `false`, Performance Log cannot be managed remotely.
-The script achieves this by enabling or disabling the [Performance Logs and Alerts (TCP-In)](#performance-logs-and-alerts-tcp-in)
-firewall rule.
+If `true`, the [Performance Logs and Alerts (TCP-In)](#performance-logs-and-alerts-tcp-in) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableOpenSSHServer
 
@@ -2068,8 +2085,9 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and OpenSSH will be available. If `false`, OpenSSH won't be allowed.
-The script achieves this by enabling or disabling the [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd) firewall rule.
+If `true`, the [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd) firewall rule will be enabled in the target GPO.
+
+If `false`, this OpenSSH rule will be disabled.
 
 ### EnableRemoteDesktop
 
@@ -2083,10 +2101,13 @@ Recommended value: true
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote desktop connection (RDP) will be available.
-If `false`, RDP is not available.
-The script achieves this by enabling or disabling the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in)
-and [Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in) firewall rules.
+If `true`, the following RDP firewall rules will be enabled in the target GPO:
+
+- [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in)
+- [Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in)
+- [Remote Desktop (TCP-In)](#remote-desktop-tcp-in)
+
+If `false`, these RDP rules will be disabled.
 
 ### EnableDiskManagement
 
@@ -2100,11 +2121,12 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote disk management will be available.
-If `false`, disks cannot be managed remotely.
-The script achieves this by enabling or disabling the [Remote Volume Management - Virtual Disk Service Loader (RPC)](#remote-volume-management---virtual-disk-service-loader-rpc)
-and [Remote Volume Management - Virtual Disk Service (RPC)](#remote-volume-management---virtual-disk-service-rpc)
-firewall rules.
+If `true`, the following firewall rules will be enabled in the target GPO:
+
+- [Remote Volume Management - Virtual Disk Service Loader (RPC)](#remote-volume-management---virtual-disk-service-loader-rpc)
+- [Remote Volume Management - Virtual Disk Service (RPC)](#remote-volume-management---virtual-disk-service-rpc)
+
+If `false`, these rules will be disabled.
 
 ### EnableBackupManagement
 
@@ -2118,9 +2140,9 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote Windows Backup management will be available.
-If `false`, Windows Backup cannot be managed remotely.
-The script achieves this by enabling or disabling the [Windows Backup (RPC)](#windows-backup-rpc) firewall rule.
+If `true`, the [Windows Backup (RPC)](#windows-backup-rpc) firewall rule will be enabled in the target GPO.
+
+If `false`, this firewall rule will be disabled.
 
 ### EnableFirewallManagement
 
@@ -2134,10 +2156,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote Windows Defender Firewall management will be available.
-If `false`, Windows Defender Firewall cannot be managed remotely.
-The script achieves this by enabling or disabling the [Windows Defender Firewall Remote Management (RPC)](#windows-defender-firewall-remote-management-rpc)
-firewall rule.
+If `true`, the [Windows Defender Firewall Remote Management (RPC)](#windows-defender-firewall-remote-management-rpc)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableComPlusManagement
 
@@ -2151,12 +2173,13 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed.
-If `false`, COM+ System Application cannot be managed remotely.
-The script achieves this by enabling or disabling the [COM+ Remote Administration (DCOM-In)](#com-remote-administration-dcom-in)
-firewall rule.
+If `true`, the [COM+ Remote Administration (DCOM-In)](#com-remote-administration-dcom-in) firewall rule
+will be enabled in the target GPO.
 
-For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
+If `false`, this rule will be disabled.
+
+See Microsoft's documentation on [COM+ applications](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview)
+for more details.
 
 ### EnableLegacyFileReplication
 
@@ -2170,12 +2193,11 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open for NTFRS replication.
-If you still haven’t migrated your `SYSVOL` replication to modern DFSR, you need to enable this setting.
-If `false`, NTFRS ports won’t be open.
-The script achieves this by enabling or disabling the [File Replication (RPC)](#file-replication-rpc) firewall rule.
+If `true`, the [File Replication (RPC)](#file-replication-rpc) firewall rule will be enabled in the target GPO.
+This is required in domains where the `SYSVOL` replication has not been
+[migrated from the legacy FRS to DFSR](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
 
-For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
+If `false`, this firewall rule will be disabled.
 
 ### EnableNetbiosNameService
 
@@ -2189,10 +2211,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports (UDP 137) are open and NetBIOS will be available.
-If `false`, NetBIOS ports are not open.
-The script achieves this by enabling or disabling the [File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in)
-firewall rule.
+If `true`, the [File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableNetbiosDatagramService
 
@@ -2206,10 +2228,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports (UDP 138) are open and NetBIOS will be available.
-If `false`, NetBIOS ports are not open.
-The script achieves this by enabling or disabling the [Active Directory Domain Controller - NetBIOS name resolution (UDP-In)](#active-directory-domain-controller---netbios-name-resolution-udp-in)
-firewall rule.
+If `true`, the [Active Directory Domain Controller - NetBIOS name resolution (UDP-In)](#active-directory-domain-controller---netbios-name-resolution-udp-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableNetbiosSessionService
 
@@ -2223,10 +2245,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports (TCP 139) are open and NetBIOS will be available.
-If `false`, NetBIOS ports are not open.
-The script achieves this by enabling or disabling the [File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)
-firewall rule.
+If `true`, the [File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableWINS
 
@@ -2240,12 +2262,13 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and Windows Internet Naming Service (WINS) will be available.
-If `false`, WINS ports are not open.
-The script achieves this by enabling or disabling the [Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in),
-[Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in),
-and [Windows Internet Naming Service (WINS) - Remote Management (RPC)](#windows-internet-naming-service-wins---remote-management-rpc)
-firewall rules.
+If `true`, the following WINS firewall rules will be enabled in the target GPO:
+
+- [Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in)
+- [Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in)
+- [Windows Internet Naming Service (WINS) - Remote Management (RPC)](#windows-internet-naming-service-wins---remote-management-rpc)
+
+If `false`, these rules will be disabled.
 
 ### EnableDhcpServer
 
@@ -2259,11 +2282,14 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and Dynamic Host Configuration Protocol (DHCP) will be available.
-If `false`, DHCP ports are not open.
-The script achieves this by enabling or disabling the [DHCP Server v4 (UDP-In)](#dhcp-server-v4-udp-in),
-[DHCP Server v6 (UDP-In)](#dhcp-server-v6-udp-in), [DHCP Server Failover (TCP-In)](#dhcp-server-failover-tcp-in),
-and [DHCP Server (RPC-In)](#dhcp-server-rpc-in) firewall rules.
+If `true`, the following DHCP server firewall rules will be enabled in the target GPO:
+
+- [DHCP Server v4 (UDP-In)](#dhcp-server-v4-udp-in)
+- [DHCP Server v6 (UDP-In)](#dhcp-server-v6-udp-in)
+- [DHCP Server Failover (TCP-In)](#dhcp-server-failover-tcp-in)
+- [DHCP Server (RPC-In)](#dhcp-server-rpc-in)
+
+If `false`, these rules will be disabled.
 
 ### EnableNPS
 
@@ -2277,9 +2303,19 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and Network Policy Server (NPS) will be available.
-If `false`, NPS ports are not open.
-The script achieves this by enabling or disabling the [Network Policy Server (Legacy RADIUS Authentication - UDP-In)](#network-policy-server-legacy-radius-authentication---udp-in), [Network Policy Server (Legacy RADIUS Accounting - UDP-In)](#network-policy-server-legacy-radius-accounting---udp-in), [Network Policy Server (RADIUS Authentication - UDP-In)](#network-policy-server-radius-authentication---udp-in), [Network Policy Server (RADIUS Accounting - UDP-In)](#network-policy-server-radius-accounting---udp-in) and [Network Policy Server (RPC)](#network-policy-server-rpc) firewall rules.
+If `true`, the following NPS-related firewall rules will be enabled in the target GPO:
+
+- [Network Policy Server (Legacy RADIUS Authentication - UDP-In)](#network-policy-server-legacy-radius-authentication---udp-in)
+- [Network Policy Server (Legacy RADIUS Accounting - UDP-In)](#network-policy-server-legacy-radius-accounting---udp-in)
+- [Network Policy Server (RADIUS Authentication - UDP-In)](#network-policy-server-radius-authentication---udp-in)
+- [Network Policy Server (RADIUS Accounting - UDP-In)](#network-policy-server-radius-accounting---udp-in)
+- [Network Policy Server (RPC)](#network-policy-server-rpc)
+
+> [!NOTE]
+> If this setting is enabled, the [RadiusClientAddresses](#radiusclientaddresses) option
+> should be configured as well.
+
+If `false`, NPS-related firewall rules will be disabled.
 
 ### RadiusClientAddresses
 
@@ -2308,9 +2344,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and Key Management Service (KMS) will be available.
-If `false`, KMS ports are not open.
-The script achieves this by enabling or disabling the [Key Management Service (TCP-In)](#key-management-service-tcp-in) firewall rule.
+If `true`, the [Key Management Service (TCP-In)](#key-management-service-tcp-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 ### EnableWSUS
 
@@ -2324,9 +2361,12 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and Windows Server Update Services (WSUS) will be available.
-If `false`, WSUS ports are not open.
-The script achieves this by enabling or disabling the [Windows Server Update Services (HTTP-In)](#windows-server-update-services-http-in) and [Windows Server Update Services (HTTPS-In)](#windows-server-update-services-https-in) firewall rules.
+If `true`, these WSUS firewall rules will be enabled in the GPO:
+
+- [Windows Server Update Services (HTTP-In)](#windows-server-update-services-http-in)
+- [Windows Server Update Services (HTTPS-In)](#windows-server-update-services-https-in)
+
+If `false`, the WSUS rules will be disabled.
 
 ### EnableWDS
 
@@ -2340,9 +2380,12 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and Windows Deployment Services (WDS) will be available.
-If `false`, WDS ports are not open.
-The script achieves this by enabling or disabling the [Windows Deployment Services (UDP-In)](#windows-deployment-services-udp-in) and [Windows Deployment Services (RPC-In)](#windows-deployment-services-rpc-in) firewall rules.
+If `true`, the following WDS firewall rules will be enabled in the target GPO:
+
+- [Windows Deployment Services (UDP-In)](#windows-deployment-services-udp-in)
+- [Windows Deployment Services (RPC-In)](#windows-deployment-services-rpc-in)
+
+If `false`, the WDS rules will be disabled.
 
 ### EnableWebServer
 
@@ -2356,10 +2399,12 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and HTTP/HTTPS will be available.
-If `false`, HTTP/HTTPS ports are not open.
-The script achieves this by enabling or disabling the [World Wide Web Services (HTTP Traffic-In)](#world-wide-web-services-http-traffic-in)
-and [World Wide Web Services (HTTPS Traffic-In)](#world-wide-web-services-https-traffic-in) firewall rules.
+If `true`, the following web server firewall rules will be enabled in the target GPO:
+
+- [World Wide Web Services (HTTP Traffic-In)](#world-wide-web-services-http-traffic-in)
+- [World Wide Web Services (HTTPS Traffic-In)](#world-wide-web-services-https-traffic-in)
+
+If `false`, the web server rules will be disabled.
 
 > [!WARNING]
 > Deploying web servers on domain dontrollers is not recommended,
@@ -2377,11 +2422,12 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, corresponding ports are open and File Server Resource Manager (FSRM) will be available.
-If `false`, FSRM ports are not open.
-The script achieves this by enabling or disabling the [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
-and [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
-firewall rules.
+If `true`, these FSRM-related firewall rules will be enabled in the target GPO:
+
+- [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
+- [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+
+If `false`, the FSRM rules will be disabled.
 
 ### EnablePrintSpooler
 
@@ -2395,9 +2441,10 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, the corresponding ephemeral port is open and Print Spooler will be available.
-If `false`, Print Spooler traffic is not allowed.
-The script achieves this by enabling or disabling the [File and Printer Sharing (Spooler Service - RPC)](#file-and-printer-sharing-spooler-service---rpc) firewall rule.
+If `true`, the [File and Printer Sharing (Spooler Service - RPC)](#file-and-printer-sharing-spooler-service---rpc)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
 
 > [!WARNING]
 > It is highly recommended to DISABLE the Printer Spooler service on domain controllers
@@ -2416,9 +2463,11 @@ Recommended value: true
 Possible values: true / false / null
 ```
 
-If `true` MDA Network Protection will be configured in block mode.
-If `false` MDA Network Protection will be configured in audit mode only.
-If `null` MDA Network Protection will not be configured.
+If `true`, MDA Network Protection will be configured in **block mode**.
+
+If `false`, MDA Network Protection will be configured in **audit mode** only.
+
+If `null`, MDA Network Protection will not be managed by the GPO.
 
 ### BlockWmiCommandExecution
 
@@ -2438,10 +2487,12 @@ This is achieved by enforcing the following Microsoft Defender Antivirus Attack 
 - [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
 - [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-persistence-through-wmi-event-subscription)
 
-If `true` MDA Attack Surface Reduction rules (mentioned above) will be configured in block mode.
-If `false` MDA Attack Surface Reduction rules (mentioned above) will be configured in audit mode only,
+If `true`, MDA Attack Surface Reduction rules (mentioned above) will be configured in **block mode**.
+
+If `false`, MDA Attack Surface Reduction rules (mentioned above) will be configured in **audit mode** only,
 allowing you to evaluate the possible impact if the rules were enabled in block mode.
-If `null` MDA ASR rules are not configured, effectively disabling the rules.
+
+If `null`, MDA Attack Surface Reduction rules will not managed by the GPO, effectively disabling the rules.
 
 > [!IMPORTANT]
 > System Center Configuration Manager (SCCM) client and Distribution Point (DP)
@@ -2459,9 +2510,11 @@ Recommended value: true
 Possible values: true / false / null
 ```
 
-If `true`, RPC filters defined in `RpcNamedPipesFilters.txt` will be enabled.
-If `false`, RPC filters are not enabled.
-If `null` this setting is not managed.
+If `true`, RPC filters defined in the `RpcNamedPipesFilters.txt` file will be enabled using a startup script.
+
+If `false`, any pre-existing RPC filters will be deleted using a startup script.
+
+If `null`, RPC filters will not be changed by the GPO.
 
 ### EnableLocalIPsecRules
 
@@ -2475,8 +2528,9 @@ Recommended value: false
 Possible values: true / false
 ```
 
-If `true`, local IPSec rules will be enabled.
-If `false`, only IPSec rules distributed through GPOs will be allowed.
+If `true`, local IPSec rules will be applied.
+
+If `false`, only IPSec rules distributed through GPOs will be applied.
 
 > [!NOTE]
 > Although no IPSec rules are deployed by this solution,
@@ -2528,11 +2582,11 @@ and can be used as a template.
 - The tool has been tested on Windows Server 2022, Windows Server 2019, and Windows 11,
   but it should work on all Windows versions currently supported by Microsoft.
 
-    ![](../Images/Badges/windows-server.png) ![](../Images/Badges/windows-client.png)
+    ![](../Images/Badges/windows-server.png "Windows Server") ![](../Images/Badges/windows-client.png "Windows Client")
 
 - Although the script might work in PowerShell Core, it has only been tested in PowerShell Desktop.
 
-    ![](../Images/Badges/powershell5.png)
+    ![](../Images/Badges/powershell5.png "PowerShell 5")
 
 - Domain Admins group membership or equivalent privileges, enabling the creation of a Group Policy Object (GPO),
   creation of folders and files in `SYSVOL`, and linking the GPO to the Domain Controllers OU.
@@ -2558,7 +2612,7 @@ and can be used as a template.
     This default name [can be changed](#grouppolicyobjectname) in the JSON configuration file.
 
     > [!NOTE]
-    > The GPO is intentionally NOT linked to any organizational unit (OU) by default.
+    > The GPO is intentionally **not linked** to any organizational unit (OU) by default.
 
 6. Open the Group Policy Management Console (`gpmc.msc`) and **review the freshly created GPO thoroughly**.
    You might need to return to step 3 if anything does not check out.
@@ -2691,7 +2745,7 @@ and [published](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windo
 by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) as a tool to improve
 the security of [Department of Defense (DOD)](https://www.defense.gov/) information systems.
 
-![](../Images/Logos/dod-disa-logo.jpg)
+![](../Images/Logos/dod-disa-logo.jpg "DoD and DISA Logos")
 
 Our firewall configuration is compliant with the majority of the STIG requirements out-of-the-box.
 The [configuration file](#configuration-file) can easily be modified to achieve full compliance.
@@ -2746,7 +2800,7 @@ published on November 9<sup>th</sup>, 2023.
 
 ### Center for Internet Security (CIS) Benchmark
 
-![](../Images/Logos/cis-logo.png){ width=200px .left }
+![](../Images/Logos/cis-logo.png "CIS Logo"){ width=200pt align=left }
 
 [CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) are created using a consensus review process
 comprised of a global community of subject matter experts.
@@ -2790,7 +2844,7 @@ to achieve full compliance, with one negligible exception.
 
 ### Microsoft Security Compliance Toolkit
 
-![](../Images/Logos/microsoft-logo.png){ width=200px .left }
+![](../Images/Logos/microsoft-logo.png "Microsoft Logo"){ width=200pt align=left }
 
 The [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10)
 is a set of tools that allows enterprise security administrators to download, analyze, test, edit,

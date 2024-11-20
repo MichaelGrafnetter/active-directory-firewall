@@ -64,12 +64,19 @@ end
 
 if FORMAT:match 'latex' then
   function Image(img)
-    -- TODO: Fix the image alignment.
-    if img.classes:includes("left") and false then
+    -- Apply image alignment.
+    if img.attributes.align == "left" or img.attributes.align == "right" then
+      -- The option is either 'l' or 'r'.
+      local floatfltOption = img.attributes.align:sub(1, 1)
+      
+      -- Get the actual image width.
+      local imageWidth = img.attributes.width
+
+      -- Wrap the image in a floatingfigure environment.
       return {
-        pandoc.RawInline('latex', '\\begin{wrapfigure}{l}{0.4\\textwidth} \\centering '),
+        pandoc.RawInline('latex', '\\begin{floatingfigure}[' .. floatfltOption .. ']{' .. imageWidth .. '}'),
         img,
-        pandoc.RawInline('latex', ' \\end{wrapfigure}')
+        pandoc.RawInline('latex', '\\end{floatingfigure}')
       }
     end
   end

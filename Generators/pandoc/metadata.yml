@@ -1,0 +1,13 @@
+header-right:  \hspace{1cm}
+footer-left:   \hspace{1cm}
+footer-right:  \hspace{1cm}
+footer-center: Page \thepage
+lof: true
+titlepage: true
+titlepage-rule-height: 40
+titlepage-rule-color: de0000
+caption-justification: centering
+listings-disable-line-numbers: true
+classoption: oneside
+geometry: a4paper,margin=2cm
+colorlinks: true
