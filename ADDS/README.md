@@ -23,7 +23,7 @@ keywords:
 |------------|--------:|----------------------------|-----------------|
 | 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft    |
 | 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
-|            |         |                            |                 |
+| 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review |
 
 Script files referenced by this document are versioned independently:
 
@@ -571,13 +571,75 @@ This allows for easier tracing and troubleshooting at the network level
 and simplifies rule configuration for network-based firewalls.
 
 Static endpoints of some protocols can be set by modifying the registry.
-To simplify the changes through the Group Policy Editor,
-the [DomainControllerFirewall.admx](#administrative-templates) file is provided as part of the `DCFWTool`,
-but this administrative template can be used independently of the tool.
+This is the case of the **Active Directory (NTDS)** service:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters  
+> Value name: TCP/IP Port  
+> Value type: REG_DWORD  
+> Value data: (available port)
+
+The related **Netlogon** service needs to be configured separately:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters  
+> Value name: DCTcpipPort  
+> Value type: REG_DWORD  
+> Value data: (available port)
+
+A static TCP port can be configured for the lagacy **File Replication Service (FRS)** as well:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTFRS\\Parameters  
+> Value name: RPC TCP/IP Port Assignment  
+> Value type: REG_DWORD  
+> Value data: (available port)
+
+To simplify the deployment of the registry settings above,
+the custom [DomainControllerFirewall.admx](#administrative-templates) template
+has been created as part of this project.
 
 Additional RPC static ports can be set using built-in command line tools.
 In order to maintain uniform configuration across all domain controllers,
 these commands are recommended to be executed from startup scripts targeting DCs.
+
+
+[Startup script](#startup-script)
+
+1024 - 49151:
+
+```shell
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set static RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:5722
+```
+
+0:
+
+```shell
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set dynamic RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:0
+```
+
+
+```shell
+echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
+winmgmt.exe /standalonehost 6
+```
+
+`false`:
+
+```shell
+echo Move the WMI service into the shared Svchost process.
+winmgmt.exe /sharedhost
+```
+
 
 The following RPC-based protocols are supported by the `DCFWTool`:
 
@@ -1098,6 +1160,65 @@ As a conclusion, most organizations should not even consider deploying IPSec in 
 They should rather focus on properly configuring the security measures that already available in application protocols,
 but are not enabled by default.
 
+### Name Resolution Protocols
+
+While the Domain Name System (DNS) is the primary protocol used for name resolution in Windows,
+the Link-Local Multicast Name Resolution (LLMNR) and NetBIOS Name Service (NBNS)
+protocols are used as fallback. Support for Multicast DNS (mDNS) has been added in Windows 10.
+These 3 peer name resolution protocols are enabled by default and are often abused by malicious actors.
+By sending spoofed responses, they are able to redirect network traffic to their devices
+and perform MITM attacks against insecure network protocols like SMB or NTLM.
+It is therefore strongly recommended to disable the LLMNR, NBNS, and mDNS protocols,
+escpecially on sensitive systems like domain controllers.
+
+Disabling the LLMNR protocol is straightforward, as there is a built-in Group Policy setting available,
+located in Computer Configuration → Policies → Administrative Templates
+→ Network → DNS Client → **Turn off multicast name resolution**.
+This setting is catalogued in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows)
+under ID *AZ-WIN-00145*. Contrary to its name, this setting has no effect on the mDNS protocol.
+
+If the mDNS protocol is to be disabled as well, this [undocumented registry setting](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777)
+must be used:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\DNSCache\\Parameters  
+> Registry value: EnableMDNS  
+> Value type: REG_DWORD  
+> Value data: 0
+
+To simplify the deployment of this setting,
+it has been added to the [DomainControllerFirewall.admx](#domaincontrollerfirewalladmx) custom template.
+
+The NBNS protocol is more complicated to deal with.
+Historically, it could only be disabled on a per-adapter basis.
+Startup scripts performing WMI calls are therefore often used by enterprises.
+Below is an example of such script:
+
+```powershell
+Get-WmiObject -Class Win32_NetworkAdapterConfiguration `
+              -Filter 'TcpipNetbiosOptions IS NOT NULL' |
+    Invoke-WmiMethod -Name SetTcpipNetbios -ArgumentList 2
+```
+
+The [SecGuide.admx](#secguideadmx) template,
+which is part of the [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10),
+contains a similar setting called [NetBT NodeType configuration](https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/160177)
+and its recommended value is **P-Node**. Below is the corresponding registry setting:
+
+> HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Services\\Netbt\\Parameters
+> Registry value: NodeType  
+> Value type: REG_DWORD  
+> Value data: 2
+
+Since Windows 11, there is yet another NBNS-related Group Policy setting available,
+but it does not seem to actually work.
+It is located under Computer Configuration → Policies → Administrative Templates
+→ Network → DNS Client → **Configure NetBIOS settings**. This is the corresponding registry setting:
+
+> HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient
+> Registry value: EnableNetbios  
+> Value type: REG_DWORD  
+> Value data: 0
+
 ## DCFWTool Distribution Contents
 
 Below is a list of all files that are part of the solution, with their respective paths and brief descriptions.
@@ -1229,7 +1350,7 @@ if it exists:
 
 #### DomainControllerFirewall.admx
 
-This custom ADMX template enables for configuration of the following settings:
+This custom ADMX template enables configuration of the following settings:
 
 [NTDS Static Port](#ntdsstaticport)
 
@@ -1293,7 +1414,7 @@ The batch file format is intentionally used instead of a Powershell script to av
 Depending on the [WmiStaticPort](#wmistaticport) setting, the startup script will reconfigure
 the WMI service to run in a standalone process listening on TCP port 24158
 with authentication level set to `RPC_C_AUTHN_LEVEL_PKT_PRIVACY`.
-This is achieved by executing the the following command:
+This is achieved by executing the following command:
 
 ```bat
 winmgmt.exe /standalonehost 6
@@ -1587,6 +1708,7 @@ Possible values: true / false
 ```
 
 If `true`, all dropped packets will be logged into the [firewall text log](#logfilepath).
+
 If `false`, dropped packets will not be logged.
 
 ### LogAllowedPackets
@@ -1602,6 +1724,7 @@ Possible values: true / false
 ```
 
 If `true`, all allowed packets will be logged into the [firewall text log](#logfilepath).
+
 If `false`, allowed packets will not be logged.
 
 ### LogFilePath
@@ -1703,7 +1826,6 @@ Specify IPv4 address, IPv4 subnet or address range of all your Domain Controller
 ### NtdsStaticPort
 
 Static TCP port to be used for inbound Active Directory RPC traffic.
-RPC-based protocols are using dynamic TCP ports from the 49152 – 65535 range by default.
 
 ```yaml
 Type: Integer
@@ -1712,18 +1834,13 @@ Recommended value: 38901
 Possible values: null / 0 / 1024 - 49151
 ```
 
-If `null`, this setting is not managed through GPO.
+If a `non-zero value` is provided for this setting,
+the Active Directory (NTDS) service will be listening on this [static TCP port](#static-rpc-ports).
 
-If a value is defined, this value will be set as static port for Active Directory RPC traffic.
-See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
-article for more information.
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the NTDS service,
+which is the default behavior.
 
-If set to 0 (zero), the port is set to dynamic.
-
-> Registry key: HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters  
-> Value name: TCP/IP Port  
-> Value type: REG_DWORD  
-> Value data: (available port)
+If `null`, this setting will not be managed by the GPO.
 
 > [!IMPORTANT]
 > The NTDS service needs to be restarted for the new setting to become effective.
@@ -1735,7 +1852,6 @@ If set to 0 (zero), the port is set to dynamic.
 ### NetlogonStaticPort
 
 Static TCP port to be used for inbound Netlogon traffic.
-RPC-based protocols are using dynamic TCP ports from the 49152 – 65535 range by default.
 
 ```yaml
 Type: Integer
@@ -1744,17 +1860,13 @@ Recommended value: 38902
 Possible values: null / 0 / 1024 - 49151
 ```
 
-If `null`, this setting is not managed through GPO.
+If a `non-zero value` is provided for this setting,
+the Netlogon service will be listening on this [static TCP port](#static-rpc-ports).
 
-If value is defined, this value will be set as static port for Active Directory RPC traffic.
-See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
-article for more information.
-If set to 0 (zero), the port is set to dynamic.
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the Netlogon service,
+which is the default behavior.
 
-> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters  
-> Registry value: DCTcpipPort  
-> Value type: REG_DWORD  
-> Value data: (available port)
+If `null`, this setting will not be managed by the GPO.
 
 > [!IMPORTANT]
 > The Netlogon service needs to be restarted for the new setting to become effective.
@@ -1766,7 +1878,6 @@ If set to 0 (zero), the port is set to dynamic.
 ### FrsStaticPort
 
 Static TCP port to be used for legacy FRS traffic.
-RPC-based protocols are using dynamic TCP ports from the 49152 – 65535 range by default.
 
 ```yaml
 Type: Integer
@@ -1775,23 +1886,21 @@ Recommended value: 38903
 Possible values: null / 0 / 1024 - 49151
 ```
 
-If `null`, this setting is not managed through GPO. If value is defined,
-this value will be set as static port for DFS Replication traffic.
-If set to 0 (zero), the port is set to dynamic.
+If a `non-zero value` is provided for this setting,
+the legacy File Replication Service (FRS) will be listening on this [static TCP port](#static-rpc-ports).
 
-> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTFRS\\Parameters  
-> Registry value: RPC TCP/IP Port Assignment  
-> Value type: REG_DWORD  
-> Value data: (available port)
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the FRS service,
+which is the default behavior.
+
+If `null`, this setting will not be managed by the GPO.
 
 > [!IMPORTANT]
-> The File Replication service needs to be restarted for the new setting to become effective.
+> The FRS service needs to be restarted for the new setting to become effective.
 > See the [System Reboots](#system-reboots) section for details.
 
 ### DfsrStaticPort
 
 Static TCP port to be used for DFSR traffic.
-RPC-based protocols are using dynamic ports TCP ports from the 49152 – 65535 range by default.
 
 ```yaml
 Type: Integer
@@ -1800,39 +1909,13 @@ Recommended value: 5722
 Possible values: null / 0 / 1024 - 49151
 ```
 
-If `null`, this setting is not managed through GPO.
-If value is defined, this value will be set as static port for DFS Replication traffic,
-for more info, see the [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
-article.
-If set to 0 (zero), the port is set to dynamic.
+If a `non-zero value` is provided for this setting,
+the DFS Replication (DFSR) service will be listening on this [static TCP port](#static-rpc-ports).
 
-[Startup script](#startup-script)
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the DFSR service,
+which is the default behavior.
 
-1024 - 49151:
-
-```shell
-echo Install the dfsrdiag.exe tool if absent.
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-
-echo Set static RPC port for DFS Replication.
-dfsrdiag.exe StaticRPC /Port:5722
-```
-
-0:
-
-```shell
-echo Install the dfsrdiag.exe tool if absent.
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-
-echo Set dynamic RPC port for DFS Replication.
-dfsrdiag.exe StaticRPC /Port:0
-```
-
-`null`: not present
+If `null`, this setting will not be managed by the GPO.
 
 > [!IMPORTANT]
 > The DFSR service needs to be restarted for the new setting to become effective.
@@ -1841,7 +1924,6 @@ dfsrdiag.exe StaticRPC /Port:0
 ### WmiStaticPort
 
 Indicates whether inbound Windows Management Instrumentation (WMI) traffic should use a static TCP port.
-RPC-based protocols are using dynamic TCP ports from the 49152 – 65535 range by default. If `null`, this setting is not managed through GPO.
 
 ```yaml
 Type: Boolean
@@ -1851,31 +1933,14 @@ Recommended value: true
 Possible values: true / false / null
 ```
 
-If `true`, WMI will use static port 24158, if false, WMI will use dynamic port.
-For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi)
-article.
+If `true`, the WMI service will be configured to listen on the [static 24158 TCP port](#static-rpc-ports)
+and the [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73)
+option will be enforced to prevent MITM network-based attacks.
 
-[Startup script](#startup-script)
+If `false`, the WMI service will be configured to use a dynamic TCP port in the 49152 – 65535 range,
+which is the default behavior.
 
-`true`:
-
-```shell
-echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
-winmgmt.exe /standalonehost 6
-```
-
-The [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73)
-setting prevents replay attacks, verifies that none of the data transferred between the client and server
-has been modified and ensures that the data transferred can only be seen unencrypted by the client and the server.
-
-`false`:
-
-```shell
-echo Move the WMI service into the shared Svchost process.
-winmgmt.exe /sharedhost
-```
-
-`null`: not present
+If `null`, this setting will not be managed by the GPO.
 
 > [!IMPORTANT]
 > The Winmgmt service needs to be restarted for the new setting to become effective.
@@ -1893,11 +1958,12 @@ Recommended value: true
 Possible values: true / false / null
 ```
 
-If `true` NetBIOS node type is set to P-node.
+If `true`, the [NetBIOS node type](#name-resolution-protocols)
+will be set to P-node by the respective GPO registry setting.
 
-If `false` NetBIOS node type is set to H-node (hybrid).
+If `false`, the NetBIOS node type will be set to H-node (hybrid), which is the default behavior.
 
-If `null` NetBIOS node type is not managed through GPO.
+If `null` NetBIOS node type will not be managed by the GPO.
 
 ### DisableLLMNR
 
@@ -1911,11 +1977,10 @@ Recommended value: true
 Possible values: true / false
 ```
 
-If `true`, Link Local Multicast Name Resolution (LLMNR) is disabled.
+If `true`, the [Link-Local Multicast Name Resolution (LLMNR)](#name-resolution-protocols) will be disabled
+by the respective GPO registry setting.
 
-If `false`, LLMNR is enabled.
-
-For more info, please refer to the *AZ-WIN-00145* configuration item in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows).
+If `false`, the LLMNR service will not be managed by the GPO.
 
 ### DisableMDNS
 
@@ -1929,16 +1994,16 @@ Recommended value: true
 Possible values: true / false / null
 ```
 
-If `true`, mDNS is disabled. If `false`, mDNS is enabled. If `null`, this setting is not managed through GPO.
+If `true`, the [Multicast DNS (mDNS) client](#name-resolution-protocols) will be disabled
+by the respective GPO registry setting.
 
-> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\DNSCache\\Parameters  
-> Registry value: EnableMDNS  
-> Value type: REG_DWORD  
-> Value data: (0 or 1)
+If `false`, the mDNS client will be enabled
+by the respective GPO registry setting.
 
-Restart the system for the new setting to become effective.
+If `null`, the mDNS protocol will not be managed by the GPO.
 
-For more info, see the following [Microsoft article](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777).
+> [!IMPORTANT]
+> A system reboot might be required for the mDNS setting to become effective.
 
 ### BlockManagementFromDomainControllers
 

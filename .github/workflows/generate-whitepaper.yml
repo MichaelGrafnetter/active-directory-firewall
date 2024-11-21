@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'ADDS/README.md'
+      - Generators/pandoc/*
       - '.github/workflows/generate-whitepaper.yml'
 
 jobs:
