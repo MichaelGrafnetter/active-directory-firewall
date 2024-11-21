@@ -11,10 +11,10 @@ for Active Directory-related server roles.
 
 The following materials are currently available:
 
-- 🛠️[DCFWTool: Domain Controller Firewall Tool](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/download/v0.8/DCFWTool.zip)
+- 🛠️[DCFWTool: Domain Controller Firewall Tool](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/download/v1.0/DCFWTool.zip)
   (zipped distribution of the [source code](https://github.com/MichaelGrafnetter/active-directory-firewall/tree/main/ADDS/DCFWTool))
 - 📄 Whitepaper in [HTML](https://firewall.dsinternals.com/ADDS)
-  and [PDF](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/download/v0.8/Domain_Controller_Firewall_Draft_v0_8.pdf)
+  and [PDF](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/download/v1.0/Domain_Controller_Firewall_Draft_v1_0.pdf)
   formats (both [generated](https://github.com/MichaelGrafnetter/active-directory-firewall/tree/main/.github/workflows)
   from the [ADDS/README.md](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/ADDS/README.md) file)
 - 📜[Sample Firewall GPO HTML Report](https://firewall.dsinternals.com/ADDS/GPOReport.html)
