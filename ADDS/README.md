@@ -585,7 +585,7 @@ The related **Netlogon** service needs to be configured separately:
 > Value type: REG_DWORD  
 > Value data: (available port)
 
-A static TCP port can be configured for the lagacy **File Replication Service (FRS)** as well:
+A static TCP port can be configured for the lagacy **File Replication Service (FRS)** through the registry as well:
 
 > HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTFRS\\Parameters  
 > Value name: RPC TCP/IP Port Assignment  
@@ -596,60 +596,43 @@ To simplify the deployment of the registry settings above,
 the custom [DomainControllerFirewall.admx](#administrative-templates) template
 has been created as part of this project.
 
-Additional RPC static ports can be set using built-in command line tools.
-In order to maintain uniform configuration across all domain controllers,
-these commands are recommended to be executed from startup scripts targeting DCs.
-
-
-[Startup script](#startup-script)
-
-1024 - 49151:
+Additional static RPC ports can be set using built-in command line tools,
+most importantly for the **Distributed File System Replication (DFSR)**:
 
 ```shell
-echo Install the dfsrdiag.exe tool if absent.
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-
-echo Set static RPC port for DFS Replication.
-dfsrdiag.exe StaticRPC /Port:5722
+dfsrdiag.exe StaticRPC /Port:<available port>
 ```
 
-0:
+We recommend using port 5722, which was allocated for DFSR in Windows Server 2008 and Windows Server 2008 R2,
+before the service was changed to use a random port number in Windows Server 2012.
+As the `dfsrdiag` tool is not available on DCs by default,
+it must first be installed using the following command:
 
 ```shell
-echo Install the dfsrdiag.exe tool if absent.
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-
-echo Set dynamic RPC port for DFS Replication.
-dfsrdiag.exe StaticRPC /Port:0
+dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
 ```
 
+The **Windows Management Instrumentation (WMI)** protocol can also be configured
+to use a static TCP port. The next command will move the WMI service
+to a standalone process listening on TCP port 24158,
+with authentication level set to [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73):
 
 ```shell
-echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
 winmgmt.exe /standalonehost 6
 ```
 
-`false`:
+In order to maintain uniform configuration across all domain controllers,
+these commands are recommended to be executed from startup scripts targeting DCs.
 
-```shell
-echo Move the WMI service into the shared Svchost process.
-winmgmt.exe /sharedhost
-```
+Here is a mnemotechnical example of a static RPC port configuration:
 
-
-The following RPC-based protocols are supported by the `DCFWTool`:
-
-| Service                         | Default Port | Applied Using                                               |
-|---------------------------------|-------------:|-------------------------------------------------------------|
-| [NTDS](#ntdsstaticport)         |    38901/TCP | [Custom Administrative Template](#administrative-templates) |
-| [Netlogon](#netlogonstaticport) |    38902/TCP | [Custom Administrative Template](#administrative-templates) |
-| [FRS](#frsstaticport)           |    38903/TCP | [Custom Administrative Template](#administrative-templates) |
-| [DFSR](#dfsrstaticport)         |     5722/TCP | [Startup Script](#dfsr-static-port)                         |
-| [WMI](#wmistaticport)           |    24158/TCP | [Startup Script](#wmi-static-port)                          |
+| Service  |         Port |
+|----------|-------------:|
+| NTDS     |    38901/TCP |
+| Netlogon |    38902/TCP |
+| FRS      |    38903/TCP |
+| DFSR     |     5722/TCP |
+| WMI      |    24158/TCP |
 
 References:
 
