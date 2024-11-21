@@ -31,11 +31,20 @@ find "$RepoRoot/docs" -name "*.md" -exec sed  --in-place 's/(Images\/\w\+\//(ass
 # Example: Replace #active-directory-domain-controller---ldap-tcp-in with #active-directory-domain-controller-ldap-tcp-in
 find "$RepoRoot/docs" -name "*.md" -exec sed --in-place 's/\(\w\)---\(\w\)/\1-\2/g' {} \;
 
+if [[ "$GITHUB_PAGES" != "true" ]]; then
+    # Use a Python virtual environment if running outside of GitHub Workflows
+    python3 -m venv "$RepoRoot/venv"
+    source "$RepoRoot/venv/bin/activate"
+fi
+
+# Install mkdocs
+pip install mkdocs --quiet
+
 # Update the requirements file
 # Note: MkDocs itself must already be installed.
 mkdocs get-deps --config-file="$ScriptRoot/mkdocs.yml" --verbose > "$ScriptRoot/requirements.txt"
 
-# Install Python dependencies
+# Install additional Python dependencies
 pip install --quiet --requirement "$ScriptRoot/requirements.txt"
 
 if [[ "$GITHUB_PAGES" != "true" ]]; then

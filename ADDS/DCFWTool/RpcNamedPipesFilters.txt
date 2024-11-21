@@ -1,6 +1,6 @@
 # Synopsis: This NETSH script is part of the Domain Controller Firewall project.
 # Author:   Michael Grafnetter
-# Version:  2.0
+# Version:  2.1
 # Usage:    netsh.exe -f RpcNamedPipesFilters.txt
 # Rollback: netsh.exe rpc filter delete filter filterkey=all
 # Check:    netsh.exe rpc filter show filter
@@ -94,18 +94,6 @@ add filter
 # Block MS-DFSNM by default
 add rule layer=um actiontype=block filterkey=0a239867-73db-45e6-b287-d006fe3c8b18
 add condition field=if_uuid matchtype=equal data=4FC742E0-4A10-11CF-8273-00AA004AE673
-add filter
-
-# Restrict [MS-FSRVP]: File Server Remote VSS Protocol, Named pipe: \PIPE\FssagentRpc
-# Limit access to Domain Admins only.
-add rule layer=um actiontype=permit filterkey=869a3c6c-60dd-4558-a58b-8d9e86b0da5f
-add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
-add condition field=remote_user_token matchtype=equal data=D:(A;;CC;;;DA)
-add filter
-
-# Block MS-FSRVP by default
-add rule layer=um actiontype=block filterkey=4bce314a-d956-41cf-86f1-75067362cae6
-add condition field=if_uuid matchtype=equal data=a8e0653c-2744-4389-a61d-7373df8b2292
 add filter
 
 # Block [MS-DNSP]: Domain Name Service (DNS) Server Management Protocol, Named pipe: \PIPE\DNSSERVER
