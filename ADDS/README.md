@@ -24,6 +24,7 @@ keywords:
 | 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft    |
 | 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
 | 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review |
+| 2024-11-23 | 1.1     | M. Grafnetter              | Fixed some typos |
 
 Script files referenced by this document are versioned independently:
 
