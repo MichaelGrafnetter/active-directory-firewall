@@ -2,7 +2,7 @@
 REM Synopsis: This script resets the unmanaged domain controller policy settings to their default values.
 REM           It is intended to be executed locally on all domain controllers in the domain.
 REM Author:   Michael Grafnetter
-REM Version:  1.0
+REM Version:  1.1
 
 gupdate /force
 
@@ -41,9 +41,7 @@ reg.exe delete "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\NetBT\Param
 reg.exe delete "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\NetBT\Parameters" /v NodeType /f
 
 echo Restart the NTDS service.
-net.exe stop NTDS
-net.exe start NTDS
+net.exe stop NTDS /y && net.exe start NTDS
 
 echo Restart the NtFrs service.
-net.exe stop NtFrs
-net.exe start NtFrs
+net.exe stop NtFrs /y && net.exe start NtFrs
