@@ -149,7 +149,7 @@ and [TROOPERS](https://troopers.de/).
 ![](../Images/Profile/pavel-formanek.jpg "Pavel Formanek"){ width=150pt align=right }
 
 [Pavel Formanek](https://en.linkedin.com/in/pavel-formanek-9861397)
-is CTO and co-founder of [Cloudi Support](https://www.cloudi.cz),
+is the CTO and co-founder of [Cloudi Support](https://www.cloudi.cz),
 which helps customers to secure their infrastructure, both on-prem and in the cloud.
 Prior to founding the company, Pavel worked many years at Microsoft as a Premier Field Engineer (PFE),
 responsible for security assessments and healthchecks of the largest EMEA Microsoft customers.
@@ -163,7 +163,7 @@ There are many decisions one needs to make when designing a firewall policy for 
 This chapter contains general recommendations on Windows Firewall configuration, including the reasoning behind them.
 
 When creating your own DC firewall policy, you do not need to start from scratch. Instead, you can use the `DCFWTool`,
-which will generate a GPO implementing all these recommendations.
+which will generate a GPO that implements all these recommendations.
 
 ### Host-Based Firewall vs Network-Based Firewall
 
@@ -178,7 +178,7 @@ There are several security issues with this approach:
 
 - As network-based firewalls only filter traffic between networks, they are incapable of blocking lateral movement
   inside of VLANs. Their functionality might further be degraded by poor network segmentation.
-- The majority of network firewalls is incapable of differentiating between various RPC-based protocols,
+- The majority of network firewalls are incapable of differentiating between various RPC-based protocols,
   most of which use dynamic port numbers. Thus, the entire ephemeral TCP port range (49152-65535) is typically accessible
   on domain controllers from the entire corporate network, regardless of whether a particular port is used
   by the Netlogon service or for remote management of scheduled tasks.
@@ -479,7 +479,7 @@ rule would need to target the `taskhostw.exe` program, thus allowing all schedul
 
 The [Network Name Resolution](https://learn.microsoft.com/en-us/defender-for-identity/nnr-policy)
 and [Lateral Movement Path Detection](https://learn.microsoft.com/en-us/defender-for-identity/deploy/remote-calls-sam)
-capabilies of Microsoft Defender for Identity depend on the domain controllers being able to connect
+capabilities of Microsoft Defender for Identity depend on the domain controllers being able to connect
 over the RDP (TCP port 3389), RPC (TCP port 135), NetBIOS (UDP port 137), and SMB (TCP port 445) protocols
 to all workstations. It would thus be impossible to fully mitigate NTLM relay attacks against domain controllers
 using outbound firewall rules in environments with this product deployed. Moreover, the sensor needs to be able
@@ -571,7 +571,7 @@ This allows for easier tracing and troubleshooting at the network level
 and simplifies rule configuration for network-based firewalls.
 
 Static endpoints of some protocols can be set by modifying the registry.
-This is the case of the **Active Directory (NTDS)** service:
+This is the case with the **Active Directory (NTDS)** service:
 
 > HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NTDS\\Parameters  
 > Value name: TCP/IP Port  
@@ -1011,7 +1011,7 @@ with UUID [a8e0653c-2744-4389-a61d-7373df8b2292](https://learn.microsoft.com/en-
 is exposed by the **File Server VSS Agent Service** optional feature over the [\\PIPE\\FssagentRpc](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsrvp/c504c88e-3248-418f-8d83-22ec8f008816)
 named pipe.
 
-In the past this protocol could be abused by the [ShadowCoerce](https://github.com/ShutdownRepo/ShadowCoerce) attack,
+In the past, this protocol could have been abused by the [ShadowCoerce](https://github.com/ShutdownRepo/ShadowCoerce) attack,
 but Microsoft fixed the corresponding vulnerability in [KB5015527](https://support.microsoft.com/en-us/topic/kb5015527-shadow-copy-operations-using-vss-on-remote-smb-shares-denied-access-after-installing-windows-update-dated-june-14-2022-6d460245-08b6-40f4-9ded-dd030b27850b).
 No further action is therefore needed.
 
@@ -1078,7 +1078,7 @@ Impacket v0.11.0 - Copyright 2023 Fortra
 DC01
 ```
 
-Although the output of the tool might suggest that WMI traffic can be tunnelled through SMB named pipes as well,
+Although the output of the tool might suggest that WMI traffic can be tunneled through SMB named pipes as well,
 it is fortunately not true and the WMI protocol can effectively be blocked using Windows Firewall.
 To further mitigate the threat of remote malicious command execution over WMI,
 it is recommended to turn on the following [Microsoft Defender Attack Surface Reduction (ASR)](https://learn.microsoft.com/en-us/defender-endpoint/overview-attack-surface-reduction)
@@ -1136,11 +1136,11 @@ One of the few exceptions is the DNS protocol, where not even the DNSSEC extensi
 makes it immune to man-in-the-middle (MITM) attacks.
 And while Windows contains rich configuration options for securing DNS traffic in corporate networks using IPSec,
 the industry seems to have chosen DNS over HTTPS (DoH) to protect DNS traffic in public networks instead.
-We can only hope for the DoH support in Windows Server and access points with captive portals to improve in the near future,
+We can only hope for the DoH support in Windows Server and access points with captive portals to improve in the near future
 so that DoH can seamlessly be enforced on corporate devices.
 
 As a conclusion, most organizations should not even consider deploying IPSec in transport mode.
-They should rather focus on properly configuring the security measures that already available in application protocols,
+They should rather focus on properly configuring the security measures that are already available in application protocols,
 but are not enabled by default.
 
 ### Name Resolution Protocols
@@ -1174,7 +1174,7 @@ it has been added to the [DomainControllerFirewall.admx](#domaincontrollerfirewa
 The NBNS protocol is more complicated to deal with.
 Historically, it could only be disabled on a per-adapter basis.
 Startup scripts performing WMI calls are therefore often used by enterprises.
-Below is an example of such script:
+Below is an example of such a script:
 
 ```powershell
 Get-WmiObject -Class Win32_NetworkAdapterConfiguration `
@@ -2675,8 +2675,8 @@ and can be used as a template.
 
 ### System Reboots
 
-Changes to some settings require a reboot of the target domain controller to get applied.
-This is the case of static port number configurations and settings that are modified through the startup script:
+Changes to some settings require a reboot of the target domain controller to be applied.
+This is the with static port number configurations and settings that are modified through the startup script:
 
 - [NtdsStaticPort](#ntdsstaticport)
 - [NetlogonStaticPort](#netlogonstaticport)
@@ -2694,7 +2694,7 @@ If a full system reboot of all domain controllers is undesirable, the following 
 3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
 4. Execute the `net.exe stop NTDS && net.exe start NTDS` command to restart the AD DS Domain Controller service.
 5. Execute the `net.exe stop IAS && net.exe start IAS` command to restart the Network Policy Server service, if present.
-6. Execute the `net.exe stop NtFrs && net.exe start NtFrs` command to restart the File Replication service,
+6. Execute the `net.exe stop NtFrs && net.exe start NtFrs` command to restart the File Replication service
    if migration to DFS-R has not been performed yet.
 7. Repeat steps 2 to 6 on all domain controllers.
 
@@ -2714,7 +2714,7 @@ The optional `-ConfigurationFileName` script parameter can then be used to speci
 
 The `Set-ADDSFirewallPolicy.ps1` script can be executed repeatedly. If the target GPO already exists,
 the script will modify it to match the configuration file instead of creating a new GPO.
-This behavior is especially useful if any IP addresses in the firewall rules are to be changed.
+This behavior is especially useful if any IP addresses in the firewall rules need to be changed.
 Instead of modifying the firewall rules one by one, it is enough to change the corresponding JSON configuration file
 and execute the PowerShell script again.
 
@@ -2781,7 +2781,7 @@ To perform an emergency rollback procedure, follow these steps:
 
     Although the script from the previous step restarts the affected services,
     a reboot of all domain controllers might be required
-    for the new default settings to get applied.
+    for the new default settings to be applied.
 
 ## Security Standards Compliance
 
@@ -2852,8 +2852,8 @@ published on November 9<sup>th</sup>, 2023.
 
 [CIS Benchmarks](https://www.cisecurity.org/cis-benchmarks) are created using a consensus review process
 comprised of a global community of subject matter experts.
-The process combines real world experience with data-based information to create technology specific
-guidance to assist users to secure their environments. Consensus participants provide perspective
+The process combines real-world experience with data-based information to create technology-specific
+guidance to assist users in securing their environments. Consensus participants provide perspectives
 from a diverse set of backgrounds including consulting, software development, audit and compliance,
 security research, operations, government, and legal.
 
