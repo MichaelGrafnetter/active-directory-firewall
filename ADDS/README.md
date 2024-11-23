@@ -2693,9 +2693,9 @@ If a full system reboot of all domain controllers is undesirable, the following 
 1. Make sure that the Group Policy changes are replicated to all domain controllers.
 2. Invoke the `gpupdate.exe /Target:Computer` command for the changed policies to be applied immediately.
 3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
-4. Execute the `net.exe stop NTDS && net.exe start NTDS` command to restart the AD DS Domain Controller service.
-5. Execute the `net.exe stop IAS && net.exe start IAS` command to restart the Network Policy Server service, if present.
-6. Execute the `net.exe stop NtFrs && net.exe start NtFrs` command to restart the File Replication service
+4. Execute the `net.exe stop NTDS /y && net.exe start NTDS` command to restart the AD DS Domain Controller service.
+5. Execute the `net.exe stop IAS /y && net.exe start IAS` command to restart the Network Policy Server service, if present.
+6. Execute the `net.exe stop NtFrs /y && net.exe start NtFrs` command to restart the File Replication service
    if migration to DFS-R has not been performed yet.
 7. Repeat steps 2 to 6 on all domain controllers.
 
