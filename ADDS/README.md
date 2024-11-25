@@ -100,7 +100,7 @@ Script files referenced by this document are versioned independently:
 ## Summary
 
 Windows Firewall with Advanced Security can sometimes be tricky to configure securely.
-As a consequence, it is usually disabled or left open for all traffic in many organizations.
+Consequently, it is usually disabled or left open for all traffic in many organizations.
 The *Domain Controller Firewall* project therefore aims to simplify the deployment of a specific set of firewall rules
 and RPC filters that can significantly reduce the attack surface of Domain Controllers (DCs),
 without impacting the functionality of Active Directory (AD).
@@ -170,7 +170,7 @@ which will generate a GPO that implements all these recommendations.
 
 Most network administrators only configure network-based firewalls and turn off
 the [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/)
-on servers. They reason is that they do not want to maintain duplicate sets of firewall rules
+on servers. The reason is that they do not want to maintain duplicate sets of firewall rules
 and that Windows Firewall rule management is cumbersome and inflexible.
 
 ![The most common DC firewall configuration](../Images/Screenshots/firewall-off.png)
@@ -199,7 +199,7 @@ chapter might also serve as an information source for configuring network-based 
 As the Windows Firewall does not provide the ability to create named IP address sets, e.g., Management VLANs,
 manual (re)configuration of firewall rules and their source IP address ranges is cumbersome and error-prone.
 We have additionally noticed that port numbers are sometimes mangled while copying firewall rules between policy objects.
-It is therefore strongly recommended that PowerShell scripts be used manage Windows Firewall rules,
+It is therefore strongly recommended that PowerShell scripts be used to manage Windows Firewall rules,
 which is what the `DCFWTool` does.
 
 ### Static IP Addresses
@@ -317,7 +317,7 @@ modifications of sensitive AD objects can be detected in almost real time.
 ### Firewall Rule Deduplication
 
 Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports,
-even though their names might suggest otherwise. For example, all of the following rules open
+even though their names might suggest otherwise. For example, all the following rules open
 port `135/TCP` for the `rpcss` service:
 
 - RPC Endpoint Mapper (TCP, Incoming)
@@ -340,7 +340,7 @@ port `135/TCP` for the `rpcss` service:
 
 ![Duplicate RPC Endpoint Mapper rules](../Images/Screenshots/duplicate-epmap-rules.png)
 
-Similarly, all of these firewall rules open port `445/TCP` for `System`:
+Similarly, all these firewall rules open port `445/TCP` for `System`:
 
 - File and Printer Sharing (SMB-In)
 - Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
@@ -407,7 +407,7 @@ they are not relevant to inbound firewall rule configuration for Domain Controll
 
 ### Avoiding Localized Rule Names
 
-All of the built-in firewall rules are localized and displayed based on the OS language.
+All the built-in firewall rules are localized and displayed based on the OS language.
 However, this feature relies on RSAT being installed on the management computer.
 If RSAT is absent, the UI may show references to missing DLL files instead of the actual firewall rule display names.
 
@@ -510,7 +510,7 @@ as they need to download some prerequisites from the Internet.
 Microsoft .NET Framework and Visual C++ Runtime seem to be the most common installer dependencies.
 Then there are so-called web installers, which download all application binaries from online sources.
 As installers do not have well-defined names and can be executed from any location,
-it is impossible to selectively cover them by a firewall rule.
+it is impossible to selectively cover them with firewall rules.
 
 #### Dynamic Keywords
 
@@ -2541,7 +2541,7 @@ If `true`, MDA Attack Surface Reduction rules (mentioned above) will be configur
 If `false`, MDA Attack Surface Reduction rules (mentioned above) will be configured in **audit mode** only,
 allowing you to evaluate the possible impact if the rules were enabled in block mode.
 
-If `null`, MDA Attack Surface Reduction rules will not managed by the GPO, effectively disabling the rules.
+If `null`, MDA Attack Surface Reduction rules will not be managed by the GPO, effectively disabling the rules.
 
 > [!IMPORTANT]
 > System Center Configuration Manager (SCCM) client and Distribution Point (DP)
@@ -3921,7 +3921,7 @@ This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
 This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
 
 If the DHCP server role is co-located with the domain controller role, it is highly probable that other DCs
-are configured in the same way. It would therefore make sense to allow DHCP failover betweeen DCs.
+are configured in the same way. It would therefore make sense to allow DHCP failover between DCs.
 
 #### DHCP Server (RPC-In)
 
