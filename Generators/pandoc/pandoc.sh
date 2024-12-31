@@ -4,7 +4,7 @@ pushd ../../
 
 # Convert the Markdown file to PDF document using Pandoc
 # (This action is also performed automatically by GitHub actions when the README file is changed.)
-docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.5.0 \
+docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.6.0 \
   --output='Domain_Controller_Firewall.pdf' \
   --pdf-engine=xelatex \
   --template=eisvogel \
@@ -22,7 +22,7 @@ docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.5.0 \
   ADDS/README.md
 
 # Convert the Markdown file to Word document using Pandoc
-docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.5.0 \
+docker run --rm -v "$(pwd):/data" -u $(id -u):$(id -g) pandoc/extra:3.6.0 \
   --output='Domain_Controller_Firewall.docx' \
   --resource-path=ADDS \
   --lua-filter=Generators/pandoc/pandoc.lua \

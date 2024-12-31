@@ -80,4 +80,11 @@ if FORMAT:match 'latex' then
       }
     end
   end
+
+  function RawInline (el)
+    -- Transform inline HTML `<br>` elements into format-indepentent line breaks.
+    if el.format:match '^html' and el.text:match '%<br ?/?%>' then
+      return pandoc.LineBreak()
+    end
+  end
 end

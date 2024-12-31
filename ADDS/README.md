@@ -1173,7 +1173,7 @@ must be used:
 > Value data: 0
 
 To simplify the deployment of this setting,
-it has been added to the [DomainControllerFirewall.admx](#domaincontrollerfirewalladmx) custom template.
+it has been added to the [DomainControllerFirewall.admx](#administrative-templates) custom template.
 
 The NBNS protocol is more complicated to deal with.
 Historically, it could only be disabled on a per-adapter basis.
@@ -1186,7 +1186,7 @@ Get-WmiObject -Class Win32_NetworkAdapterConfiguration `
     Invoke-WmiMethod -Name SetTcpipNetbios -ArgumentList 2
 ```
 
-The [SecGuide.admx](#secguideadmx) template,
+The [SecGuide.admx](#administrative-templates) template,
 which is part of the [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10),
 contains a similar setting called [NetBT NodeType configuration](https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/160177)
 and its recommended value is **P-Node**. Below is the corresponding registry setting:
