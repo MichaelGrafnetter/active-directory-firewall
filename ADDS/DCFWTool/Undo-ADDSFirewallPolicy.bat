@@ -1,10 +1,8 @@
 @ECHO OFF
-REM Synopsis: This script resets the unmanaged domain controller policy settings to their default values.
+REM Synopsis: This helper script resets the unmanaged domain controller policy settings to their default values.
 REM           It is intended to be executed locally on all domain controllers in the domain.
 REM Author:   Michael Grafnetter
-REM Version:  1.1
-
-gupdate /force
+REM Version:  2.8
 
 echo Make sure that GPO settings are applied.
 gpupdate.exe /Target:Computer
@@ -45,3 +43,6 @@ net.exe stop NTDS /y && net.exe start NTDS
 
 echo Restart the NtFrs service.
 net.exe stop NtFrs /y && net.exe start NtFrs
+
+echo Restart the Winmgmt service.
+net.exe stop Winmgmt /y && net.exe start Winmgmt
