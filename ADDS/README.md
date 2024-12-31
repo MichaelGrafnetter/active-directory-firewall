@@ -25,15 +25,18 @@ keywords:
 | 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
 | 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review |
 | 2024-11-23 | 1.1     | M. Grafnetter              | Fixed some typos |
+| 2024-12-31 | 1.2     | M. Grafnetter              | Added the `RestrictADWS` parameter |
 
 Script files referenced by this document are versioned independently:
 
-| Script file name              | Latest version |
-|-------------------------------|---------------:|
-| `Set-ADDSFirewallPolicy.ps1`  |            2.7 |
-| `CustomRules.Sample.ps1`      |            2.6 |
-| `RpcNamedPipesFilters.txt`    |            2.1 |
-| `Show-WindowsFirewallLog.ps1` |            1.2 |
+| Script file name                | Latest version |
+|---------------------------------|---------------:|
+| `Set-ADDSFirewallPolicy.ps1`    |            2.8 |
+| `CustomRules.Sample.ps1`        |            2.6 |
+| `RpcNamedPipesFilters.txt`      |            2.1 |
+| `Show-WindowsFirewallLog.ps1`   |            1.2 |
+| `Undo-ADDSFirewallPolicy.bat`   |            2.8 |
+| `Update-ADDSFirewallPolicy.bat` |            2.8 |
 
 ## Glossary {.unnumbered}
 
@@ -1568,6 +1571,7 @@ Here is a sample configuration file containing all the possible settings:
   "FrsStaticPort": 38903,
   "DfsrStaticPort": 5722,
   "WmiStaticPort": true,
+  "RestrictADWS": true,
   "DisableNetbiosBroadcasts": true,
   "DisableLLMNR": true,
   "DisableMDNS": true,
@@ -1929,6 +1933,24 @@ If `null`, this setting will not be managed by the GPO.
 > [!IMPORTANT]
 > The Winmgmt service needs to be restarted for the new setting to become effective.
 > See the [System Reboots](#system-reboots) section for details.
+
+### RestrictADWS
+
+Indicates whether the Active Directory Web Services (ADWS) should only be available from management IPs.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: true
+Possible values: true / false
+```
+
+If `false`, the [Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in) firewall rule
+will permit ADWS traffic originating from all client IP addresses.
+
+If `true`, the [Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in) firewall rule
+will only permit ADWS traffic originating from the management IP addresses.
 
 ### DisableNetbiosBroadcasts
 
@@ -2697,7 +2719,11 @@ If a full system reboot of all domain controllers is undesirable, the following 
 5. Execute the `net.exe stop IAS /y && net.exe start IAS` command to restart the Network Policy Server service, if present.
 6. Execute the `net.exe stop NtFrs /y && net.exe start NtFrs` command to restart the File Replication service
    if migration to DFS-R has not been performed yet.
-7. Repeat steps 2 to 6 on all domain controllers.
+7. Execute the `net.exe stop Winmgmt /y && net.exe start Winmgmt` command to restart the Windows Managament
+   Instrumetation service, if its port is to be changed.
+8. Repeat steps 2 to 7 on all domain controllers.
+
+To simplify this process, the `Update-ADDSFirewallPolicy.bat` script contains all the commands discussed above.
 
 ### Multi-Domain Forests
 
@@ -3420,10 +3446,12 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
 | Service     | `adws` |
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
-| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses<br>([RestrictADWS](#restrictadws) is `false`) | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses<br>([RestrictADWS](#restrictadws) is `true` and [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) is `false`) | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses<br>([RestrictADWS](#restrictadws) is `true` and [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) is `true`) | [Management Computers](#managementaddresses) |
 
- The scope of this rule can further be limited by enabling
- the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+> [!NOTE]
+> Restrictions to the ADWS traffic [might be risky in some organizations](#the-bad).
 
 #### Windows Remote Management (HTTP-In)
 
