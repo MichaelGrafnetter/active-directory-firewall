@@ -18,7 +18,7 @@ Online documentation: https://github.com/MichaelGrafnetter/active-directory-fire
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.7
+Version: 2.8
 
 #>
 
@@ -98,6 +98,9 @@ class ScriptSettings {
 
     # Indicates whether WMI traffic should use a static port.
     [Nullable[bool]]   $WmiStaticPort                 = $null
+
+    # Indicates whether the Active Directory Web Services (ADWS) should only be available from management IPs.
+    [bool]             $RestrictADWS                  = $false
 
     # Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point) mode.
     [Nullable[bool]]   $DisableNetbiosBroadcasts      = $null
@@ -1001,7 +1004,15 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -RemoteAddress Any `
                     -Program 'System' `
                     -Verbose:$isVerbose > $null
-                   
+
+# Determine the remote addresses for the ADWS service
+[string[]] $adwsAddresses = $allAddresses
+
+if($configuration.RestrictADWS) {
+    # Restrict the remote addresses to the management addresses
+    $adwsAddresses = $remoteManagementAddresses
+}
+
 # Create Inbound rule "Active Directory Web Services (TCP-In)"
 New-NetFirewallRule -GPOSession $gpoSession `
                     -Name 'ADWS-TCP-In' `
@@ -1014,7 +1025,7 @@ New-NetFirewallRule -GPOSession $gpoSession `
                     -Action Allow `
                     -Protocol TCP `
                     -LocalPort 9389 `
-                    -RemoteAddress $remoteManagementAddresses `
+                    -RemoteAddress $adwsAddresses `
                     -Program '%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe' `
                     -Service 'adws' `
                     -Verbose:$isVerbose > $null

@@ -306,6 +306,11 @@
         "default": null,
         "description": "Indicates whether WMI traffic should use a static port."
       },
+      "RestrictADWS": {
+        "type": "boolean",
+        "default": false,
+        "description": "Indicates whether the Active Directory Web Services (ADWS) should only be available from management IPs."
+      },
       "DisableNetbiosBroadcasts": {
         "anyOf": [
           {

@@ -3,7 +3,7 @@
 [string] $date = Get-Date -Format 'MMMM d, yyyy'
 [string] $repoRoot = Join-Path $PSScriptRoot '../../'
 
-docker run --rm --volume "$repoRoot`:/data" pandoc/extra:3.5.0 `
+docker run --rm --volume "$repoRoot`:/data" pandoc/extra:3.6.0 `
   --output='Domain_Controller_Firewall.pdf' `
   --pdf-engine=xelatex `
   --template=eisvogel `

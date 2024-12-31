@@ -25,15 +25,18 @@ keywords:
 | 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
 | 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review |
 | 2024-11-23 | 1.1     | M. Grafnetter              | Fixed some typos |
+| 2024-12-31 | 1.2     | M. Grafnetter              | Added the `RestrictADWS` parameter |
 
 Script files referenced by this document are versioned independently:
 
-| Script file name              | Latest version |
-|-------------------------------|---------------:|
-| `Set-ADDSFirewallPolicy.ps1`  |            2.7 |
-| `CustomRules.Sample.ps1`      |            2.6 |
-| `RpcNamedPipesFilters.txt`    |            2.1 |
-| `Show-WindowsFirewallLog.ps1` |            1.2 |
+| Script file name                | Latest version |
+|---------------------------------|---------------:|
+| `Set-ADDSFirewallPolicy.ps1`    |            2.8 |
+| `CustomRules.Sample.ps1`        |            2.6 |
+| `RpcNamedPipesFilters.txt`      |            2.1 |
+| `Show-WindowsFirewallLog.ps1`   |            1.2 |
+| `Undo-ADDSFirewallPolicy.bat`   |            2.8 |
+| `Update-ADDSFirewallPolicy.bat` |            2.8 |
 
 ## Glossary {.unnumbered}
 
@@ -100,7 +103,7 @@ Script files referenced by this document are versioned independently:
 ## Summary
 
 Windows Firewall with Advanced Security can sometimes be tricky to configure securely.
-As a consequence, it is usually disabled or left open for all traffic in many organizations.
+Consequently, it is usually disabled or left open for all traffic in many organizations.
 The *Domain Controller Firewall* project therefore aims to simplify the deployment of a specific set of firewall rules
 and RPC filters that can significantly reduce the attack surface of Domain Controllers (DCs),
 without impacting the functionality of Active Directory (AD).
@@ -170,7 +173,7 @@ which will generate a GPO that implements all these recommendations.
 
 Most network administrators only configure network-based firewalls and turn off
 the [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/)
-on servers. They reason is that they do not want to maintain duplicate sets of firewall rules
+on servers. The reason is that they do not want to maintain duplicate sets of firewall rules
 and that Windows Firewall rule management is cumbersome and inflexible.
 
 ![The most common DC firewall configuration](../Images/Screenshots/firewall-off.png)
@@ -199,7 +202,7 @@ chapter might also serve as an information source for configuring network-based 
 As the Windows Firewall does not provide the ability to create named IP address sets, e.g., Management VLANs,
 manual (re)configuration of firewall rules and their source IP address ranges is cumbersome and error-prone.
 We have additionally noticed that port numbers are sometimes mangled while copying firewall rules between policy objects.
-It is therefore strongly recommended that PowerShell scripts be used manage Windows Firewall rules,
+It is therefore strongly recommended that PowerShell scripts be used to manage Windows Firewall rules,
 which is what the `DCFWTool` does.
 
 ### Static IP Addresses
@@ -317,7 +320,7 @@ modifications of sensitive AD objects can be detected in almost real time.
 ### Firewall Rule Deduplication
 
 Many of the built-in/predefined Windows Firewall rules are actually duplicates of each other, as they open the same ports,
-even though their names might suggest otherwise. For example, all of the following rules open
+even though their names might suggest otherwise. For example, all the following rules open
 port `135/TCP` for the `rpcss` service:
 
 - RPC Endpoint Mapper (TCP, Incoming)
@@ -340,7 +343,7 @@ port `135/TCP` for the `rpcss` service:
 
 ![Duplicate RPC Endpoint Mapper rules](../Images/Screenshots/duplicate-epmap-rules.png)
 
-Similarly, all of these firewall rules open port `445/TCP` for `System`:
+Similarly, all these firewall rules open port `445/TCP` for `System`:
 
 - File and Printer Sharing (SMB-In)
 - Active Directory Domain Controller - SAM/LSA (NP-TCP-In)
@@ -407,7 +410,7 @@ they are not relevant to inbound firewall rule configuration for Domain Controll
 
 ### Avoiding Localized Rule Names
 
-All of the built-in firewall rules are localized and displayed based on the OS language.
+All the built-in firewall rules are localized and displayed based on the OS language.
 However, this feature relies on RSAT being installed on the management computer.
 If RSAT is absent, the UI may show references to missing DLL files instead of the actual firewall rule display names.
 
@@ -510,7 +513,7 @@ as they need to download some prerequisites from the Internet.
 Microsoft .NET Framework and Visual C++ Runtime seem to be the most common installer dependencies.
 Then there are so-called web installers, which download all application binaries from online sources.
 As installers do not have well-defined names and can be executed from any location,
-it is impossible to selectively cover them by a firewall rule.
+it is impossible to selectively cover them with firewall rules.
 
 #### Dynamic Keywords
 
@@ -1170,7 +1173,7 @@ must be used:
 > Value data: 0
 
 To simplify the deployment of this setting,
-it has been added to the [DomainControllerFirewall.admx](#domaincontrollerfirewalladmx) custom template.
+it has been added to the [DomainControllerFirewall.admx](#administrative-templates) custom template.
 
 The NBNS protocol is more complicated to deal with.
 Historically, it could only be disabled on a per-adapter basis.
@@ -1183,7 +1186,7 @@ Get-WmiObject -Class Win32_NetworkAdapterConfiguration `
     Invoke-WmiMethod -Name SetTcpipNetbios -ArgumentList 2
 ```
 
-The [SecGuide.admx](#secguideadmx) template,
+The [SecGuide.admx](#administrative-templates) template,
 which is part of the [Security Compliance Toolkit (SCT)](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10),
 contains a similar setting called [NetBT NodeType configuration](https://www.betaarchive.com/wiki/index.php/Microsoft_KB_Archive/160177)
 and its recommended value is **P-Node**. Below is the corresponding registry setting:
@@ -1568,6 +1571,7 @@ Here is a sample configuration file containing all the possible settings:
   "FrsStaticPort": 38903,
   "DfsrStaticPort": 5722,
   "WmiStaticPort": true,
+  "RestrictADWS": true,
   "DisableNetbiosBroadcasts": true,
   "DisableLLMNR": true,
   "DisableMDNS": true,
@@ -1929,6 +1933,24 @@ If `null`, this setting will not be managed by the GPO.
 > [!IMPORTANT]
 > The Winmgmt service needs to be restarted for the new setting to become effective.
 > See the [System Reboots](#system-reboots) section for details.
+
+### RestrictADWS
+
+Indicates whether the Active Directory Web Services (ADWS) should only be available from management IPs.
+
+```yaml
+Type: Boolean
+Required: false
+Default value: false
+Recommended value: true
+Possible values: true / false
+```
+
+If `false`, the [Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in) firewall rule
+will permit ADWS traffic originating from all client IP addresses.
+
+If `true`, the [Active Directory Web Services (TCP-In)](#active-directory-web-services-tcp-in) firewall rule
+will only permit ADWS traffic originating from the management IP addresses.
 
 ### DisableNetbiosBroadcasts
 
@@ -2541,7 +2563,7 @@ If `true`, MDA Attack Surface Reduction rules (mentioned above) will be configur
 If `false`, MDA Attack Surface Reduction rules (mentioned above) will be configured in **audit mode** only,
 allowing you to evaluate the possible impact if the rules were enabled in block mode.
 
-If `null`, MDA Attack Surface Reduction rules will not managed by the GPO, effectively disabling the rules.
+If `null`, MDA Attack Surface Reduction rules will not be managed by the GPO, effectively disabling the rules.
 
 > [!IMPORTANT]
 > System Center Configuration Manager (SCCM) client and Distribution Point (DP)
@@ -2693,11 +2715,15 @@ If a full system reboot of all domain controllers is undesirable, the following 
 1. Make sure that the Group Policy changes are replicated to all domain controllers.
 2. Invoke the `gpupdate.exe /Target:Computer` command for the changed policies to be applied immediately.
 3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
-4. Execute the `net.exe stop NTDS && net.exe start NTDS` command to restart the AD DS Domain Controller service.
-5. Execute the `net.exe stop IAS && net.exe start IAS` command to restart the Network Policy Server service, if present.
-6. Execute the `net.exe stop NtFrs && net.exe start NtFrs` command to restart the File Replication service
+4. Execute the `net.exe stop NTDS /y && net.exe start NTDS` command to restart the AD DS Domain Controller service.
+5. Execute the `net.exe stop IAS /y && net.exe start IAS` command to restart the Network Policy Server service, if present.
+6. Execute the `net.exe stop NtFrs /y && net.exe start NtFrs` command to restart the File Replication service
    if migration to DFS-R has not been performed yet.
-7. Repeat steps 2 to 6 on all domain controllers.
+7. Execute the `net.exe stop Winmgmt /y && net.exe start Winmgmt` command to restart the Windows Managament
+   Instrumetation service, if its port is to be changed.
+8. Repeat steps 2 to 7 on all domain controllers.
+
+To simplify this process, the `Update-ADDSFirewallPolicy.bat` script contains all the commands discussed above.
 
 ### Multi-Domain Forests
 
@@ -3420,10 +3446,12 @@ This rule is governed by the [EnableNetbiosSessionService](#enablenetbiossession
 | Program     | `%systemroot%\ADWS\Microsoft.ActiveDirectory.WebServices.exe` |
 | Service     | `adws` |
 | Description | Inbound rule for the Active Directory Web Services. [TCP] |
-| Remote Addresses | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses<br>([RestrictADWS](#restrictadws) is `false`) | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses<br>([RestrictADWS](#restrictadws) is `true` and [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) is `false`) | [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+| Remote Addresses<br>([RestrictADWS](#restrictadws) is `true` and [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) is `true`) | [Management Computers](#managementaddresses) |
 
- The scope of this rule can further be limited by enabling
- the [BlockManagementFromDomainControllers](#blockmanagementfromdomaincontrollers) setting.
+> [!NOTE]
+> Restrictions to the ADWS traffic [might be risky in some organizations](#the-bad).
 
 #### Windows Remote Management (HTTP-In)
 
@@ -3921,7 +3949,7 @@ This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
 This rule is governed by the [EnableDhcpServer](#enabledhcpserver) setting.
 
 If the DHCP server role is co-located with the domain controller role, it is highly probable that other DCs
-are configured in the same way. It would therefore make sense to allow DHCP failover betweeen DCs.
+are configured in the same way. It would therefore make sense to allow DHCP failover between DCs.
 
 #### DHCP Server (RPC-In)
 

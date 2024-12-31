@@ -16,6 +16,7 @@
     "FrsStaticPort": 38903,
     "DfsrStaticPort": 5722,
     "WmiStaticPort": true,
+    "RestrictADWS": true,
     "DisableNetbiosBroadcasts": true,
     "DisableLLMNR": true,
     "DisableMDNS": true,
