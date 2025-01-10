@@ -23,13 +23,13 @@ keywords:
 
 ## Change History {.unnumbered}
 
-| Date       | Version | Author                     | Description     |
-|------------|--------:|----------------------------|-----------------|
-| 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft.   |
+| Date       | Version | Author                     | Description                                                                 |
+|------------|--------:|----------------------------|-----------------------------------------------------------------------------|
+| 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft.                                                               |
 | 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and [external scripts](#customrulefilenames). |
-| 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review. |
-| 2024-11-23 | 1.1     | P. Formanek, M. Grafnetter | Fixed some typos. |
-| 2024-12-31 | 1.2     | M. Grafnetter              | Added the [RestrictADWS](#restrictadws) parameter. |
+| 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review.                                                  |
+| 2024-11-23 | 1.1     | P. Formanek, M. Grafnetter | Fixed some typos.                                                           |
+| 2024-12-31 | 1.2     | M. Grafnetter              | Added the [RestrictADWS](#restrictadws) parameter.                          |
 | 2025-01-11 | 1.3     | M. Grafnetter              | Improved [helper scripts](#dcfwtool-distribution-contents). Added the [Port Scanning](#port-scanning) and expanded the [System Reboots](#system-reboots) sections. |
 
 Script files referenced by this document are versioned independently:

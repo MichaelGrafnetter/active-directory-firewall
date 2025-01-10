@@ -21,7 +21,7 @@ jobs:
 
       - name: Get the current date
         id: get_date
-        run: echo "date=$(date '+%B %e, %Y')" > $GITHUB_OUTPUT
+        run: echo "date=$(TZ=':Europe/Prague' date '+%B %e, %Y')" > $GITHUB_OUTPUT
 
       - name: Generate the whitepaper using Pandoc
         uses: docker://pandoc/extra:3.6.0
