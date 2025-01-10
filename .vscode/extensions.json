@@ -9,6 +9,7 @@
       "mechatroner.rainbow-csv",
       "GrapeCity.gc-excelviewer",
       "GitHub.copilot",
-      "GitHub.copilot-chat"
+      "GitHub.copilot-chat",
+      "PKief.material-icon-theme"
     ]
   }

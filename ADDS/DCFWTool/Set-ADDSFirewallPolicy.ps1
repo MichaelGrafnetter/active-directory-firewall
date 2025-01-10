@@ -14,11 +14,11 @@ PS> .\Set-ADDSFirewallPolicy.ps1 -Verbose
 PS> .\Set-ADDSFirewallPolicy.ps1 -ConfigurationFileName Set-ADDSFirewallPolicy.Contoso.json -Verbose
 
 .LINK
-Online documentation: https://github.com/MichaelGrafnetter/active-directory-firewall
+Online documentation: https://firewall.dsinternals.com
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.8
+Version: 2.9
 
 #>
 
@@ -262,11 +262,27 @@ if(-not($configuration.DisableLLMNR -and $configuration.DisableMDNS)) {
 }
 
 if(-not($configuration.LogMaxSizeKilobytes -ge 16384 -and $configuration.LogDroppedPackets -and $configuration.LogAllowedPackets)) {
-    Write-Warning -Message 'The firewall log settings do not meet the standardized security baselines.'
+    Write-Warning -Message 'The firewall log settings do not meet some standardized security baselines.'
 }
 
-if($configuration.BlockWmiCommandExecution -eq $true) {
+if($configuration.EnableLocalIPsecRules) {
+    Write-Warning -Message 'Local IPSec rules are enabled, which violates some standardized security baselines.'
+}
+
+if($configuration.BlockWmiCommandExecution) {
     Write-Warning -Message 'SCCM client and DP do not work properly on systems where command execution over WMI is blocked.'
+}
+
+if($configuration.RadiusClientAddresses -notcontains 'Any' -and -not $configuration.EnableNPS) {
+    Write-Warning -Message 'Firewall rules for the Network Policy Server (NPS) are disabled, while non-default RADIUS client addresses are specified. This is probably a mistake.'
+}
+
+if([string]::IsNullOrWhiteSpace($configuration.GroupPolicyObjectName)) {
+    throw [System.ArgumentNullException]::new('GroupPolicyObjectName', 'The name of the target GPO must be provided.')
+}
+
+if([string]::IsNullOrWhiteSpace($configuration.LogFilePath)) {
+    throw [System.ArgumentNullException]::new('LogFilePath', 'The path to the firewall log file must be provided.')
 }
 
 #endregion Configuration Validation

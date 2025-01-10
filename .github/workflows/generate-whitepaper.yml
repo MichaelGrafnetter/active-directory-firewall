@@ -7,6 +7,9 @@ on:
       - Generators/pandoc/*
       - '.github/workflows/generate-whitepaper.yml'
 
+env:
+  pdf_file_name: Domain_Controller_Firewall_${{ github.ref_name }}.pdf
+
 jobs:
   generate:
     name: Generate
@@ -24,7 +27,7 @@ jobs:
         uses: docker://pandoc/extra:3.6.0
         with:
           args: >-
-            --output=Domain_Controller_Firewall.pdf
+            --output="${{ env.pdf_file_name }}"
             --pdf-engine=xelatex
             --template=eisvogel
             --resource-path="ADDS:/.pandoc/templates"
@@ -44,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Whitepaper
-          path: Domain_Controller_Firewall.pdf
+          path: ${{ env.pdf_file_name }}
           if-no-files-found: error

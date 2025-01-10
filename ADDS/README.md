@@ -12,7 +12,11 @@ keywords:
   - PowerShell
   - Group Policy
   - Security
+  - Hardening
   - RPC
+  - SMB
+  - Named Pipes
+  - Windows
 ---
 
 # Domain Controller Firewall
@@ -21,22 +25,23 @@ keywords:
 
 | Date       | Version | Author                     | Description     |
 |------------|--------:|----------------------------|-----------------|
-| 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft    |
-| 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and external scripts |
-| 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review |
-| 2024-11-23 | 1.1     | M. Grafnetter              | Fixed some typos |
-| 2024-12-31 | 1.2     | M. Grafnetter              | Added the `RestrictADWS` parameter |
+| 2024-05-23 | 0.8     | P. Formanek, M. Grafnetter | Public draft.   |
+| 2024-08-27 | 0.9     | M. Grafnetter              | Support for more server roles and [external scripts](#customrulefilenames). |
+| 2024-11-20 | 1.0     | M. Grafnetter              | Document ready for review. |
+| 2024-11-23 | 1.1     | P. Formanek, M. Grafnetter | Fixed some typos. |
+| 2024-12-31 | 1.2     | M. Grafnetter              | Added the [RestrictADWS](#restrictadws) parameter. |
+| 2025-01-11 | 1.3     | M. Grafnetter              | Improved [helper scripts](#dcfwtool-distribution-contents). Added the [Port Scanning](#port-scanning) and expanded the [System Reboots](#system-reboots) sections. |
 
 Script files referenced by this document are versioned independently:
 
 | Script file name                | Latest version |
 |---------------------------------|---------------:|
-| `Set-ADDSFirewallPolicy.ps1`    |            2.8 |
-| `CustomRules.Sample.ps1`        |            2.6 |
+| `Set-ADDSFirewallPolicy.ps1`    |            2.9 |
+| `CustomRules.Sample.ps1`        |            2.8 |
 | `RpcNamedPipesFilters.txt`      |            2.1 |
 | `Show-WindowsFirewallLog.ps1`   |            1.2 |
-| `Undo-ADDSFirewallPolicy.bat`   |            2.8 |
-| `Update-ADDSFirewallPolicy.bat` |            2.8 |
+| `Undo-ADDSFirewallPolicy.bat`   |            2.9 |
+| `Update-ADDSFirewallPolicy.bat` |            2.9 |
 
 ## Glossary {.unnumbered}
 
@@ -1206,6 +1211,97 @@ It is located under Computer Configuration → Policies → Administrative Templ
 > Value type: REG_DWORD  
 > Value data: 0
 
+### Port Scanning
+
+One way of validating a domain controller host-based firewall configuration is performing a full port scan from a [client IP address](#identifying-management-traffic).
+While network administrators might prefer using Microsoft's [PortQry](https://www.microsoft.com/en-us/download/details.aspx?id=17148),
+penetration testers would most probably use the [Nmap](https://nmap.org/) tool to discover remotely available protocols:
+
+```shell
+nmap -p 1-65535 adatum-dc.adatum.com
+```
+
+```txt
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-01-09 21:17 CET
+Nmap scan report for adatum-dc.adatum.com (10.213.0.8)
+Host is up (0.0027s latency).
+Not shown: 65518 filtered tcp ports (no-response)
+PORT      STATE SERVICE
+53/tcp    open  domain
+88/tcp    open  kerberos-sec
+135/tcp   open  msrpc
+389/tcp   open  ldap
+445/tcp   open  microsoft-ds
+464/tcp   open  kpasswd5
+593/tcp   open  http-rpc-epmap
+636/tcp   open  ldapssl
+3268/tcp  open  globalcatLDAP
+3269/tcp  open  globalcatLDAPssl
+38901/tcp open  unknown
+38902/tcp open  unknown
+49664/tcp open  unknown
+49667/tcp open  unknown
+49668/tcp open  unknown
+49672/tcp open  unknown
+49679/tcp open  unknown
+MAC Address: 00:17:FB:00:00:05 (FA)
+
+Nmap done: 1 IP address (1 host up) scanned in 106.77 seconds
+```
+
+This sample output mostly contains well-known TCP ports like DNS (`53/TCP`), Kerberos (`88/TCP` and `464/TCP`), LDAP (`389/TCP` and `3268/TCP`),
+LDAPS (`636/TCP` and `3269/TCP`), SMB (`445/TCP`), and RPC Endpoint Mapper (`135/TCP`),
+which [must be reachable by Windows clients](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/config-firewall-for-ad-domains-and-trusts#windows-server-2008-and-later-versions).
+Ports `38901/TCP` and `38902/TCP` are organization-specific [static RPC ports](#static-rpc-ports) used by Active Directory.
+All protocols that directly allow remote command execution, including RDP (`3389/TCP` and `3389/UDP`), WinRM (`5985/TCP` and `5986/TCP`), and WMI (dynamic RPC port or `24158/TCP`), are properly blocked.
+
+Port `593/TCP` (RPC Endpoint Mapper over HTTP) is unnecessarily exposed by the built-in [Active Directory Domain Controller (RPC-EPMAP)](#active-directory-domain-controller-rpc-epmap) rule,
+which is primarily used to open the core `135/TCP` port. Although we prefer not to modify this built-in rule, we typically block port `593/TCP` on firewall appliances, without any noticeable consequences.
+
+There are 5 additional dynamic RPC ports present. An EPMAP query would have revealed more details about these ports:
+
+| TCP Port | Transport      | RPC Protocol                                                            |
+|---------:|----------------|-------------------------------------------------------------------------|
+|    49664 | `ncacn_ip_tcp` | [\[MS-SAMR\]: Security Account Manager (SAM) Remote Protocol]           |
+|    49667 | `ncacn_ip_tcp` | [\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol] |
+|    49668 | `ncacn_http`   | [\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol] |
+|    49672 | `ncacn_ip_tcp` | [Key Isolation Service]                                                 |
+|    49679 | `ncacn_ip_tcp` | [\[MS-RAA\]: Remote Authorization API Protocol]                         |
+
+[\[MS-SAMR\]: Security Account Manager (SAM) Remote Protocol]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-samr/4df07fab-1bbc-452f-8e92-7853a3c7e380
+[\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-lsad/1b5471ef-4c33-4a91-b079-dfcbb82f05cc
+[Key Isolation Service]: https://learn.microsoft.com/en-us/windows/win32/seccng/key-storage-and-retrieval
+[\[MS-RAA\]: Remote Authorization API Protocol]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-raa/98ab2e01-da37-4e76-bea5-8d4d83e66e1a
+
+These ports are allowed by the built-in [Active Directory Domain Controller (RPC)](#active-directory-domain-controller-rpc) rule.
+The respective protocols are exposed through the `ncacn_np` RPC transport as well.
+As a matter of fact, Windows client components seem to be using the `\PIPE\lsass` named pipe exclusively when communicating over these RPC protocols.
+Consequently, the RPC dynamic port range (`49152/TCP` to `65535/TCP`) on domain controllers does not need to be accessible by member computers for AD to work properly. We therefore typically block this port range on firewall appliances.
+
+A UDP port scan should yield far less interesting results:
+
+```shell
+nmap -sU -p 1-65535 adatum-dc.adatum.com
+```
+
+```txt
+Starting Nmap 7.94SVN ( https://nmap.org ) at 2025-01-09 21:18 CET
+Nmap scan report for adatum-dc.adatum.com (10.213.0.8)
+Host is up (0.0035s latency).
+Not shown: 65531 open|filtered udp ports (no-response)
+PORT    STATE SERVICE
+53/udp  open  domain
+88/udp  open  kerberos-sec
+123/udp open  ntp
+389/udp open  ldap
+MAC Address: 00:17:FB:00:00:05 (FA)
+
+Nmap done: 1 IP address (1 host up) scanned in 934.29 seconds
+```
+
+Contrary to what the documentation says, the Kerberos password change (kpasswd) protocol does not seem to be listening on port `464/UDP`.
+More importantly, the firewall properly blocks the legacy NetBIOS protocol (ports `137/UDP`, `138/UDP`, and `139/TCP`).
+
 ## DCFWTool Distribution Contents
 
 Below is a list of all files that are part of the solution, with their respective paths and brief descriptions.
@@ -1274,6 +1370,14 @@ Below is a list of all files that are part of the solution, with their respectiv
 `DCFWTool\Show-WindowsFirewallLog.ps1`
 
 :   PowerShell script for reading Windows Firewall log files.
+
+`DCFWTool\Update-ADDSFirewallPolicy.bat`
+
+: Batch script that locally applies all domain controller firewall policy settings, without requiring a DC reboot.
+
+`DCFWTool\Undo-ADDSFirewallPolicy.bat`
+
+: Batch script that locally resets the unmanaged domain controller policy settings to their default values.
 
 [MSS (Legacy)]: https://techcommunity.microsoft.com/t5/microsoft-security-baselines/the-mss-settings/ba-p/701055
 [MS Security Guide]: https://learn.microsoft.com/en-us/deployoffice/security/security-baseline#ms-security-guide-administrative-template
@@ -1565,7 +1669,7 @@ Here is a sample configuration file containing all the possible settings:
   "ClientAddresses": [ "203.0.113.0/24", "198.51.100.0/24" ],
   "ManagementAddresses": [ "198.51.100.0/24" ],
   "DomainControllerAddresses": [ "192.0.2.0/24" ],
-  "RadiusClientAddresses": $null,
+  "RadiusClientAddresses": null,
   "NtdsStaticPort": 38901,
   "NetlogonStaticPort": 38902,
   "FrsStaticPort": 38903,
@@ -2698,8 +2802,8 @@ and can be used as a template.
 
 ### System Reboots
 
-Changes to some settings require a reboot of the target domain controller to be applied.
-This is the with static port number configurations and settings that are modified through the startup script:
+Changes to some settings require up to 2 reboots of the target domain controller to be applied.
+This is the case with static port number configurations and settings that are modified through the startup script:
 
 - [NtdsStaticPort](#ntdsstaticport)
 - [NetlogonStaticPort](#netlogonstaticport)
@@ -2710,20 +2814,25 @@ This is the with static port number configurations and settings that are modifie
 - [LogFilePath](#logfilepath)
 - [EnableNPS](#enablenps)
 
-If a full system reboot of all domain controllers is undesirable, the following steps can be performed instead:
+If system reboots of all domain controllers are undesirable, the following steps can be performed instead:
 
 1. Make sure that the Group Policy changes are replicated to all domain controllers.
 2. Invoke the `gpupdate.exe /Target:Computer` command for the changed policies to be applied immediately.
 3. Run the `gpscript.exe /startup` command for Group Policy startup scripts to be executed immediately.
 4. Execute the `net.exe stop NTDS /y && net.exe start NTDS` command to restart the AD DS Domain Controller service.
-5. Execute the `net.exe stop IAS /y && net.exe start IAS` command to restart the Network Policy Server service, if present.
-6. Execute the `net.exe stop NtFrs /y && net.exe start NtFrs` command to restart the File Replication service
+5. Execute the `net.exe stop Netlogon /y && net.exe start Netlogon` command to restart the Netlogon service.
+6. Execute the `net.exe stop IAS /y && net.exe start IAS` command to restart the Network Policy Server service, if present.
+7. Execute the `net.exe stop NtFrs /y && net.exe start NtFrs` command to restart the File Replication service
    if migration to DFS-R has not been performed yet.
-7. Execute the `net.exe stop Winmgmt /y && net.exe start Winmgmt` command to restart the Windows Managament
+8. Execute the `net.exe stop Winmgmt /y && net.exe start Winmgmt` command to restart the Windows Managament
    Instrumetation service, if its port is to be changed.
-8. Repeat steps 2 to 7 on all domain controllers.
+9. Repeat steps 2 to 8 on all domain controllers.
 
 To simplify this process, the `Update-ADDSFirewallPolicy.bat` script contains all the commands discussed above.
+
+> [!IMPORTANT]
+> The Windows Managament Instrumetation (WMI) service sometimes fails to start after being reconfigured.
+> When this happens, a domain controller reboot cannot be avoided.
 
 ### Multi-Domain Forests
 
@@ -3062,11 +3171,14 @@ and server remote management:
 | Group       | Active Directory Domain Services |
 | Direction   | Inbound |
 | Protocol    | TCP |
-| Port        | 135 |
+| Port        | RPCEPMap |
 | Program     | `%systemroot%\system32\svchost.exe` |
 | Service     | `rpcss` |
 | Description | Inbound rule for the RPCSS service to allow RPC/TCP traffic to the Active Directory Domain Controller service. |
 | Remote Addresses | [Client Computers](#clientaddresses), [Management Computers](#managementaddresses), [Domain Controllers](#domaincontrolleraddresses) |
+
+This firewall rule opens ports `135/TCP` (RPC Endpoint Mapper) and `593/TCP` (RPC Endpoint Mapper over HTTP).
+Only port `135/TCP` is [used by Windows clients](#port-scanning).
 
 #### Kerberos Key Distribution Center - PCR (UDP-In)
 

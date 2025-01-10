@@ -20,7 +20,7 @@ List of client IP adresses from which inbound traffic should be allowed. This li
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.6
+Version: 2.8
 
 #>
 
@@ -65,6 +65,21 @@ New-NetFirewallRule -GPOSession $GPOSession `
                     -LocalPort 5445 `
                     -RemoteAddress $AllAddresses `
                     -Program 'System' `
+                    -Verbose:$isVerbose > $null
+
+# Create Inbound rule "Dell OpenManage Server Administrator (TCP-In)"
+New-NetFirewallRule -GPOSession $GPOSession `
+                    -Name 'OMSA-In-TCP' `
+                    -DisplayName 'Dell OpenManage Server Administrator (TCP-In)' `
+                    -Description 'Inbound rule for Dell OpenManage Server Administrator Web Service [TCP 1311]' `
+                    -Enabled False `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 1311 `
+                    -RemoteAddress $RemoteManagementAddresses `
+                    -Program '%ProgramFiles%\Dell\SysMgt\oma\bin\dsm_om_connsvc64.exe' `
                     -Verbose:$isVerbose > $null
 
 #endregion Custom Rules

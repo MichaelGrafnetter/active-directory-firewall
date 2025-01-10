@@ -2,7 +2,7 @@
 REM Synopsis: This helper script ensures that all domain controller firewall policy settings are applied, without requiring DC reboots.
 REM           It is intended to be executed locally on all domain controllers in the domain.
 REM Author:   Michael Grafnetter
-REM Version:  2.8
+REM Version:  2.9
 
 echo Make sure that the latest GPO settings are applied.
 gpupdate.exe /Target:Computer
@@ -12,6 +12,9 @@ gpscript.exe /startup
 
 echo Restart the NTDS service.
 net.exe stop NTDS /y && net.exe start NTDS
+
+echo Restart the Netlogon service.
+net.exe stop Netlogon /y && net.exe start Netlogon
 
 echo Restart the NtFrs service.
 net.exe stop NtFrs /y && net.exe start NtFrs

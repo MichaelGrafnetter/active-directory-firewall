@@ -52,5 +52,5 @@ jobs:
       - name: Upload PowerShell scripts as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DCFWTool
+          name: DCFWTool_${{ github.ref_name }}
           path: ADDS/DCFWTool
