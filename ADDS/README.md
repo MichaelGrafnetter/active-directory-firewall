@@ -1262,21 +1262,19 @@ There are 5 additional dynamic RPC ports present. An EPMAP query would have reve
 
 | TCP Port | Transport      | RPC Protocol                                                            |
 |---------:|----------------|-------------------------------------------------------------------------|
-|    49664 | `ncacn_ip_tcp` | [\[MS-SAMR\]: Security Account Manager (SAM) Remote Protocol]           |
-|    49667 | `ncacn_ip_tcp` | [\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol] |
-|    49668 | `ncacn_http`   | [\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol] |
-|    49672 | `ncacn_ip_tcp` | [Key Isolation Service]                                                 |
-|    49679 | `ncacn_ip_tcp` | [\[MS-RAA\]: Remote Authorization API Protocol]                         |
-
-[\[MS-SAMR\]: Security Account Manager (SAM) Remote Protocol]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-samr/4df07fab-1bbc-452f-8e92-7853a3c7e380
-[\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-lsad/1b5471ef-4c33-4a91-b079-dfcbb82f05cc
-[Key Isolation Service]: https://learn.microsoft.com/en-us/windows/win32/seccng/key-storage-and-retrieval
-[\[MS-RAA\]: Remote Authorization API Protocol]: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-raa/98ab2e01-da37-4e76-bea5-8d4d83e66e1a
+|    49664 | `ncacn_ip_tcp` | [\[MS-SAMR\]: Security Account Manager (SAM) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-samr/4df07fab-1bbc-452f-8e92-7853a3c7e380) |
+|    49667 | `ncacn_ip_tcp` | [\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-lsad/1b5471ef-4c33-4a91-b079-dfcbb82f05cc) |
+|    49668 | `ncacn_http`   | [\[MS-LSAD\]: Local Security Authority (Domain Policy) Remote Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-lsad/1b5471ef-4c33-4a91-b079-dfcbb82f05cc) |
+|    49672 | `ncacn_ip_tcp` | [Key Isolation Service](https://learn.microsoft.com/en-us/windows/win32/seccng/key-storage-and-retrieval) |
+|    49679 | `ncacn_ip_tcp` | [\[MS-RAA\]: Remote Authorization API Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-raa/98ab2e01-da37-4e76-bea5-8d4d83e66e1a) |
 
 These ports are allowed by the built-in [Active Directory Domain Controller (RPC)](#active-directory-domain-controller-rpc) rule.
 The respective protocols are exposed through the `ncacn_np` RPC transport as well.
-As a matter of fact, Windows client components seem to be using the `\PIPE\lsass` named pipe exclusively when communicating over these RPC protocols.
-Consequently, the RPC dynamic port range (`49152/TCP` to `65535/TCP`) on domain controllers does not need to be accessible by member computers for AD to work properly. We therefore typically block this port range on firewall appliances.
+As a matter of fact, Windows client components seem to be using the `\PIPE\lsass` named pipe exclusively
+when communicating over these RPC protocols.
+Consequently, the RPC dynamic port range (`49152/TCP` to `65535/TCP`) on domain controllers
+does not need to be accessible by member computers for AD to work properly.
+We therefore typically block this port range on firewall appliances.
 
 A UDP port scan should yield far less interesting results:
 
