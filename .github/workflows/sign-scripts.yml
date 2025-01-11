@@ -1,11 +1,8 @@
 name: Sign PowerShell Scripts
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - 'ADDS/DCFWTool/*.ps1'
-      - '.github/workflows/sign-scripts.yml'
+  release:
+    types: [created]
 
 permissions:
   id-token: write

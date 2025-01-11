@@ -1,6 +1,8 @@
 name: Generate Whitepaper
 
 on:
+  release:
+    types: [created]
   push:
     paths:
       - 'ADDS/README.md'
@@ -46,6 +48,6 @@ jobs:
       - name: Publish the whitepaper as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Whitepaper
+          name: Whitepaper_${{ github.ref_name }}
           path: ${{ env.pdf_file_name }}
           if-no-files-found: error
