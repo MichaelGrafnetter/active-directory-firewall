@@ -235,6 +235,19 @@ The resulting firewall rule set, which will be honored by the DCs, will contain 
 
 ![GPO precedence](../Images/Screenshots/firewall-precedence-gpo.png)
 
+Contrary to the standard GPO merging mentioned above, there's unexpected interaction, where the rules merging is not additive but rather the winning GPO rule overwrites the rule with lower precedence.  
+This only happens, when the same rule (with different values) is created from "Predefined" rules in the new rule creation wizard. 
+
+![Predefined firewall rule](../Images/Screenshots/firewall-predefined-rules.png)
+
+Consider 2 GPOs, each containing 3 rules with the same name, defining different set or remote IP address in the rule.  
+Rules created through copy/paste or through new rule creation wizard, using "Custom" option, merge as expected, resulting in 4 rules in the target configuration (2 rules from each GPO).  
+Rule created through new rule creation wizard, using "Predefined" option results in 1 rule in the target configuration, as the GPO with higher preference overwrites any other GPO configuring the same rule.
+
+![GPO firewall example 01](../Images/Screenshots/firewall-gpo01.png)
+![GPO firewall example 02](../Images/Screenshots/firewall-gpo02.png)
+![GPO firewall merge result](../Images/Screenshots/firewall-rulemerge-result.png)
+
 ### Identifying Management Traffic
 
 #### Motivation
