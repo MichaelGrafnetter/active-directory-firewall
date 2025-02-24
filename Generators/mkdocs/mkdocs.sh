@@ -8,7 +8,7 @@ RepoRoot=$(dirname -- "$(dirname -- "$ScriptRoot")")
 
 # Copy CSS files
 mkdir --parents --verbose "$RepoRoot/docs/assets/stylesheets"
-cp "$ScriptRoot/extra.css" "$RepoRoot/docs/assets/stylesheets/extra.css"
+cp --verbose "$ScriptRoot/extra.css" "$RepoRoot/docs/assets/stylesheets/extra.css"
 
 # Copy markdown and HTML files
 mkdir --parents --verbose "$RepoRoot/docs/ADDS"
@@ -25,7 +25,7 @@ rsync --archive --no-relative --exclude='*.md' --verbose "$RepoRoot/Images/"**/*
 find "$RepoRoot/docs" -name "*.md" -exec sed --in-place 's/\.\.\/Images\/\w\+\//..\/assets\/images\//g' {} \;
 
 # Case 2: Replace paths like Images/Screenshots/ with assets/images/
-find "$RepoRoot/docs" -name "*.md" -exec sed  --in-place 's/(Images\/\w\+\//(assets\/images\//g' {} \;
+find "$RepoRoot/docs" -name "*.md" -exec sed --in-place 's/(Images\/\w\+\//(assets\/images\//g' {} \;
 
 # Normalize named anchors in markdown files by replacing 3 consecutive hyphens with a single one
 # Example: Replace #active-directory-domain-controller---ldap-tcp-in with #active-directory-domain-controller-ldap-tcp-in

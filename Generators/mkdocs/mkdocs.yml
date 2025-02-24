@@ -17,6 +17,7 @@ nav:
 theme:
   name: material
   locale: en
+  favicon: assets/images/favicon.png
   icon:
     logo: fontawesome/solid/book
   palette:
@@ -47,6 +48,7 @@ theme:
     - navigation.instant
     - navigation.instant.progress
     - navigation.expand
+    - navigation.top
 markdown_extensions:
   - abbr
   - admonition

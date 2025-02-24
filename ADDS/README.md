@@ -1,6 +1,5 @@
 ---
 title: Domain Controller Firewall
-subtitle: ​​Deployment Documentation​
 author:
   - Pavel Formanek
   - Michael Grafnetter
@@ -31,6 +30,7 @@ keywords:
 | 2024-11-23   | 1.1     | P. Formanek,<br>M. Grafnetter | Fixed some typos.                                                           |
 | 2024-12-31   | 1.2     | M. Grafnetter                 | Added the [RestrictADWS](#restrictadws) parameter.                          |
 | 2025-01-11   | 1.3     | M. Grafnetter                 | Improved [helper scripts](#dcfwtool-distribution-contents).<br>Added the [Port Scanning](#port-scanning) and expanded the [System Reboots](#system-reboots) sections. |
+| 2025-02-24   | 1.3.1   | P. Formanek                   | Expanded the [Firewall Rule Merging](#firewall-rule-merging) section. |
 
 Script files referenced by this document are versioned independently:
 
@@ -218,35 +218,49 @@ The firewall rule set described in this document therefore does not cover the DH
 
 ### Firewall Rule Merging
 
-To ensure the domain controllers are configured consistently,
-their host-based firewalls should be managed centrally through a GPO.
+To ensure consistent configuration of domain controllers,
+their host-based firewalls should be managed centrally through one or more Group Policy Objects (GPOs).
 Any **local settings on individual DCs should be ignored** during firewall rule evaluation.
 
-This whitepaper and the policy object created by the `DCFWTool` only cover traffic related to domain controllers
-and a few additional Windows Server roles often present on DCs.
-If additional environment-specific firewall rules are needed (DC agents, SCCM management, etc.),
-it is recommended to define them in separate GPOs.
-The resulting firewall rule set, which will be honored by the DCs, will contain rules from all GPOs applied to these DCs.
+This whitepaper and the policy object created by the `DCFWTool` focus exclusively on traffic associated with domain controllers,
+as well as a few additional Windows Server roles often found on domain controllers.
+If additional environment-specific firewall rules are necessary (such as for DC agents, SCCM management, etc.),
+it is advisable to define them in separate GPOs.
+The resulting firewall rule set, which will be honored by the DCs, will contain rules from all GPOs applied to those DCs.
 
 > [!NOTE]
 > Please keep in mind that this whitepaper only focuses on the firewall configuration
 > and does not cover any other aspects of domain controller security hardening.
-> You should have a separate and dedicated security baseline GPO applied to your DCs.
+> It is essential to have a separate and dedicated security baseline GPO applied to your DCs.
 
-![GPO precedence](../Images/Screenshots/firewall-precedence-gpo.png)
+![GPO precedence / link order](../Images/Screenshots/firewall-precedence-gpo.png)
 
-Contrary to the standard GPO merging mentioned above, there's unexpected interaction, where the rules merging is not additive but rather the winning GPO rule overwrites the rule with lower precedence.  
-This only happens, when the same rule (with different values) is created from "Predefined" rules in the new rule creation wizard. 
+There is one unexpected caveat regarding rule merging: When the same **Predefined rule**
+is manually created using the "New Inbound Rule Wizard" in multiple GPOs with differing values,
+the rule in the winning GPO will overwrite the rule in the GPO with lower precedence, rather than applying both rules.
 
-![Predefined firewall rule](../Images/Screenshots/firewall-predefined-rules.png)
+![Creating predefined firewall rules](../Images/Screenshots/firewall-predefined-rules.png)
 
-Consider 2 GPOs, each containing 3 rules with the same name, defining different set or remote IP address in the rule.  
-Rules created through copy/paste or through new rule creation wizard, using "Custom" option, merge as expected, resulting in 4 rules in the target configuration (2 rules from each GPO).  
-Rule created through new rule creation wizard, using "Predefined" option results in 1 rule in the target configuration, as the GPO with higher preference overwrites any other GPO configuring the same rule.
+Consider two GPOs, each containing 3 rules with the same name but conflicting sets of remote IP addresses:
 
-![GPO firewall example 01](../Images/Screenshots/firewall-gpo01.png)
-![GPO firewall example 02](../Images/Screenshots/firewall-gpo02.png)
-![GPO firewall merge result](../Images/Screenshots/firewall-rulemerge-result.png)
+![Sample GPO firewall policy FW_GPO_01](../Images/Screenshots/firewall-gpo01.png)
+
+![Sample GPO firewall policy FW_GPO_02](../Images/Screenshots/firewall-gpo02.png)
+
+Predefined rules created through a **copy/paste** operation and new rules created using the **Custom** option
+will be merged as expected, resulting in a total of four firewall rules (i.e., two rules from each GPO).
+
+However, only a single predefined firewall rule created directly in the target GPO using the wizard
+will be included in the final configuration,
+as the GPO with higher precedence overwrites any others containing the same rule:
+
+![Resultant set of firewall rules from FW_GPO_01 and FW_GPO_02](../Images/Screenshots/firewall-rulemerge-result.png)
+
+> [!WARNING]
+> There is a known bug in Windows where the **Rule Source** column may sometimes display wrong values
+> that do not correspond to the respective values in the **Remote Addresses** column,
+> as illustrated in the screenshot above.  
+> This behavior appears to occur randomly.
 
 ### Identifying Management Traffic
 
