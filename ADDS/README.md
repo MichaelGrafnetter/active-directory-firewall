@@ -31,6 +31,7 @@ keywords:
 | 2024-12-31   | 1.2     | M. Grafnetter                 | Added the [RestrictADWS](#restrictadws) parameter.                          |
 | 2025-01-11   | 1.3     | M. Grafnetter                 | Improved [helper scripts](#dcfwtool-distribution-contents).<br>Added the [Port Scanning](#port-scanning) and expanded the [System Reboots](#system-reboots) sections. |
 | 2025-02-24   | 1.3.1   | P. Formanek                   | Expanded the [Firewall Rule Merging](#firewall-rule-merging) section. |
+| 2025-03-10   | 1.3.2   | P. Formanek                   | Tested for Windows 2025 Server; added warning to [System Reboots](#system-reboots) section. |
 
 Script files referenced by this document are versioned independently:
 
