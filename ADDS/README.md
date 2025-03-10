@@ -2779,7 +2779,7 @@ and can be used as a template.
 
 ### Prerequisites
 
-- The tool has been tested on Windows Server 2022, Windows Server 2019, and Windows 11,
+- The tool has been tested on Windows Server 2025, Windows Server 2022, Windows Server 2019, and Windows 11,
   but it should work on all Windows versions currently supported by Microsoft.
 
     ![](../Images/Badges/windows-server.png "Windows Server") ![](../Images/Badges/windows-client.png "Windows Client")
@@ -2858,6 +2858,10 @@ To simplify this process, the `Update-ADDSFirewallPolicy.bat` script contains al
 > [!IMPORTANT]
 > The Windows Managament Instrumetation (WMI) service sometimes fails to start after being reconfigured.
 > When this happens, a domain controller reboot cannot be avoided.
+
+> [!WARNING]
+> Due to the know bug (see [Firewall log](#firewall-log-file) chapter), the firewall logging is not functional until the DC is restarted twice or alternatively once after the `Update-ADDSFirewallPolicy.bat` script has been executed.
+
 
 ### Multi-Domain Forests
 
