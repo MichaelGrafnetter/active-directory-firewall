@@ -31,7 +31,7 @@ keywords:
 | 2024-12-31   | 1.2     | M. Grafnetter                 | Added the [RestrictADWS](#restrictadws) parameter.                          |
 | 2025-01-11   | 1.3     | M. Grafnetter                 | Improved [helper scripts](#dcfwtool-distribution-contents).<br>Added the [Port Scanning](#port-scanning) and expanded the [System Reboots](#system-reboots) sections. |
 | 2025-02-24   | 1.3.1   | P. Formanek                   | Expanded the [Firewall Rule Merging](#firewall-rule-merging) section. |
-| 2025-03-10   | 1.3.2   | P. Formanek                   | Tested for Windows 2025 Server; added warning to [System Reboots](#system-reboots) section. |
+| 2025-03-19   | 1.3.2   | P. Formanek,<br>M. Grafnetter | Tested on Windows 2025 Server and expanded the [IPSec](#ipsec-rules) and [System Reboots](#system-reboots) sections. |
 
 Script files referenced by this document are versioned independently:
 
@@ -93,6 +93,7 @@ Script files referenced by this document are versioned independently:
 | TFTP         | Trivial File Transfer Protocol                        |
 | PDC          | Primary Domain Controller                             |
 | DoS          | Denial of Service                                     |
+| PAM          | Privileged Access Management                          |
 
 [Admin Model]: https://petri.com/use-microsofts-active-directory-tier-administrative-model/
 [System Center Configuration Manager]: https://learn.microsoft.com/en-us/mem/configmgr/core/understand/introduction
@@ -1180,6 +1181,21 @@ As a conclusion, most organizations should not even consider deploying IPSec in 
 They should rather focus on properly configuring the security measures that are already available in application protocols,
 but are not enabled by default.
 
+Some security experts also [recommend using IPSec with null encapsulation to protect Tier 0 RDP traffic](https://techcommunity.microsoft.com/blog/coreinfrastructureandsecurityblog/securing-rdp-with-ipsec/259108).
+They argue that Privileged Access Workstations (PAWs) are somewhat portable
+and might not always be located within a well-defined administrative subnet.
+While this point is valid, it raises the question of why RDP should be treated so differently,
+considering that RDP is just one of many [remote administration protocols](#identifying-management-traffic)\
+that could be exploited by malicious actors.
+IPSec enforcement must also be taken into account when planning for disaster recovery.
+Microsoft even [recommends](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/securing-domain-controllers-against-attack#domain-controller-operating-systems)
+installing domain controllers with the `Server Core` option and managing them remotely using RSAT instead of RDP.
+
+Moreover, many IT environments are not mature enough to support a full PAW deployment.
+However, they can at least implement Tier 0 jump hosts, which should ideally be protected by MFA.
+In designing the `DCFWTool` to be usable by over 90% of organizations "as is",
+we made the decision not to overcomplicate our solution with IPSec null encapsulation.
+
 ### Name Resolution Protocols
 
 While the Domain Name System (DNS) is the primary protocol used for name resolution in Windows,
@@ -1569,6 +1585,7 @@ The startup script takes care of this additional step by executing the command l
 netsh.exe advfirewall set allprofiles logging filename "%systemroot%\system32\logfiles\firewall\pfirewall.log"
 ```
 
+Moreover, a system reboot is necessary for this change to take effect.
 The optional [LogFilePath](#logfilepath) setting can be used if the default log path is undesirable.
 
 #### RPC Filters Script
@@ -2828,7 +2845,7 @@ and can be used as a template.
 
 ### System Reboots
 
-Changes to some settings require up to 2 reboots of the target domain controller to be applied.
+Changes to some settings require up to 2 reboots of the target domain controller for the new values to take effect.
 This is the case with static port number configurations and settings that are modified through the startup script:
 
 - [NtdsStaticPort](#ntdsstaticport)
@@ -2861,7 +2878,9 @@ To simplify this process, the `Update-ADDSFirewallPolicy.bat` script contains al
 > When this happens, a domain controller reboot cannot be avoided.
 
 > [!WARNING]
-> Due to the know bug (see [Firewall log](#firewall-log-file) chapter), the firewall logging is not functional until the DC is restarted twice or alternatively once after the `Update-ADDSFirewallPolicy.bat` script has been executed.
+> Due to a [known bug in the packet logging feature](#firewall-log-file),
+> at least one reboot is still necessary for the firewall to start logging dropped packets,
+> even if the `Update-ADDSFirewallPolicy.bat` script is executed.
 
 
 ### Multi-Domain Forests
