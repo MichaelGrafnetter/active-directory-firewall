@@ -1185,12 +1185,11 @@ Some security experts also [recommend using IPSec with null encapsulation to pro
 They argue that Privileged Access Workstations (PAWs) are somewhat portable
 and might not always be located within a well-defined administrative subnet.
 While this point is valid, it raises the question of why RDP should be treated so differently,
-considering that RDP is just one of many [remote administration protocols](#identifying-management-traffic)\
+considering that RDP is just one of many [remote administration protocols](#identifying-management-traffic)
 that could be exploited by malicious actors.
 IPSec enforcement must also be taken into account when planning for disaster recovery.
 Microsoft even [recommends](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/securing-domain-controllers-against-attack#domain-controller-operating-systems)
-installing domain controllers with the `Server Core` option and managing them remotely using RSAT instead of RDP.
-
+installing domain controllers with the **Server Core** option and managing them remotely using RSAT instead of RDP.
 Moreover, many IT environments are not mature enough to support a full PAW deployment.
 However, they can at least implement Tier 0 jump hosts, which should ideally be protected by MFA.
 In designing the `DCFWTool` to be usable by over 90% of organizations "as is",
