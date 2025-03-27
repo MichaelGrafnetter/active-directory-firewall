@@ -7,7 +7,7 @@ on:
     paths:
       - 'ADDS/README.md'
       - Generators/pandoc/*
-      - '.github/workflows/generate-whitepaper.yml'
+      - '.github/workflows/generate-dc-whitepaper.yml'
 
 env:
   pdf_file_name: Domain_Controller_Firewall_${{ github.ref_name }}.pdf

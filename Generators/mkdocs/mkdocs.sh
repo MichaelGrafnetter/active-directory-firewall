@@ -11,10 +11,15 @@ mkdir --parents --verbose "$RepoRoot/docs/assets/stylesheets"
 cp --verbose "$ScriptRoot/extra.css" "$RepoRoot/docs/assets/stylesheets/extra.css"
 
 # Copy markdown and HTML files
-mkdir --parents --verbose "$RepoRoot/docs/ADDS"
 cp --verbose "$RepoRoot/README.md" "$RepoRoot/docs/"
+
+mkdir --parents --verbose "$RepoRoot/docs/ADDS"
 cp --verbose "$RepoRoot/ADDS/README.md" "$RepoRoot/docs/ADDS/"
 cp --verbose "$RepoRoot/ADDS/GPOReport.html" "$RepoRoot/docs/ADDS/"
+
+mkdir --parents --verbose "$RepoRoot/docs/ADCS"
+cp --verbose "$RepoRoot/ADCS/README.md" "$RepoRoot/docs/ADCS/"
+cp --verbose "$RepoRoot/ADCS/GPOReport.html" "$RepoRoot/docs/ADCS/"
 
 # Copy all images to the assets directory
 mkdir --parents --verbose "$RepoRoot/docs/assets/images"

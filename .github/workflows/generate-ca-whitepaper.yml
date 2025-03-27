@@ -1,0 +1,53 @@
+name: Generate Whitepaper
+
+on:
+  release:
+    types: [created]
+  push:
+    paths:
+      - 'ADCS/README.md'
+      - Generators/pandoc/*
+      - '.github/workflows/generate-ca-whitepaper.yml'
+
+env:
+  pdf_file_name: Certification_Authority_Firewall_${{ github.ref_name }}.pdf
+
+jobs:
+  generate:
+    name: Generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Get the current date
+        id: get_date
+        run: echo "date=$(TZ=':Europe/Prague' date '+%B %e, %Y')" > $GITHUB_OUTPUT
+
+      - name: Generate the whitepaper using Pandoc
+        uses: docker://pandoc/extra:3.6.0
+        with:
+          args: >-
+            --output="${{ env.pdf_file_name }}"
+            --pdf-engine=xelatex
+            --template=eisvogel
+            --resource-path="ADCS:/.pandoc/templates"
+            --lua-filter=Generators/pandoc/pandoc.lua
+            --include-in-header=Generators/pandoc/header.tex
+            --metadata-file=Generators/pandoc/metadata.yml
+            --shift-heading-level-by=-1
+            --top-level-division=section
+            --table-of-contents
+            --toc-depth=2
+            --number-sections
+            --variable=linkcolor:"[HTML]{4077C0}"
+            --metadata date="${{ steps.get_date.outputs.date }}"
+            ADCS/README.md
+
+      - name: Publish the whitepaper as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Whitepaper_${{ github.ref_name }}
+          path: ${{ env.pdf_file_name }}
+          if-no-files-found: error

@@ -1,0 +1,7 @@
+{
+    "$schema": "Set-ADCSFirewallPolicy.schema.json",
+    "GroupPolicyObjectName": "Certification Authority Firewall",
+    "DomainControllerAddresses": [ "Any" ],
+    "ManagementAddresses": [ "Any" ],
+    "ClientAddresses": [ "Any" ]
+}

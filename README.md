@@ -20,6 +20,19 @@ The following materials are currently available:
 - 📜[Sample Firewall GPO HTML Report](https://firewall.dsinternals.com/ADDS/GPOReport.html)
 - 📋[List of Built-In Firewall Rules](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/ADDS/inbound-builtin-firewall-rules.csv)
 
+## Certification Authority Firewall
+
+The following materials are currently available:
+
+- 🛠️[CAFWTool: Certification Authority Firewall Tool](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest)
+  (zipped distribution of the [source code](https://github.com/MichaelGrafnetter/active-directory-firewall/tree/main/ADCS/CAFWTool))
+- 📄 Whitepaper in [HTML](https://firewall.dsinternals.com/ADCS)
+  and [PDF](https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest)
+  formats (both [generated](https://github.com/MichaelGrafnetter/active-directory-firewall/tree/main/.github/workflows)
+  from the [ADCS/README.md](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/ADCS/README.md) file)
+- 📜[Sample Firewall GPO HTML Report](https://firewall.dsinternals.com/ADCS/GPOReport.html)
+- 📋[List of Built-In Firewall Rules](https://github.com/MichaelGrafnetter/active-directory-firewall/blob/main/ADCS/builtin-firewall-rules.csv)
+
 ## References
 
 ### Active Directory Domain Services

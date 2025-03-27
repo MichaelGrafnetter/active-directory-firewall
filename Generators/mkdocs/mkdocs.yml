@@ -8,12 +8,17 @@ edit_uri_template: '{path}?plain=1'
 extra_css:
   - assets/stylesheets/extra.css
 nav:
-  - Overview: README.md
+  - ℹ️ Overview: README.md
   - Domain Controller Firewall:
     - 🌐 Whitepaper (HTML): ADDS/README.md
     - 📄 Whitepaper (PDF): https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest
     - 🛠️ DCFWTool (PowerShell): https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest
     - 📜 GPO Report (HTML): ADDS/GPOReport.html
+  - Certification Authority Firewall:
+    - 🌐 Whitepaper (HTML): ADCS/README.md
+    - 📄 Whitepaper (PDF): https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest
+    - 🛠️ CAFWTool (PowerShell): https://github.com/MichaelGrafnetter/active-directory-firewall/releases/latest
+    - 📜 GPO Report (HTML): ADCS/GPOReport.html
 theme:
   name: material
   locale: en
