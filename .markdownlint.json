@@ -8,5 +8,9 @@
         "$comment": "Allow long lines for code blocks.",
         "line_length": 120,
         "tables": false
+    },
+    "MD033": {
+        "$comment": "Allow inline HTML for MkDocs compatibility.",
+        "allowed_elements": [ "br", "sup" ]
     }
 }
