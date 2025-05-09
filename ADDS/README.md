@@ -32,6 +32,7 @@ keywords:
 | 2025-01-11   | 1.3     | M. Grafnetter                 | Improved [helper scripts](#dcfwtool-distribution-contents).<br>Added the [Port Scanning](#port-scanning) and expanded the [System Reboots](#system-reboots) sections. |
 | 2025-02-24   | 1.3.1   | P. Formanek                   | Expanded the [Firewall Rule Merging](#firewall-rule-merging) section. |
 | 2025-03-19   | 1.3.2   | P. Formanek,<br>M. Grafnetter | Tested on Windows 2025 Server and expanded the [IPSec](#ipsec-rules) and [System Reboots](#system-reboots) sections. |
+| 2025-05-09   | 1.3.3   | M. Grafnetter | Expanded the [RPC Dynamic Port Allocation](#rpc-dynamic-port-allocation) and [Firewall Profiles](#firewall-profiles) sections. |
 
 Script files referenced by this document are versioned independently:
 
@@ -473,6 +474,14 @@ to avoid potential loss of network connectivity.
 
 ![Windows Firewall profiles](../Images/Screenshots/firewall-profiles.png){ width=400px }
 
+Additionally, some experts suggest [applying the following undocumented NLA setting](https://glennopedia.com/2024/06/01/network-location-awareness-service-revisited/),
+although this may be redundant with the aforementioned recommendation:
+
+> HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\NlaSvc\\Parameters  
+> Value name: AlwaysExpectDomainController  
+> Value type: REG_DWORD  
+> Value data: 1
+
 ### Infeasibility of Outbound Traffic Filtering
 
 #### Reasons for Blocking Outbound Traffic
@@ -678,6 +687,17 @@ References:
 - [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
 - [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi)
 - [RPC Load Balancing Best Practices](https://learn.microsoft.com/en-us/windows/win32/rpc/load-balancing-best-practices)
+
+### RPC Dynamic Port Allocation
+
+For most Windows services, it is not possible to specify a dedicated RPC server port.
+Some network administrators prefer to at least [change the system-wide RPC dynamic port range](https://learn.microsoft.com/en-us/troubleshoot/windows-server/networking/configure-rpc-dynamic-port-allocation-with-firewalls)
+from the default 49152-65535 interval to a narrower one, such as 5000-6000.
+
+However, this approach does not seem to provide any security benefits.
+Restricting the RPC port range does not prevent any hacking techniques or mitigate any security vulnerabilities,
+nor does it simplify the configuration of network firewalls.
+We have therefore decided against including this setting in the `DCFWTool`.
 
 ### RPC Filters
 
@@ -2880,7 +2900,6 @@ To simplify this process, the `Update-ADDSFirewallPolicy.bat` script contains al
 > Due to a [known bug in the packet logging feature](#firewall-log-file),
 > at least one reboot is still necessary for the firewall to start logging dropped packets,
 > even if the `Update-ADDSFirewallPolicy.bat` script is executed.
-
 
 ### Multi-Domain Forests
 
