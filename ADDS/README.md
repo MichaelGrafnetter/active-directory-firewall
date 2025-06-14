@@ -696,8 +696,14 @@ from the default 49152-65535 interval to a narrower one, such as 5000-6000.
 
 However, this approach does not seem to provide any security benefits.
 Restricting the RPC port range does not prevent any hacking techniques or mitigate any security vulnerabilities,
-nor does it simplify the configuration of network firewalls.
+nor does it simplify the configuration of network firewalls. Furthermore, going too far can lead to port exhaustion.
 We have therefore decided against including this setting in the `DCFWTool`.
+
+Microsoft recommends:
+- Don’t restrict AD/Netlogon to static ports without exhaustively discussing the risks involved.
+- Don’t restrict the RPC dynamic range without exhaustively discussing the risks involved.
+
+Source: [Stop Worrying and Love the Outage, Vol II: DCs, custom ports, and Firewalls/ACLs](https://techcommunity.microsoft.com/blog/askds/stop-worrying-and-love-the-outage-vol-ii-dcs-custom-ports-and-firewallsacls/4062773)
 
 ### RPC Filters
 
