@@ -40,6 +40,7 @@ Script files referenced by this document are versioned independently:
 |---------------------------------|---------------:|
 | `Set-ADDSFirewallPolicy.ps1`    |            2.9 |
 | `CustomRules.Sample.ps1`        |            2.8 |
+| `CustomRules.Semperis.ps1`      |            1.0 |
 | `RpcNamedPipesFilters.txt`      |            2.1 |
 | `Show-WindowsFirewallLog.ps1`   |            1.2 |
 | `Undo-ADDSFirewallPolicy.bat`   |            2.9 |
@@ -681,12 +682,22 @@ Here is a mnemotechnical example of a static RPC port configuration:
 | DFSR     |     5722/TCP |
 | WMI      |    24158/TCP |
 
+These sorts of changes should be thoroughly planned
+and the transition from dynamic ports to static ones should always be coordinated with the networking team
+to prevent any Active Directory (AD) outages.
+Microsoft's Directory Services support team emphasizes this point clearly:
+
+> [!WARNING]
+> Don't restrict AD/Netlogon to static ports without exhaustively discussing the risks involved,
+> and heavily documenting it.
+
 References:
 
 - [How to restrict Active Directory RPC traffic to a specific port](https://learn.microsoft.com/en-us/troubleshoot/windows-server/active-directory/restrict-ad-rpc-traffic-to-specific-port)
 - [Configuring DFSR to a Static Port - The rest of the story](https://techcommunity.microsoft.com/t5/ask-the-directory-services-team/configuring-dfsr-to-a-static-port-the-rest-of-the-story/ba-p/396746)
 - [Setting Up a Fixed Port for WMI](https://learn.microsoft.com/en-us/windows/win32/wmisdk/setting-up-a-fixed-port-for-wmi)
 - [RPC Load Balancing Best Practices](https://learn.microsoft.com/en-us/windows/win32/rpc/load-balancing-best-practices)
+- [Stop Worrying and Love the Outage, Vol II: DCs, custom ports, and Firewalls/ACLs](https://techcommunity.microsoft.com/blog/askds/stop-worrying-and-love-the-outage-vol-ii-dcs-custom-ports-and-firewallsacls/4062773)
 
 ### RPC Dynamic Port Allocation
 
@@ -698,12 +709,11 @@ However, this approach does not seem to provide any security benefits.
 Restricting the RPC port range does not prevent any hacking techniques or mitigate any security vulnerabilities,
 nor does it simplify the configuration of network firewalls. Furthermore, going too far can lead to port exhaustion.
 We have therefore decided against including this setting in the `DCFWTool`.
+This is in accordance with the [recommendation](https://techcommunity.microsoft.com/blog/askds/stop-worrying-and-love-the-outage-vol-ii-dcs-custom-ports-and-firewallsacls/4062773)
+from Microsoft's Directory Services support team:
 
-Microsoft recommends:
-- Don’t restrict AD/Netlogon to static ports without exhaustively discussing the risks involved.
-- Don’t restrict the RPC dynamic range without exhaustively discussing the risks involved.
-
-Source: [Stop Worrying and Love the Outage, Vol II: DCs, custom ports, and Firewalls/ACLs](https://techcommunity.microsoft.com/blog/askds/stop-worrying-and-love-the-outage-vol-ii-dcs-custom-ports-and-firewallsacls/4062773)
+> [!WARNING]
+> Don't restrict the RPC dynamic range without exhaustively discussing the risks involved, and heavily documenting it.
 
 ### RPC Filters
 
