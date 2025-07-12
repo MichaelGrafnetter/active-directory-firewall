@@ -31,7 +31,7 @@ This list should automatically include the IP addresses of Semperis Semperis DSP
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 1.0
+Version: 1.1
 
 #>
 
@@ -72,7 +72,7 @@ New-NetFirewallRule -GPOSession $GPOSession `
                     -Protocol TCP `
                     -LocalPort 8753 `
                     -RemoteAddress $RemoteManagementAddresses `
-                    -Program '%ProgramFiles%\Semperis\ADFR\Semperis.ForestRecoveryAgentSvcHost.exe' `
+                    -Program 'System' `
                     -Verbose:$isVerbose > $null
 
 # Create Inbound rule "Semperis ADFR Agent File Transfer (TCP-In)"
@@ -89,7 +89,7 @@ New-NetFirewallRule -GPOSession $GPOSession `
                     -Protocol TCP `
                     -LocalPort 8770 `
                     -RemoteAddress $RemoteManagementAddresses `
-                    -Program '%ProgramFiles%\Semperis\ADFR\Semperis.ForestRecoveryAgentSvcHost.exe' `
+                    -Program 'System' `
                     -Verbose:$isVerbose > $null
 
 #endregion Semperis ADFR

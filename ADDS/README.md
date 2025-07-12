@@ -40,7 +40,7 @@ Script files referenced by this document are versioned independently:
 |---------------------------------|---------------:|
 | `Set-ADDSFirewallPolicy.ps1`    |            2.9 |
 | `CustomRules.Sample.ps1`        |            2.8 |
-| `CustomRules.Semperis.ps1`      |            1.0 |
+| `CustomRules.Semperis.ps1`      |            1.1 |
 | `RpcNamedPipesFilters.txt`      |            2.1 |
 | `Show-WindowsFirewallLog.ps1`   |            1.2 |
 | `Undo-ADDSFirewallPolicy.bat`   |            2.9 |
