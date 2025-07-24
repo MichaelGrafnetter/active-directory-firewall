@@ -3043,27 +3043,27 @@ published on November 9<sup>th</sup>, 2023.
 | [V-242008] | CAT III  | Windows Defender Firewall with Advanced Security must log successful connections when connected to a public network. | ☐ [LogAllowedPackets](#logallowedpackets) must be set to `true`. |
 | [V-242009] | CAT II   | Inbound exceptions to the firewall on domain workstations must only allow authorized remote management hosts. | ☐ [ManagementAddresses](#managementaddresses) must be configured properly. |
 
-[V-241989]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241989
-[V-241990]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241990
-[V-241991]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241991
-[V-241992]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241992
-[V-241993]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241993
-[V-241994]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241994
-[V-241995]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241995
-[V-241996]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241996
-[V-241997]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241997
-[V-241998]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241998
-[V-241999]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-241999
-[V-242000]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242000
-[V-242001]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242001
-[V-242002]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242002
-[V-242003]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242003
-[V-242004]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242004
-[V-242005]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242005
-[V-242006]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242006
-[V-242007]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242007
-[V-242008]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242008
-[V-242009]: https://www.stigviewer.com/stig/microsoft_windows_firewall_with_advanced_security/2021-10-15/finding/V-242009
+[V-241989]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241989
+[V-241990]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241990
+[V-241991]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241991
+[V-241992]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241992
+[V-241993]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241993
+[V-241994]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241994
+[V-241995]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241995
+[V-241996]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241996
+[V-241997]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241997
+[V-241998]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241998
+[V-241999]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-241999
+[V-242000]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242000
+[V-242001]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242001
+[V-242002]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242002
+[V-242003]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242003
+[V-242004]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242004
+[V-242005]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242005
+[V-242006]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242006
+[V-242007]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242007
+[V-242008]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242008
+[V-242009]: https://stigviewer.com/stigs/microsoft_windows_defender_firewall_with_advanced_security/2023-08-23/finding/V-242009
 
 ### Center for Internet Security (CIS) Benchmark
 
