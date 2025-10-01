@@ -32,7 +32,8 @@ keywords:
 | 2025-01-11   | 1.3     | M. Grafnetter                 | Improved [helper scripts](#dcfwtool-distribution-contents).<br>Added the [Port Scanning](#port-scanning) and expanded the [System Reboots](#system-reboots) sections. |
 | 2025-02-24   | 1.3.1   | P. Formanek                   | Expanded the [Firewall Rule Merging](#firewall-rule-merging) section. |
 | 2025-03-19   | 1.3.2   | P. Formanek,<br>M. Grafnetter | Tested on Windows 2025 Server and expanded the [IPSec](#ipsec-rules) and [System Reboots](#system-reboots) sections. |
-| 2025-05-09   | 1.3.3   | M. Grafnetter | Expanded the [RPC Dynamic Port Allocation](#rpc-dynamic-port-allocation) and [Firewall Profiles](#firewall-profiles) sections. |
+| 2025-05-09   | 1.3.3   | M. Grafnetter                 | Expanded the [RPC Dynamic Port Allocation](#rpc-dynamic-port-allocation) and [Firewall Profiles](#firewall-profiles) sections. |
+| 2025-10-01   | 1.3.4   | M. Grafnetter                 | Added [info on CVE-2025-29969](#ms-even-eventlog-remoting-protocol) and [ZTDNS](#zero-trust-dns-ztdns-client-and-server). |
 
 Script files referenced by this document are versioned independently:
 
@@ -573,6 +574,15 @@ which can then be referenced by firewall rules:
 As the dynamic keywords cannot be referenced in firewall rules managed by Group Policies,
 we have decided not to use them in our configuration.
 
+#### Zero Trust DNS (ZTDNS) Client and Server
+
+Yet another novel Windows feature that has the potential of blocking unauthorized outbound traffic
+is Zero Trust DNS (ZTDNS). A preview of this technology is [available for Windows 11](https://techcommunity.microsoft.com/blog/networkingblog/announcing-zero-trust-dns-private-preview/4110366/replies/4195238).
+
+![Zero Trust DNS Preview in Windows 11](../Images/Diagrams/win11-ztdns.png)
+
+It is unknown whether the ZTDNS client and server components will also be available for Windows Server in the future.
+
 #### WinHTTP Proxy
 
 After we verified that it was indeed impossible to selectively filter outbound Internet traffic on domain controllers
@@ -930,6 +940,12 @@ add condition field=if_uuid matchtype=equal data=82273FDC-E32A-18C3-3F78-827929D
 add filter
 ```
 
+> [!TIP]
+> The [CVE-2025-29969: MS-EVEN RPC Remote Code Execution Vulnerability](https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-29969)
+> has been publicly disclosed and patched by Microsoft in May 2025.
+> The discovery of this important security vulnerability has confirmed the relevance
+> of the recommendations in this document, which was originally published in May 2024.
+
 #### \[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol
 
 The [\[MS-DFSNM\]: Distributed File System (DFS): Namespace Management Protocol](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsnm/95a506a8-cae6-4c42-b19d-9c1ed1223979)
@@ -1193,9 +1209,13 @@ The following protocols need to be investigated in the future, as they are open 
 
 #### Additional Reading on RPC
 
-- [MSRPC-To-ATT&CK](https://github.com/jsecurity101/MSRPC-to-ATTACK)
-- [A Definitive Guide to the Remote Procedure Call (RPC) Filter](https://www.akamai.com/blog/security/guide-rpc-filter#using)
-- [server22_rpc_servers_scrape.csv](https://github.com/akamai/akamai-security-research/blob/main/rpc_toolkit/rpc_interface_lists/server22_rpc_servers_scrape.csv)
+- [DSInternals.Win32.RpcFilters: A PowerShell module for managing Windows RPC filters](https://github.com/MichaelGrafnetter/RPCFilterManager)
+- [Ned Pyle (Microsoft): RPC over IT/Pro](https://techcommunity.microsoft.com/blog/askds/rpc-over-itpro/399898)
+- [Ophir Harpaz & Stiv Kupchik (Akamai): A Definitive Guide to the Remote Procedure Call (RPC) Filter](https://www.akamai.com/blog/security/guide-rpc-filter)
+- [Sagie Dulce (Zero Networks): Stopping Lateral Movement via the RPC Firewall](https://zeronetworks.com/blog/stopping-lateral-movement-via-the-rpc-firewall)
+- [Jonathan Johnson (Huntress): MSRPC-To-ATT&CK](https://github.com/jsecurity101/MSRPC-to-ATTACK)
+- [James Spencer (CrowdStrike): Windows RPC Interface Database](https://blog.jcspencer.net/rpc-interfaces)
+- [James Forshaw (Google Project Zero): Calling Local Windows RPC Servers from .NET](https://googleprojectzero.blogspot.com/2019/12/calling-local-windows-rpc-servers-from.html)
 
 ### IPSec Rules
 
@@ -2825,8 +2845,8 @@ New-NetFirewallRule -GPOSession $GPOSession `
                     -Verbose:$isVerbose > $null
 ```
 
-See the `CustomRules.Sample.ps1` sample file, which contains some additional boilerplate code
-and can be used as a template.
+See the `CustomRules.Sample.ps1` and `CustomRules.Semperis.ps1` sample files, which contain some additional boilerplate code
+and can be used as templates.
 
 ## Deployment
 
