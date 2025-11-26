@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$comment": "Schema file for the Set-ADDSFirewallPolicy.json config.",
     "title": "Domain Controller Firewall Configuration",
     "type": "object",
@@ -43,186 +43,26 @@
         "description": "The maximum size of the firewall log file in kilobytes."
       },
       "ClientAddresses": {
-        "oneOf": [
-          {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "examples": [
-                    "10.220.1.0/24",
-                    "10.220.2.100-10.220.2.150",
-                    "2001:db8:abcd:0012::0/64"
-                  ]
-                },
-                {
-                  "enum": [
-                    "LocalSubnet",
-                    "DNS",
-                    "DHCP",
-                    "WINS",
-                    "DefaultGateway",
-                    "Internet",
-                    "Intranet",
-                    "IntranetRemoteAccess",
-                    "PlayToDevice",
-                    "CaptivePortal"
-                  ]
-                }
-              ],
-              "minLength": 1,
-              "uniqueItems": true
-            }
-          },
-          {
-            "type": "array",
-            "items": {
-              "const": "Any",
-              "minLength": 1,
-              "maxLength": 1
-            }
-          }
-        ],
+        "$ref": "#/$defs/Addresses",
         "default": [ "Any" ],
-        "description": "List of client IP adresses from which inbound traffic should be allowed."
+        "description": "List of client IP addresses from which inbound traffic should be allowed."
       },
       "ManagementAddresses": {
-        "oneOf": [
-          {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "examples": [
-                    "10.220.1.0/24",
-                    "10.220.2.100-10.220.2.150",
-                    "2001:db8:abcd:0012::0/64"
-                  ]
-                },
-                {
-                  "enum": [
-                    "LocalSubnet",
-                    "DNS",
-                    "DHCP",
-                    "WINS",
-                    "DefaultGateway",
-                    "Internet",
-                    "Intranet",
-                    "IntranetRemoteAccess",
-                    "PlayToDevice",
-                    "CaptivePortal"
-                  ]
-                }
-              ],
-              "minLength": 1,
-              "uniqueItems": true
-            }
-          },
-          {
-            "type": "array",
-            "items": {
-              "const": "Any",
-              "minLength": 1,
-              "maxLength": 1
-            }
-          }
-        ],
+        "$ref": "#/$defs/Addresses",
         "default": [ "Any" ],
         "description": "List of IP addresses from which inbound management traffic should be allowed."
       },
       "DomainControllerAddresses": {
-        "oneOf": [
-          {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "examples": [
-                    "10.220.1.0/24",
-                    "10.220.2.100-10.220.2.150",
-                    "2001:db8:abcd:0012::0/64"
-                  ]
-                },
-                {
-                  "enum": [
-                    "LocalSubnet",
-                    "DNS",
-                    "DHCP",
-                    "WINS",
-                    "DefaultGateway",
-                    "Internet",
-                    "Intranet",
-                    "IntranetRemoteAccess",
-                    "PlayToDevice",
-                    "CaptivePortal"
-                  ]
-                }
-              ],
-              "minLength": 1,
-              "uniqueItems": true
-            }
-          },
-          {
-            "type": "array",
-            "items": {
-              "const": "Any",
-              "minLength": 1,
-              "maxLength": 1
-            }
-          }
-        ],
+        "$ref": "#/$defs/Addresses",
         "default": [ "Any" ],
         "description": "List of domain controller IP addresses, between which replication and management traffic will be allowed."
       },
       "RadiusClientAddresses": {
-        "oneOf": [
-          {
-            "type": "array",
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "examples": [
-                    "10.220.1.0/24",
-                    "10.220.2.100-10.220.2.150",
-                    "2001:db8:abcd:0012::0/64"
-                  ]
-                },
-                {
-                  "enum": [
-                    "LocalSubnet",
-                    "DNS",
-                    "DHCP",
-                    "WINS",
-                    "DefaultGateway",
-                    "Internet",
-                    "Intranet",
-                    "IntranetRemoteAccess",
-                    "PlayToDevice",
-                    "CaptivePortal"
-                  ]
-                }
-              ],
-              "minLength": 1,
-              "uniqueItems": true
-            }
-          },
-          {
-            "type": "array",
-            "items": {
-              "const": "Any",
-              "minLength": 1,
-              "maxLength": 1
-            }
-          }
-        ],
+        "$ref": "#/$defs/Addresses",
         "default": [ "Any" ],
-        "description": "List of RADIUS client IP adresses from which inbound traffic should be allowed."
+        "description": "List of RADIUS client IP addresses from which inbound traffic should be allowed."
       },
-      "NtdsStaticPort": {
+        "NtdsStaticPort": {
         "oneOf": [
           {
             "type": "integer",
@@ -312,14 +152,7 @@
         "description": "Indicates whether the Active Directory Web Services (ADWS) should only be available from management IPs."
       },
       "DisableNetbiosBroadcasts": {
-        "anyOf": [
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/NullableBoolean",
         "default": null,
         "description": "Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point)."
       },
@@ -329,14 +162,7 @@
         "description": "Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled."
       },
       "DisableMDNS": {
-        "anyOf": [
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/NullableBoolean",
         "default": null,
         "description": "Indicates whether the Multicast DNS (mDNS) client should be disabled."
       },
@@ -466,38 +292,17 @@
         "description": "Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed."
       },
       "EnableNetworkProtection": {
-        "anyOf": [
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/NullableBoolean",
         "default": null,
         "description": "Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled."
       },
       "BlockWmiCommandExecution": {
-        "anyOf": [
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/NullableBoolean",
         "default": null,
         "description": "Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR."
       },
       "EnableRpcFilters": {
-        "anyOf": [
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/NullableBoolean",
         "default": null,
         "description": "Indicates whether additional filtering of RPC over Named Pipes should be applied."
       },
@@ -530,5 +335,60 @@
       "DomainControllerAddresses",
       "ManagementAddresses",
       "ClientAddresses"
-    ]
+    ],
+    "$defs": {
+      "Addresses": {
+        "oneOf": [
+          {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "examples": [
+                    "10.220.1.0/24",
+                    "10.220.2.100-10.220.2.150",
+                    "2001:db8:abcd:0012::0/64"
+                  ]
+                },
+                {
+                  "enum": [
+                    "LocalSubnet",
+                    "DNS",
+                    "DHCP",
+                    "WINS",
+                    "DefaultGateway",
+                    "Internet",
+                    "Intranet",
+                    "IntranetRemoteAccess",
+                    "PlayToDevice",
+                    "CaptivePortal"
+                  ]
+                }
+              ],
+              "minLength": 1,
+              "uniqueItems": true
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "const": "Any",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          }
+        ]
+      },
+      "NullableBoolean": {
+        "anyOf": [
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
   }
