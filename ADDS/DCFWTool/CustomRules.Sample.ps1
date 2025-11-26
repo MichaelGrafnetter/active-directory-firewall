@@ -16,11 +16,11 @@ List of domain controller IP addresses, between which replication traffic should
 List of IP addresses from which inbound management traffic should be allowed. This list may optionally include the IP addresses of the domain controllers.
 
 .PARAMETER AllAddresses
-List of client IP adresses from which inbound traffic should be allowed. This list should include the IP addresses of the domain controllers and management systems.
+List of client IP addresses from which inbound traffic should be allowed. This list should include the IP addresses of the domain controllers and management systems.
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.8
+Version: 2.10
 
 #>
 

@@ -18,7 +18,7 @@ Online documentation: https://firewall.dsinternals.com
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 2.9
+Version: 2.10
 
 #>
 
@@ -72,7 +72,7 @@ class ScriptSettings {
     # The maximum size of the firewall log file in kilobytes.
     [uint16]           $LogMaxSizeKilobytes           = [int16]::MaxValue
 
-    # List of client IP adresses from which inbound traffic should be allowed.
+    # List of client IP addresses from which inbound traffic should be allowed.
     [string[]]         $ClientAddresses               = @('Any')
 
     # List of IP addresses from which inbound management traffic should be allowed.
@@ -81,7 +81,7 @@ class ScriptSettings {
     # List of domain controller IP addresses, between which replication and optionally management traffic should be allowed.
     [string[]]         $DomainControllerAddresses     = @('Any')
 
-    # List of RADIUS client IP adresses from which inbound traffic should be allowed.
+    # List of RADIUS client IP addresses from which inbound traffic should be allowed.
     [string[]]         $RadiusClientAddresses         = @('Any')
 
     # Static port to be used for inbound Active Directory RPC traffic.

@@ -26,12 +26,12 @@ IP addresses of Semperis Semperis DSP and ADFR management servers and distributi
 must be added to this list using the JSON configuration file.
 
 .PARAMETER AllAddresses
-List of client IP adresses from which inbound traffic should be allowed.
+List of client IP addresses from which inbound traffic should be allowed.
 This list should automatically include the IP addresses of Semperis Semperis DSP and ADFR management servers and distribution points.
 
 .NOTES
 Author:  Michael Grafnetter
-Version: 1.1
+Version: 1.2
 
 #>
 
