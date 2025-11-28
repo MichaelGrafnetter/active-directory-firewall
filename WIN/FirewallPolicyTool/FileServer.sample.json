@@ -1,0 +1,38 @@
+{
+    "$schema": "FirewallPolicy.schema.json",
+    "GroupPolicyObjectName": "Firewall - File Servers",
+    "IPAddressSets": [
+        {
+            "Name": "ManagementAddresses",
+            "Addresses": [
+                "xx"
+            ]
+        }
+    ],
+    "CoreNetworking": {
+        "EnableNetworkProtection": true
+    },
+    "RemoteManagement": {
+        "EnableDiskManagement": true,
+        "EnableRpcFilters": true
+    },
+    "ServerRoles": {
+        "FileServer": {
+            "EnableSMB": true,
+            "EnableDFSR": true,
+            "DfsrStaticPort": 5722
+        }
+    },
+    "CustomRules": [
+        {
+            "Name": "OMSA-In-TCP",
+            "DisplayName": "Dell OpenManage Server Administrator (TCP-In)",
+            "Description": "Inbound rule for Dell OpenManage Server Administrator Web Service [TCP 1311]",
+            "Enabled": false,
+            "Protocol": "TCP",
+            "LocalPort": 1311,
+            "RemoteAddressSet": [ "ManagementAddresses" ],
+            "Program": "%ProgramFiles%\\Dell\\SysMgt\\oma\\bin\\dsm_om_connsvc64.exe"
+        }
+    ]
+}

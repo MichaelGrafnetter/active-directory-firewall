@@ -1,0 +1,585 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Schema file for the FirewallPolicy.json config.",
+  "title": "Windows Firewall Policy Configuration",
+  "type": "object",
+  "required": [
+    "GroupPolicyObjectName",
+    "IPAddressSets"
+  ],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^\\$": {
+      "description": "Allow schema declaration and other meta-properties starting with '$'.",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "GroupPolicyObjectName": {
+      "type": "string",
+      "description": "The name of the Group Policy Object (GPO) that will be created or updated."
+    },
+    "GroupPolicyObjectId": {
+      "type": "string",
+      "default": null,
+      "examples": [
+        "a1b2c3d4-e5f6-7890-abcd-ef0123456789"
+      ],
+      "description": "The unique identifier (GUID) of the Group Policy Object (GPO). If specified, the script will attempt to update the GPO with this ID instead of searching by name."
+    },
+    "GroupPolicyObjectComment": {
+      "type": "string",
+      "default": "This GPO is managed by the Set-WindowsFirewallPolicy.ps1 PowerShell script.",
+      "description": "The comment that will be added to the Group Policy Object (GPO)."
+    },
+    "TargetDomain": {
+      "type": "string",
+      "default": null,
+      "examples": [
+        "contoso.com"
+      ],
+      "description": "The domain in which the Group Policy Object (GPO) will be created or updated. This setting is only useful in multi-domain forests. If not specified, the script will attempt to determine the domain of the current user."
+    },
+    "LogDroppedPackets": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indicates whether the packets dropped by the firewall should be logged."
+    },
+    "LogAllowedPackets": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indicates whether the packets allowed by the firewall should be logged."
+    },
+    "LogFilePath": {
+      "type": "string",
+      "default": "%systemroot%\\system32\\logfiles\\firewall\\pfirewall.log",
+      "description": "The path to the log file that will be used to store information about the allowed and/or dropped packets."
+    },
+    "LogMaxSizeKilobytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32767,
+      "default": 32767,
+      "description": "The maximum size of the firewall log file in kilobytes."
+    },
+    "EnableLocalIPsecRules": {
+      "type": "boolean",
+      "default": true,
+      "description": "Indicates whether local IPSec rules should be enabled."
+    },
+    "IncludeDisabledRules": {
+      "type": "boolean",
+      "default": false,
+      "description": "Indicates whether disabled firewall rules should be added to the target GPO."
+    },
+    "IPAddressSets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NamedIPAddressSet"
+      },
+      "default": [
+        {
+          "Name": "ManagementAddresses",
+          "Addresses": [
+            "Any"
+          ]
+        }
+      ],
+      "description": "Predefined sets of IP addresses that can be referenced in custom firewall rules."
+    },
+    "CoreNetworking": {
+      "type": "object",
+      "description": "Configuration of core networking-related firewall rules.",
+      "additionalProperties": false,
+      "properties": {
+        "DisableNetbiosBroadcasts": {
+          "$ref": "#/$defs/NullableBoolean",
+          "default": true,
+          "description": "Indicates whether the NetBIOS protocol should be switched to P-node (point-to-point)."
+        },
+        "DisableLLMNR": {
+          "type": "boolean",
+          "default": true,
+          "description": "Indicates whether the Link-Local Multicast Name Resolution (LLMNR) client should be disabled."
+        },
+        "DisableMDNS": {
+          "$ref": "#/$defs/NullableBoolean",
+          "default": true,
+          "description": "Indicates whether the Multicast DNS (mDNS) client should be disabled."
+        },
+        "EnableNetbiosNameService": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound NetBIOS Name Service should be allowed."
+        },
+        "EnableNetbiosDatagramService": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound NetBIOS Datagram Service traffic should be allowed."
+        },
+        "EnableNetbiosSessionService": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound NetBIOS Session Service (NBSS) traffic should be allowed."
+        },
+        "EnableNetworkProtection": {
+          "$ref": "#/$defs/NullableBoolean",
+          "default": null,
+          "description": "Indicates whether the Network protection feature of Microsoft Defender Antivirus should be enabled."
+        }
+      }
+    },
+    "RemoteManagement": {
+      "type": "object",
+      "description": "Configuration of remote management-related firewall rules.",
+      "additionalProperties": false,
+      "properties": {
+        "EnableWindowsRemoteManagement": {
+          "type": "boolean",
+          "default": true,
+          "description": "Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled."
+        },
+        "EnableWindowsManagementInstrumentation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Windows Management Instrumentation (WMI) traffic should be enabled."
+        },
+        "WmiStaticPort": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Indicates whether WMI traffic should use a static port."
+        },
+        "BlockWmiCommandExecution": {
+          "$ref": "#/$defs/NullableBoolean",
+          "default": null,
+          "description": "Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR."
+        },
+        "EnableRemoteDesktop": {
+          "type": "boolean",
+          "default": true,
+          "description": "Indicates whether inbound Remote Desktop traffic should be enabled."
+        },
+        "EnableOpenSSHServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound OpenSSH traffic should be enabled."
+        },
+        "EnableRpcFilters": {
+          "$ref": "#/$defs/NullableBoolean",
+          "default": null,
+          "description": "Indicates whether additional filtering of RPC over Named Pipes should be applied."
+        },
+        "EnableServiceManagement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether remote service management should be enabled."
+        },
+        "EnableScheduledTaskManagement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether remote scheduled task management should be enabled."
+        },
+        "EnableEventLogManagement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether remote event log management should be enabled."
+        },
+        "EnablePerformanceLogAccess": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether remote performance log access should be enabled."
+        },
+        "EnableDiskManagement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether remote disk management should be enabled."
+        },
+        "EnableComPlusManagement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound COM+ management traffic should be enabled."
+        },
+        "EnableFirewallManagement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether remote firewall management should be enabled."
+        }
+      }
+    },
+    "ServerRoles": {
+      "type": "object",
+      "description": "Firewall configuration for natively supported Windows Server roles.",
+      "additionalProperties": false,
+      "properties": {
+        "FileServer": {
+          "type": "object",
+          "description": "Firewall configuration for the File Server role.",
+          "additionalProperties": false,
+          "properties": {
+            "EnableSMB": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound file server (SMB) traffic should be allowed."
+            },
+            "EnableDFSR": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Distributed File System Replication (DFSR) traffic should be allowed."
+            },
+            "DfsrStaticPort": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1024,
+                  "maximum": 49151,
+                  "examples": [
+                    5722
+                  ]
+                },
+                {
+                  "const": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Static port to be used for DFSR traffic."
+            },
+            "EnableFSRMManagement": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound File Server Resource Manager (FSRM) management traffic should be allowed."
+            },
+            "EnableISCSI": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound iSCSI traffic should be allowed."
+            },
+            "EnableNFS": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Network File System (NFS) traffic should be allowed."
+            }
+          }
+        },
+        "EnablePrintSpooler": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed."
+        },
+        "EnableDhcpServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed."
+        },
+        "EnableWebServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed."
+        },
+        "EnableNPS": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed."
+        },
+        "EnableDnsServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Domain Name System (DNS) server traffic should be allowed."
+        },
+        "EnableWINS": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed."
+        },
+        "EnableKMS": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Key Management Service (KMS) traffic should be allowed."
+        },
+        "EnableWSUS": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Windows Server Update Services (WSUS) traffic should be allowed."
+        },
+        "EnableWDS": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Windows Deployment Services (WDS) traffic should be allowed."
+        },
+        "EnableBackupManagement": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether remote backup management should be enabled."
+        },
+        "EnableADFS": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Active Directory Federation Services (ADFS) traffic should be allowed."
+        },
+        "EnableWebApplicationProxy": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Web Application Proxy traffic should be allowed."
+        },
+        "EnableRemoteDesktopLicensing": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Remote Desktop Licensing traffic should be allowed."
+        },
+        "EnableMessageQueuing": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound Message Queuing (MSMQ) traffic should be allowed."
+        },
+        "EnableSQLServer": {
+          "type": "boolean",
+          "default": false,
+          "description": "Indicates whether inbound SQL Server traffic should be allowed."
+        }
+      }
+    },
+    "CustomRules": {
+      "type": "array",
+      "description": "List of custom firewall rules that should be created or updated.",
+      "items": {
+        "$ref": "#/$defs/FirewallRule"
+      },
+      "default": []
+    }
+  },
+  "$defs": {
+    "FirewallRule": {
+      "type": "object",
+      "required": [
+        "Name",
+        "DisplayName"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "Name": {
+          "description": "The unique name of the rule.",
+          "type": "string",
+          "examples": [
+            "RemoteSvcAdmin-In-TCP"
+          ]
+        },
+        "DisplayName": {
+          "description": "The display name of the rule.",
+          "default": null,
+          "type": "string",
+          "examples": [
+            "Remote Service Management (RPC)"
+          ]
+        },
+        "Group": {
+          "description": "The group to which the rule belongs.",
+          "type": "string",
+          "default": null,
+          "examples": [
+            "DNS Service"
+          ]
+        },
+        "Description": {
+          "description": "A brief description of the rule.",
+          "type": "string",
+          "default": null
+        },
+        "Enabled": {
+          "description": "Indicates whether the rule is enabled.",
+          "type": "boolean",
+          "default": true
+        },
+        "Protocol": {
+          "description": "Network protocol specified by name or number.",
+          "default": null,
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "string",
+              "enum": [
+                "TCP",
+                "UDP",
+                "ICMPv4",
+                "ICMPv6"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "LocalPort": {
+          "description": "The local port or port range for the rule.",
+          "default": "Any",
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "Predefined port number ranges.",
+              "enum": [
+                "RPC",
+                "RPCEPMap",
+                "Teredo",
+                "IPHTTPSIn",
+                "IPHTTPSOut",
+                "PlayToDiscovery",
+                "Any"
+              ]
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535,
+              "examples": [
+                3389
+              ],
+              "description": "A single port number."
+            },
+            {
+              "type": "string",
+              "pattern": "^(?:[0-9]{1,5}-[0-9]{1,5})$",
+              "examples": [
+                "5000-6000"
+              ],
+              "description": "A port range."
+            }
+          ]
+        },
+        "RemoteAddressSet": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "One or more names of IP address sets defined in the IPAddressSets section.",
+          "default": null,
+          "examples": [
+            "ManagementAddresses"
+          ]
+        },
+        "Program": {
+          "description": "The name of the program associated with the rule.",
+          "type": "string",
+          "default": null,
+          "examples": [
+            "%SystemRoot%\\System32\\svchost.exe",
+            "System"
+          ]
+        },
+        "Service": {
+          "description": "The name of the service associated with the rule.",
+          "type": "string",
+          "default": null,
+          "examples": [
+            "Dhcp",
+            "Dnscache"
+          ]
+        },
+        "Profile": {
+          "description": "The network profile(s) to which the rule applies.",
+          "type": "string",
+          "enum": [
+            "Domain",
+            "Private",
+            "Public",
+            "Any",
+            "Domain,Private",
+            "Private,Public"
+          ],
+          "default": "Any"
+        },
+        "Block": {
+          "description": "Indicates whether the rule blocks traffic (true) or allows traffic (false).",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "IPAddressSet": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "examples": [
+                  "10.220.1.0/24",
+                  "10.220.2.100-10.220.2.150",
+                  "2001:db8:abcd:0012::0/64"
+                ]
+              },
+              {
+                "enum": [
+                  "LocalSubnet",
+                  "DNS",
+                  "DHCP",
+                  "WINS",
+                  "DefaultGateway",
+                  "Internet",
+                  "Intranet",
+                  "IntranetRemoteAccess",
+                  "PlayToDevice",
+                  "CaptivePortal"
+                ]
+              }
+            ],
+            "minLength": 1,
+            "uniqueItems": true
+          }
+        },
+        {
+          "type": "array",
+          "items": {
+            "const": "Any",
+            "minLength": 1,
+            "maxLength": 1
+          }
+        }
+      ]
+    },
+    "NamedIPAddressSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "Name": {
+          "type": "string",
+          "description": "The name of the IP address set.",
+          "examples": [
+            "ManagementAddresses"
+          ]
+        },
+        "Addresses": {
+          "$ref": "#/$defs/IPAddressSet",
+          "description": "The list of IP addresses, subnets, or predefined keywords included in the set."
+        }
+      },
+      "required": [
+        "Name",
+        "Addresses"
+      ]
+    },
+    "NullableBoolean": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

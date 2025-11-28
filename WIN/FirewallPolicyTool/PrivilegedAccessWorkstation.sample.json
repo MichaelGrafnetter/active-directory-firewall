@@ -1,0 +1,11 @@
+{
+    "$schema": "FirewallPolicy.schema.json",
+    "GroupPolicyObjectName": "Firewall - Privileged Access Workstations",
+    "CoreNetworking": {
+        "EnableNetworkProtection": true
+    },
+    "RemoteManagement": {
+        "EnableRemoteDesktop": false,
+        "EnableWindowsRemoteManagement": false
+    }
+}
