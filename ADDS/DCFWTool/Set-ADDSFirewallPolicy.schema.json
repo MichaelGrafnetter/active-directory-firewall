@@ -3,6 +3,13 @@
     "$comment": "Schema file for the Set-ADDSFirewallPolicy.json config.",
     "title": "Domain Controller Firewall Configuration",
     "type": "object",
+    "additionalProperties": false,
+    "patternProperties": {
+      "^\\$": {
+        "description": "Allow schema declaration and other meta-properties starting with '$'.",
+        "type": "string"
+      }
+    },
     "properties": {
       "GroupPolicyObjectName": {
         "type": "string",
