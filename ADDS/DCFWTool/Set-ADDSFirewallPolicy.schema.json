@@ -69,87 +69,32 @@
         "default": [ "Any" ],
         "description": "List of RADIUS client IP addresses from which inbound traffic should be allowed."
       },
-        "NtdsStaticPort": {
-        "oneOf": [
-          {
-            "type": "integer",
-            "minimum": 1024,
-            "maximum": 49151,
-            "examples": [ 38901 ]
-          },
-          {
-            "const": 0
-          },
-          {
-            "type": "null"
-          }
-        ],
+      "NtdsStaticPort": {
+        "$ref": "#/$defs/RpcStaticPort",
+        "examples": [ 38901 ],
         "default": null,
         "description": "Static port to be used for inbound Active Directory RPC traffic."
       },
       "NetlogonStaticPort": {
-        "oneOf": [
-          {
-            "type": "integer",
-            "minimum": 1024,
-            "maximum": 49151,
-            "examples": [ 38902 ]
-          },
-          {
-            "const": 0
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/RpcStaticPort",
+        "examples": [ 38902 ],
         "default": null,
         "description": "Static port to be used for inbound Netlogon traffic."
       },
       "DfsrStaticPort": {
-        "oneOf": [
-          {
-            "type": "integer",
-            "minimum": 1024,
-            "maximum": 49151,
-            "examples": [ 5722 ]
-          },
-          {
-            "const": 0
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/RpcStaticPort",
+        "examples": [ 5722 ],
         "default": null,
         "description": "Static port to be used for DFSR traffic."
       },
       "FrsStaticPort": {
-        "oneOf": [
-          {
-            "type": "integer",
-            "minimum": 1024,
-            "maximum": 49151,
-            "examples": [ 38903 ]
-          },
-          {
-            "const": 0
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/RpcStaticPort",
+        "examples": [ 38903 ],
         "default": null,
         "description": "Static port to be used for legacy FRS traffic."
       },
       "WmiStaticPort": {
-        "anyOf": [
-          {
-            "type": "boolean"
-          },
-          {
-            "type": "null"
-          }
-        ],
+        "$ref": "#/$defs/NullableBoolean",
         "default": null,
         "description": "Indicates whether WMI traffic should use a static port."
       },
@@ -384,6 +329,21 @@
               "minLength": 1,
               "maxLength": 1
             }
+          }
+        ]
+      },
+      "RpcStaticPort": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 49151
+          },
+          {
+            "const": 0
+          },
+          {
+            "type": "null"
           }
         ]
       },
