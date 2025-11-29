@@ -49,6 +49,11 @@ $script:ErrorActionPreference = [System.Management.Automation.ActionPreference]:
 
 #region Configuration Data Model
 
+# Define constant values for predefined IP address sets
+[string] $script:PredefinedAddressSet_AllAddresses        = 'AllAddresses'
+[string] $script:PredefinedAddressSet_ManagementAddresses = 'ManagementAddresses'
+[string] $script:AnyKeyWord                               = 'Any'
+
 # Set the default configuration values, which can be overridden by an external JSON file
 class CoreNetworkingSettings {
    # Indicates whether inbound NetBIOS Name Service should be allowed.
@@ -88,18 +93,36 @@ class CoreNetworkingSettings {
     }
 }
 
-class RemoteManagementSettings {
-    # Indicates whether inbound Windows Remote Management traffic should be enabled.
-    [bool]             $EnableWindowsRemoteManagement = $true
-    
+class WmiSettings {
     # Indicates whether inbound Windows Management Instrumentation (WMI) traffic should be enabled.
-    [bool]             $EnableWindowsManagementInstrumentation = $false
+    [bool]             $Enabled                       = $false
 
     # Indicates whether WMI traffic should use a static port.
-    [Nullable[bool]]   $WmiStaticPort                 = $null
+    [Nullable[bool]]   $StaticPort                    = $null
 
     # Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR.
-    [Nullable[bool]]   $BlockWmiCommandExecution      = $null
+    [Nullable[bool]]   $BlockCommandExecution         = $null
+
+    <#
+    .SYNOPSIS
+    Validates the WMI-related settings.
+    #>
+    [void] Validate() {
+        if ($this.BlockCommandExecution) {
+            Write-Warning -Message 'SCCM client and DP do not work properly on systems where command execution over WMI is blocked.'
+        }
+    }
+}
+
+class RemoteManagementSettings {
+    # Default set of IP addresses from which inbound management traffic should be allowed.
+    [string[]]         $ManagementAddressSet         = @($PredefinedAddressSet_ManagementAddresses)
+
+    # Indicates whether inbound Windows Remote Management traffic should be enabled.
+    [bool]             $EnableWindowsRemoteManagement = $true
+
+    # Windows Management Instrumentation (WMI) settings.
+    [WmiSettings]      $WMI                           = [WmiSettings]::new()
 
      # Indicates whether remote service management should be enabled.
     [bool]             $EnableServiceManagement       = $false
@@ -133,9 +156,7 @@ class RemoteManagementSettings {
     Validates the configuration of the remote management-related firewall rules.
     #>
     [void] Validate() {
-        if ($this.BlockWmiCommandExecution) {
-            Write-Warning -Message 'SCCM client and DP do not work properly on systems where command execution over WMI is blocked.'
-        }
+        $this.WMI.Validate()
     }
 }
 
@@ -162,24 +183,42 @@ class FileServerSettings {
     [Nullable[bool]]   $EnableRpcFilters              = $null
 }
 
+class PrintServerSettings {
+    # Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
+    [bool]               $Enabled                        = $false
+
+    # Static port to be used by the Print Spooler listener.
+    [Nullable[uint16]]   $StaticPort                     = $null
+}
+
+class DhcpServerSettings {
+    # Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed.
+    [bool]               $Enabled                        = $false
+}
+
+class DnsServerSettings {
+    # Indicates whether inbound Domain Name System (DNS) traffic should be allowed.
+    [bool]               $Enabled                        = $false
+}
+
 class ServerRoleSettings {
     # Firewall configuration for the File Server role.
     [FileServerSettings] $FileServer                     = [FileServerSettings]::new()
 
-    # Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed.
-    [bool]               $EnablePrintSpooler             = $false
+    # Firewall configuration for the Print Server role.
+    [PrintServerSettings] $PrintServer                   = [PrintServerSettings]::new()
 
-    # Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed.
-    [bool]               $EnableDhcpServer               = $false
+    # Firewall configuration for the DHCP Server role.
+    [DhcpServerSettings] $DHCP                           = [DhcpServerSettings]::new()
+
+    # Firewall configuration for the DNS Server role.
+    [DnsServerSettings]  $DNS                            = [DnsServerSettings]::new()
 
     # Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed.
     [bool]               $EnableWebServer               = $false
 
     # Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed.
     [bool]               $EnableNPS                     = $false
-
-    # Indicates whether inbound Domain Name System (DNS) traffic should be allowed.
-    [bool]               $EnableDnsServer               = $false
 
     # Indicates whether inbound Windows Internet Name Service (WINS) traffic should be allowed.
     [bool]               $EnableWINS                    = $false
@@ -211,6 +250,9 @@ class ServerRoleSettings {
     # Indicates whether inbound SQL Server traffic should be allowed."
     [bool]               $EnableSQLServer               = $false
 
+    # One or more names of IP address sets from which client traffic should be allowed.
+    [string[]]           $ClientAddressSet              = @($PredefinedAddressSet_AllAddresses)
+
     # TODO: AD LDS Role
     # TODO: CA Roles?
     # TODO: Failover Clustering Role?
@@ -218,13 +260,14 @@ class ServerRoleSettings {
     # TODO: Host Guardian Service?
     # TODO: Remote Access Role (RRAS, VPN, DirectAccess)?
     # TODO: DHCP Relay Agent Role?
+    # TODO: Legacy SNMP Service?
 
     <#
     .SYNOPSIS
     Validates the configuration of the server role-related firewall rules.
     #>
     [void] Validate() {
-        if ($this.EnablePrintSpooler -and $this.FileServer.EnableRpcFilters) {
+        if ($this.PrintServer.Enabled -and $this.FileServer.EnableRpcFilters) {
             Write-Warning -Message 'Older Windows versions used the SMB protocol to communicate with the Print Spooler service. RPC filters will block this traffic.'
         }
     }
@@ -253,10 +296,13 @@ class WindowsFirewallRule {
     [string] $Protocol = $null
 
     # The local port or port range for the rule.
-    [string] $LocalPort = "Any"
+    [string] $LocalPort = $AnyKeyWord
+
+    # The ICMP type for the rule (only applicable if Protocol is ICMPv4 or ICMPv6).
+    [string] $IcmpType = $null
 
     # One or more names of IP address sets defined in the IPAddressSets section.
-    [string[]] $RemoteAddressSets = $null
+    [string[]] $RemoteAddressSet = $null
 
     # The name of the program associated with the rule.
     [string] $Program = $null
@@ -265,18 +311,18 @@ class WindowsFirewallRule {
     [string] $Service = $null
 
     # The network profile(s) to which the rule applies.
-    [string] $Profile = 'Any'
+    [string] $Profile = $script:AnyKeyWord
 
     <#
     .SYNOPSIS
-    Validates the configuration of the custom firewall rule.
+    Validates the configuration of the firewall rule.
     #>
     [void] Validate() {
         if ([string]::IsNullOrWhiteSpace($this.Name)) {
-            throw [System.ArgumentNullException]::new('Name', 'The Name property of a custom firewall rule must be provided.')
+            throw [System.ArgumentNullException]::new('Name', 'The Name property of a firewall rule must be provided.')
         }
 
-        if ($this.Profile -ne 'Any') {
+        if ($this.Profile -ne $script:AnyKeyWord) {
             Write-Warning -Message ('The firewall rule {0} is configured to apply to a specific profile. Firewall profiles are not recommended for use on Windows Servers.' -f $this.Name)
         }
 
@@ -296,7 +342,7 @@ class IPAddressSet {
 
     IPAddressSet() {
         $this.Name = 'UnnamedSet'
-        $this.Addresses = @('Any')
+        $this.Addresses = @($script:AnyKeyWord)
     }
 
     IPAddressSet([string] $name, [string[]] $addresses) {
@@ -306,7 +352,7 @@ class IPAddressSet {
 
     IPAddressSet([String] $name) {
         $this.Name = $name
-        $this.Addresses = @('Any')
+        $this.Addresses = @($script:AnyKeyWord)
     }
 }
 
@@ -370,13 +416,18 @@ class ScriptSettings {
         }
 
         # Add default values
-        if (@($this.IPAddressSets.Where({$PSItem.Name -eq 'ManagementAddresses'}, 'First')).Count -eq 0) {
+        if (@($this.IPAddressSets.Where({$PSItem.Name -eq $script:PredefinedAddressSet_ManagementAddresses}, 'First')).Count -eq 0) {
             # Add the default management address set if it does not exist
-            $this.IPAddressSets.Add([IPAddressSet]::new('ManagementAddresses', @('Any')))
+            $this.IPAddressSets.Add([IPAddressSet]::new($script:PredefinedAddressSet_ManagementAddresses, @($script:AnyKeyWord)))
         }
 
-        if ($this.IPAddressSets.Where({$PSItem.Name -eq 'ManagementAddresses'}, 'First').Addresses -contains 'Any') {
+        if ($this.IPAddressSets.Where({$PSItem.Name -eq $script:PredefinedAddressSet_ManagementAddresses}, 'First').Addresses -contains $script:AnyKeyWord) {
             Write-Warning -Message 'The current configuration allows management traffic from any IP address.'
+        }
+
+        if (@($this.IPAddressSets.Where({$PSItem.Name -eq $script:PredefinedAddressSet_AllAddresses}, 'First')).Count -eq 0) {
+            # Add the default set containing all IP addresses if it does not exist
+            $this.IPAddressSets.Add([IPAddressSet]::new($script:PredefinedAddressSet_AllAddresses, @($script:AnyKeyWord)))
         }
 
         # Sanitize the maximum log file size
@@ -397,10 +448,6 @@ class ScriptSettings {
         $this.CoreNetworking.Validate()
         $this.RemoteManagement.Validate()
         $this.ServerRoles.Validate()
-
-        foreach ($rule in $this.CustomRules) {
-            $rule.Validate()
-        }
     }
 }
 
@@ -563,20 +610,29 @@ The GPO session to use for creating the firewall rule.
 The custom firewall rule to create.
 
 #>
-function New-CustomFirewallRule {
+function Add-FirewallRule {
     [OutputType([void])]
     param(
         [Parameter(Mandatory = $true, Position = 0)]
         [Microsoft.GroupPolicy.GpoSession] $GpoSession,
 
         [Parameter(Mandatory = $true, Position = 1)]
-        [WindowsFirewallRule] $CustomRule,
+        [Aliases('CustomRule')]
+        [WindowsFirewallRule] $Rule,
 
         [Parameter(Mandatory = $true, Position = 2)]
-        [System.Collections.Generic.List[IPAddressSet]] $IPAddressSets
+        [System.Collections.Generic.List[IPAddressSet]] $IPAddressSets,
+
+        [Parameter(Mandatory = $false)]
+        [switch] $IncludeDisabled
     )
 
-    [string[]] $remoteAddresses = Resolve-IPAddressSet -IPAddressSetName $CustomRule.RemoteAddressSets -IPAddressSets $IPAddressSets
+    if (-not $Rule.Enabled -and -not $IncludeDisabled) {
+        # Skip creating disabled rules unless explicitly requested
+        return
+    }
+
+    [string[]] $remoteAddresses = Resolve-IPAddressSet -IPAddressSetName $CustomRule.RemoteAddressSet -IPAddressSets $IPAddressSets
 
     # Use parameter splatting to add optional parameters only if they have values
     [hashtable] $additionalParameters = @{}
@@ -594,7 +650,11 @@ function New-CustomFirewallRule {
     }
 
     if (-not [string]::IsNullOrWhiteSpace($CustomRule.LocalPort)) {
-        $additionalParameters['LocalPort'] = $CustomRule.LocalPort
+        $additionalParameters['LocalPort'] = @($CustomRule.LocalPort)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($CustomRule.IcmpType)) {
+        $additionalParameters['IcmpType'] = @($CustomRule.IcmpType)
     }
 
     if ($remoteAddresses.Count -gt 0) {
@@ -620,7 +680,6 @@ function New-CustomFirewallRule {
         @additionalParameters `
         -Verbose:$script:IsVerbose > $null
 }
-
 
 <#
 .SYNOPSIS
@@ -706,15 +765,1839 @@ function Remove-NetFirewallRuleEx {
 
 #endregion Helper Functions
 
-#region Create and Configure the GPO
+#region Inbound Firewall Rules
 
 # Load the configuration from the JSON file
 [string] $configurationFilePath = Join-Path -Path $PSScriptRoot -ChildPath $ConfigurationFileName
 [ScriptSettings] $configuration = Read-ScriptConfiguration -ConfigurationFilePath $configurationFilePath
 
+# Build a collection of firewall rules to be created
+[System.Collections.Generic.List[FirewallRule]] $firewallRules = @()
+$firewallRules.AddRange($configuration.CustomRules)
+
+# Create Inbound rule "RPC Endpoint Mapper (RPC-EPMAP, DCOM-In)", common for all RPC-based services
+
+# TODO: Merge EPMAP addresses for this custom rule
+[bool] $epmapEnabled = $true
+[System.Collections.Generic.List[string]] $epmapAddressSets = @()
+$epmapAddressSets.Add($PredefinedAddressSet_AllAddresses)
+
+[WindowsFirewallRule] $epmapRule = @{
+    Name         = 'RPCEPMAP-TCP-In'
+    DisplayName  = 'RPC Endpoint Mapper (RPC-EPMAP, DCOM-In)'
+    Description  = 'Inbound rule for the RPCSS service to allow RPC/TCP and DCOM traffic to the server.'
+    Enabled      = $epmapEnabled
+    Protocol     = 'TCP'
+    LocalPort    = 'RPCEPMap'
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'rpcss'
+    RemoteAddressSet = $epmapAddressSets
+}
+
+$firewallRules.Add($epmapRule)
+
+# Create Inbound rule "DNS (UDP, Incoming)"
+
+[WindowsFirewallRule] $dnsUdpRule = @{
+    Name         = 'DNSSrv-DNS-UDP-In'
+    DisplayName  = 'DNS (UDP, Incoming)'
+    Group        = 'DNS Service'
+    Description  = 'Inbound rule to allow remote UDP access to the DNS service.'
+    Enabled      = $configuration.ServerRoles.DNS.Enabled
+    Protocol     = 'UDP'
+    LocalPort    = 53
+    RemoteAddressSet = @($PredefinedAddressSet_AllAddresses)
+    Program      = '%systemroot%\System32\dns.exe'
+    Service      = 'dns'
+}
+
+$firewallRules.Add($dnsUdpRule)
+
+# As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DNSSrv-DNS-UDP-In' `
+                    -DisplayName 'DNS (UDP, Incoming)' `
+                    -Group 'DNS Service' `
+                    -Description 'Inbound rule to allow remote UDP access to the DNS service.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 53 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\dns.exe' `
+                    -Service 'dns' `
+                    -Verbose:$script:IsVerbose > $null
+
+[WindowsFirewallRule] $dnsTcpRule = @{
+    Name         = 'DNSSrv-DNS-TCP-In'
+    DisplayName  = 'DNS (TCP, Incoming)'
+    Group        = 'DNS Service'
+    Description  = 'Inbound rule to allow remote TCP access to the DNS service.'
+    Enabled      = $configuration.ServerRoles.DNS.Enabled
+    Protocol     = 'TCP'
+    LocalPort    = 53
+    RemoteAddressSet = @($PredefinedAddressSet_AllAddresses)
+    Program      = '%systemroot%\System32\dns.exe'
+    Service      = 'dns'
+}
+
+$firewallRules.Add($dnsTcpRule)
+
+# Create Inbound rule "DNS (TCP, Incoming)"
+# As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DNSSrv-DNS-TCP-In' `
+                    -DisplayName 'DNS (TCP, Incoming)' `
+                    -Group 'DNS Service' `
+                    -Description 'Inbound rule to allow remote TCP access to the DNS service.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 53 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\System32\dns.exe' `
+                    -Service 'dns' `
+                    -Verbose:$script:IsVerbose > $null
+
+[WindowsFirewallRule] $dfsrRpcRule = @{
+    Name         = 'DFSR-DFSRSvc-In-TCP'
+    DisplayName  = 'DFS Replication (RPC-In)'
+    Group        = 'DFS Replication'
+    Description  = 'Inbound rule to allow DFS Replication RPC traffic.'
+    Enabled      = $configuration.ServerRoles.FileServer.EnableDFSR
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = @($PredefinedAddressSet_AllAddresses) # TODO: Define a proper set for replication partners
+    Program      = '%SystemRoot%\system32\dfsrs.exe'
+    Service      = 'Dfsr'
+}
+
+$firewallRules.Add($dfsrRpcRule)
+
+# Create Inbound rule "DFS Replication (RPC-In)"
+# Note that a static port 5722 was used before Windows Server 2012
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DFSR-DFSRSvc-In-TCP' `
+                    -DisplayName 'DFS Replication (RPC-In)' `
+                    -Group 'DFS Replication' `
+                    -Description 'Inbound rule to allow DFS Replication RPC traffic.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $allAddresses `
+                    -Program '%SystemRoot%\system32\dfsrs.exe' `
+                    -Service 'Dfsr' `
+                    -Verbose:$script:IsVerbose > $null
+
+# TODO: Rename to File and printer sharing - ICMPv4-In
+
+# Create Inbound rule "Active Directory Domain Controller - Echo Request (ICMPv4-In)"
+
+[WindowsFirewallRule] $pingV4Rule = @{
+    Name         = 'ADDS-ICMP4-In'
+    DisplayName  = 'Active Directory Domain Controller - Echo Request (ICMPv4-In)'
+    Group        = 'Active Directory Domain Services'
+    Description  = 'Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).'
+    Enabled      = $true # TODO: Make configurable
+    Protocol     = 'ICMPv4'
+    IcmpType     = 8
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet # TODO: Reconsider the source addresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($pingV4Rule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'ADDS-ICMP4-In' `
+                    -DisplayName 'Active Directory Domain Controller - Echo Request (ICMPv4-In)' `
+                    -Group 'Active Directory Domain Services' `
+                    -Description 'Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv4 `
+                    -IcmpType 8 `
+                    -RemoteAddress $allAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Active Directory Domain Controller - Echo Request (ICMPv6-In)"
+
+[WindowsFirewallRule] $pingV6Rule = @{
+    Name         = 'ADDS-ICMP6-In'
+    DisplayName  = 'Active Directory Domain Controller - Echo Request (ICMPv6-In)'
+    Group        = 'Active Directory Domain Services'
+    Description  = 'Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).'
+    Enabled      = $true # TODO: Make configurable
+    Protocol     = 'ICMPv6'
+    IcmpType     = 128
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet # TODO: Reconsider the source addresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($pingV6Rule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'ADDS-ICMP6-In' `
+                    -DisplayName 'Active Directory Domain Controller - Echo Request (ICMPv6-In)' `
+                    -Group 'Active Directory Domain Services' `
+                    -Description 'Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 128 `
+                    -RemoteAddress $allAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# TODO: Rename to file and printer sharing - NB-Datagram-UDP-In
+
+# Create Inbound rule "Active Directory Domain Controller - NetBIOS name resolution (UDP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'ADDS-NB-Datagram-UDP-In' `
+                    -DisplayName 'Active Directory Domain Controller - NetBIOS name resolution (UDP-In)' `
+                    -Group 'Active Directory Domain Services' `
+                    -Description 'Inbound rule for the Active Directory Domain Controller service to allow NetBIOS name resolution. [UDP 138]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.CoreNetworking.EnableNetbiosDatagramService) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 138 `
+                    -RemoteAddress $allAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "File and Printer Sharing (NB-Name-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FPS-NB_Name-In-UDP' `
+                    -DisplayName 'File and Printer Sharing (NB-Name-In)' `
+                    -Group 'File and Printer Sharing' `
+                    -Description 'Inbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.CoreNetworking.EnableNetbiosNameService) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 137 `
+                    -RemoteAddress $allAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "File and Printer Sharing (NB-Session-In)"
+
+[WindowsFirewallRule] $nbSessionRule = @{
+    Name         = 'FPS-NB_Session-In-TCP'
+    DisplayName  = 'File and Printer Sharing (NB-Session-In)'
+    Group        = 'File and Printer Sharing'
+    Description  = 'Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]'
+    Enabled      = $configuration.CoreNetworking.EnableNetbiosSessionService
+    Protocol     = 'TCP'
+    LocalPort    = 139
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet
+    Program      = 'System'
+}
+
+$firewallRules.Add($nbSessionRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FPS-NB_Session-In-TCP' `
+                    -DisplayName 'File and Printer Sharing (NB-Session-In)' `
+                    -Group 'File and Printer Sharing' `
+                    -Description 'Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.CoreNetworking.EnableNetbiosSessionService) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 139 `
+                    -RemoteAddress $allAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Internet Naming Service (WINS) (UDP-In)"
+[WindowsFirewallRule] $winsUdpRule = @{
+    Name         = 'WINS-Service-In-UDP'
+    DisplayName  = 'Windows Internet Naming Service (WINS) (UDP-In)'
+    Group        = 'Windows Internet Naming Service (WINS)'
+    Description  = 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42]'
+    Enabled      = $configuration.ServerRoles.EnableWINS
+    Protocol     = 'UDP'
+    LocalPort    = 42
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet
+    Program      = '%SystemRoot%\System32\wins.exe'
+    Service      = 'WINS'
+}
+
+$firewallRules.Add($winsUdpRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINS-Service-In-UDP' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) (UDP-In)' `
+                    -Group 'Windows Internet Naming Service (WINS)' `
+                    -Description 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWINS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 42 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%SystemRoot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose:$script:IsVerbose > $null
+
+[WindowsFirewallRule] $winsTcpRule = @{
+    Name         = 'WINS-Service-In-TCP'
+    DisplayName  = 'Windows Internet Naming Service (WINS) (TCP-In)'
+    Group        = 'Windows Internet Naming Service (WINS)'
+    Description  = 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42]'
+    Enabled      = $configuration.ServerRoles.EnableWINS
+    Protocol     = 'TCP'
+    LocalPort    = 42
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet
+    Program      = '%SystemRoot%\System32\wins.exe'
+    Service      = 'WINS'
+}
+
+$firewallRules.Add($winsTcpRule)
+
+# Create Inbound rule "Windows Internet Naming Service (WINS) (TCP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINS-Service-In-TCP' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) (TCP-In)' `
+                    -Group 'Windows Internet Naming Service (WINS)' `
+                    -Description 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWINS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 42 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%SystemRoot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Internet Naming Service (WINS) - Remote Management (RPC)"
+
+[WindowsFirewallRule] $winsRpcRule = @{
+    Name         = 'WINS-Service-In-RPC'
+    DisplayName  = 'Windows Internet Naming Service (WINS) - Remote Management (RPC)'
+    Group        = 'Windows Internet Naming Service (WINS) - Remote Management'
+    Description  = 'Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP.'
+    Enabled      = $configuration.ServerRoles.EnableWINS
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\System32\wins.exe'
+    Service      = 'WINS'
+}
+
+$firewallRules.Add($winsRpcRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINS-Service-In-RPC' `
+                    -DisplayName 'Windows Internet Naming Service (WINS) - Remote Management (RPC)' `
+                    -Group 'Windows Internet Naming Service (WINS) - Remote Management' `
+                    -Description 'Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWINS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\System32\wins.exe' `
+                    -Service 'WINS' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Core Networking - Destination Unreachable (ICMPv6-In)"
+[WindowsFirewallRule] $icmp6DuRule = @{
+    Name         = 'CoreNet-ICMP6-DU-In'
+    DisplayName  = 'Core Networking - Destination Unreachable (ICMPv6-In)'
+    Group        = 'Core Networking'
+    Description  = 'Destination Unreachable error messages are sent from any node that a packet traverses which is unable to forward the packet for any reason except congestion.'
+    Enabled      = $true # TODO: Add property to enable/disable
+    Protocol     = 'ICMPv6'
+    IcmpType     = 1 # TODO: Add propety for ICMP codes
+    RemoteAddressSet = @($PredefinedAddressSet_AllAddresses)
+    Program      = 'System'
+}
+
+$firewallRules.Add($icmp6DuRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-ICMP6-DU-In' `
+                    -DisplayName 'Core Networking - Destination Unreachable (ICMPv6-In)' `
+                    -Group 'Core Networking' `
+                    -Description 'Destination Unreachable error messages are sent from any node that a packet traverses which is unable to forward the packet for any reason except congestion.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 1 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+[WindowsFirewallRule] $icmp4DuFragRule = @{
+    Name         = 'CoreNet-ICMP4-DUFRAG-In'
+    DisplayName  = 'Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)'
+    Group        = 'Core Networking'
+    Description  = 'Destination Unreachable Fragmentation Needed error messages are sent from any node that a packet traverses which is unable to forward the packet because fragmentation was needed and the don''t fragment bit was set.'
+    Enabled      = $true # TODO: Add property to enable/disable
+    Protocol     = 'ICMPv4'
+    IcmpType     = '3:4'
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($icmp4DuFragRule)
+
+# Create Inbound rule "Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-ICMP4-DUFRAG-In' `
+                    -DisplayName 'Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)' `
+                    -Group 'Core Networking' `
+                    -Description 'Destination Unreachable Fragmentation Needed error messages are sent from any node that a packet traverses which is unable to forward the packet because fragmentation was needed and the don''t fragment bit was set.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv4 `
+                    -IcmpType 3:4 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)"
+[WindowsFirewallRule] $icmp6NdaRule = @{
+    Name         = 'CoreNet-ICMP6-NDA-In'
+    DisplayName  = 'Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)'
+    Group        = 'Core Networking'
+    Description  = 'Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request.'
+    Enabled      = $true # TODO: Add property to enable/disable
+    Protocol     = 'ICMPv6'
+    IcmpType     = 136
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($icmp6NdaRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-ICMP6-NDA-In' `
+                    -DisplayName 'Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)' `
+                    -Group 'Core Networking' `
+                    -Description 'Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 136 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)"
+[WindowsFirewallRule] $icmp6NdsRule = @{
+    Name         = 'CoreNet-ICMP6-NDS-In'
+    DisplayName  = 'Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)'
+    Group        = 'Core Networking'
+    Description  = 'Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node.'
+    Enabled      = $true # TODO: Add property to enable/disable
+    Protocol     = 'ICMPv6'
+    IcmpType     = 135
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($icmp6NdsRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-ICMP6-NDS-In' `
+                    -DisplayName 'Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)' `
+                    -Group 'Core Networking' `
+                    -Description 'Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 135 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Core Networking - Packet Too Big (ICMPv6-In)"
+
+[WindowsFirewallRule] $icmp6PtbRule = @{
+    Name         = 'CoreNet-ICMP6-PTB-In'
+    DisplayName  = 'Core Networking - Packet Too Big (ICMPv6-In)'
+    Group        = 'Core Networking'
+    Description  = 'Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link.'
+    Enabled      = $true # TODO: Add property to enable/disable
+    Protocol     = 'ICMPv6'
+    IcmpType     = 2
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($icmp6PtbRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-ICMP6-PTB-In' `
+                    -DisplayName 'Core Networking - Packet Too Big (ICMPv6-In)' `
+                    -Group 'Core Networking' `
+                    -Description 'Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 2 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Core Networking - Parameter Problem (ICMPv6-In)"
+[WindowsFirewallRule] $icmp6PpRule = @{
+    Name         = 'CoreNet-ICMP6-PP-In'
+    DisplayName  = 'Core Networking - Parameter Problem (ICMPv6-In)'
+    Group        = 'Core Networking'
+    Description  = 'Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets.'
+    Enabled      = $true # TODO: Add property to enable/disable
+    Protocol     = 'ICMPv6'
+    IcmpType     = 4
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($icmp6PpRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-ICMP6-PP-In' `
+                    -DisplayName 'Core Networking - Parameter Problem (ICMPv6-In)' `
+                    -Group 'Core Networking' `
+                    -Description 'Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 4 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Core Networking - Time Exceeded (ICMPv6-In)"
+
+[WindowsFirewallRule] $icmp6TeRule = @{
+    Name         = 'CoreNet-ICMP6-TE-In'
+    DisplayName  = 'Core Networking - Time Exceeded (ICMPv6-In)'
+    Group        = 'Core Networking'
+    Description  = 'Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path.'
+    Enabled      = $true # TODO: Add property to enable/disable
+    Protocol     = 'ICMPv6'
+    IcmpType     = 3
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = 'System'
+}
+
+$firewallRules.Add($icmp6TeRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'CoreNet-ICMP6-TE-In' `
+                    -DisplayName 'Core Networking - Time Exceeded (ICMPv6-In)' `
+                    -Group 'Core Networking' `
+                    -Description 'Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol ICMPv6 `
+                    -IcmpType 3 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Remote Management (HTTP-In)"
+[WindowsFirewallRule] $winrmHttpInRule = @{
+    Name         = 'WINRM-HTTP-In-TCP-PUBLIC'
+    DisplayName  = 'Windows Remote Management (HTTP-In)'
+    Group        = 'Windows Remote Management'
+    Description  = 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5985]'
+    Enabled      = $configuration.RemoteManagement.EnableWindowsRemoteManagement
+    Protocol     = 'TCP'
+    LocalPort    = 5985
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = 'System'
+}
+
+$firewallRules.Add($winrmHttpInRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINRM-HTTP-In-TCP-PUBLIC' `
+                    -DisplayName 'Windows Remote Management (HTTP-In)' `
+                    -Group 'Windows Remote Management' `
+                    -Description 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5985]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableWindowsRemoteManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 5985 `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Remote Management (HTTPS-In)"
+
+[WindowsFirewallRule] $winrmHttpsInRule = @{
+    Name         = 'WINRM-HTTPS-In-TCP-PUBLIC'
+    DisplayName  = 'Windows Remote Management (HTTPS-In)'
+    Group        = 'Windows Remote Management'
+    Description  = 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5986]'
+    Enabled      = $configuration.RemoteManagement.EnableWindowsRemoteManagement
+    Protocol     = 'TCP'
+    LocalPort    = 5986
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = 'System'
+}
+
+$firewallRules.Add($winrmHttpsInRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WINRM-HTTPS-In-TCP-PUBLIC' `
+                    -DisplayName 'Windows Remote Management (HTTPS-In)' `
+                    -Group 'Windows Remote Management' `
+                    -Description 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5986]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableWindowsRemoteManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 5986 `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Management Instrumentation (WMI-In)"
+
+[WindowsFirewallRule] $wmiRule = @{
+    Name         = 'WMI-WINMGMT-In-TCP'
+    DisplayName  = 'Windows Management Instrumentation (WMI-In)'
+    Group        = 'Windows Management Instrumentation (WMI)'
+    Description  = 'Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]'
+    Enabled      = $configuration.RemoteManagement.WMI.Enabled
+    Protocol     = 'TCP'
+    LocalPort    = 'Any'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\system32\svchost.exe'
+    Service      = 'winmgmt'
+}
+
+$firewallRules.Add($wmiRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WMI-WINMGMT-In-TCP' `
+                    -DisplayName 'Windows Management Instrumentation (WMI-In)' `
+                    -Group 'Windows Management Instrumentation (WMI)' `
+                    -Description 'Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'winmgmt' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote Desktop - User Mode (UDP-In)"
+
+[WindowsFirewallRule] $rdpUdpRule = @{
+    Name         = 'RemoteDesktop-UserMode-In-UDP'
+    DisplayName  = 'Remote Desktop - User Mode (UDP-In)'
+    Group        = 'Remote Desktop'
+    Description  = 'Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389]'
+    Enabled      = $configuration.RemoteManagement.EnableRemoteDesktop
+    Protocol     = 'UDP'
+    LocalPort    = 3389
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet # Allow RDP set override
+    Program      = '%SystemRoot%\system32\svchost.exe'
+    Service      = 'termservice'
+}
+
+$firewallRules.Add($rdpUdpRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteDesktop-UserMode-In-UDP' `
+                    -DisplayName 'Remote Desktop - User Mode (UDP-In)' `
+                    -Group 'Remote Desktop' `
+                    -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableRemoteDesktop) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 3389 `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'termservice' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote Desktop - User Mode (TCP-In)"
+
+[WindowsFirewallRule] $rdpTcpRule = @{
+    Name         = 'RemoteDesktop-UserMode-In-TCP'
+    DisplayName  = 'Remote Desktop - User Mode (TCP-In)'
+    Group        = 'Remote Desktop'
+    Description  = 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]'
+    Enabled      = $configuration.RemoteManagement.EnableRemoteDesktop
+    Protocol     = 'TCP'
+    LocalPort    = 3389
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet # Allow RDP set override
+    Program      = '%SystemRoot%\system32\svchost.exe'
+    Service      = 'termservice'
+}
+
+$firewallRules.Add($rdpTcpRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteDesktop-UserMode-In-TCP' `
+                    -DisplayName 'Remote Desktop - User Mode (TCP-In)' `
+                    -Group 'Remote Desktop' `
+                    -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableRemoteDesktop) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 3389 `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'termservice' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote Desktop (TCP-In)"
+# Note: This redundant rule is created for backward compatibility with Windows Server 2008 R2 and earlier.
+
+[WindowsFirewallRule] $rdpLegacyRule = @{
+    Name         = 'RemoteDesktop-In-TCP'
+    DisplayName  = 'Remote Desktop (TCP-In)'
+    Group        = 'Remote Desktop'
+    Description  = 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]'
+    Enabled      = $configuration.RemoteManagement.EnableRemoteDesktop
+    Protocol     = 'TCP'
+    LocalPort    = 3389
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet # Allow RDP set override
+    Program      = 'System'
+}
+
+$firewallRules.Add($rdpLegacyRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteDesktop-In-TCP' `
+                    -DisplayName 'Remote Desktop (TCP-In)' `
+                    -Group 'Remote Desktop' `
+                    -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableRemoteDesktop) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 3389 `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "DFS Management (TCP-In)"
+[WindowsFirewallRule] $dfsMgmtTcpRule = @{
+    Name         = 'DfsMgmt-In-TCP'
+    DisplayName  = 'DFS Management (TCP-In)'
+    Group        = 'DFS Management'
+    Description  = 'Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.'
+    Enabled      = $configuration.ServerRoles.FileServer.EnableDFSR
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%systemroot%\system32\dfsfrsHost.exe'
+}
+
+$firewallRules.Add($dfsMgmtTcpRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DfsMgmt-In-TCP' `
+                    -DisplayName 'DFS Management (TCP-In)' `
+                    -Group 'DFS Management' `
+                    -Description 'Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\dfsfrsHost.exe' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "RPC (TCP, Incoming)"
+[WindowsFirewallRule] $dnsManagementRule = @{
+    Name         = 'DNSSrv-RPC-TCP-In'
+    DisplayName  = 'RPC (TCP, Incoming)'
+    Group        = 'DNS Service'
+    Description  = 'Inbound rule to allow remote RPC/TCP access to the DNS service.'
+    Enabled      = $configuration.ServerRoles.DNS.Enabled
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%systemroot%\System32\dns.exe'
+    Service      = 'dns'
+}
+
+$firewallRules.Add($dnsManagementRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'DNSSrv-RPC-TCP-In' `
+                    -DisplayName 'RPC (TCP, Incoming)' `
+                    -Group 'DNS Service' `
+                    -Description 'Inbound rule to allow remote RPC/TCP access to the DNS service.' `
+                    -Enabled True `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\System32\dns.exe' `
+                    -Service 'dns' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Backup (RPC)"
+[WindowsFirewallRule] $backupManagementRule = @{
+    Name         = 'WindowsServerBackup-wbengine-In-TCP-NoScope'
+    DisplayName  = 'Windows Backup (RPC)'
+    Group        = 'Windows Backup'
+    Description  = 'Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP'
+    Enabled      = $configuration.ServerRoles.EnableBackupManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%systemroot%\system32\wbengine.exe'
+    Service      = 'wbengine'
+}
+
+$firewallRules.Add($backupManagementRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WindowsServerBackup-wbengine-In-TCP-NoScope' `
+                    -DisplayName 'Windows Backup (RPC)' `
+                    -Group 'Windows Backup' `
+                    -Description 'Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableBackupManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\wbengine.exe' `
+                    -Service 'wbengine' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Performance Logs and Alerts (TCP-In)"
+[WindowsFirewallRule] $perfLogRule = @{
+    Name         = 'PerfLogsAlerts-PLASrv-In-TCP-NoScope'
+    DisplayName  = 'Performance Logs and Alerts (TCP-In)'
+    Group        = 'Performance Logs and Alerts'
+    Description  = 'Inbound rule for Performance Logs and Alerts traffic. [TCP-In]'
+    Enabled      = $configuration.RemoteManagement.EnablePerformanceLogAccess
+    Protocol     = 'TCP'
+    LocalPort    = 'Any'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%systemroot%\system32\plasrv.exe'
+}
+
+$firewallRules.Add($perfLogRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'PerfLogsAlerts-PLASrv-In-TCP-NoScope' `
+                    -DisplayName 'Performance Logs and Alerts (TCP-In)' `
+                    -Group 'Performance Logs and Alerts' `
+                    -Description 'Inbound rule for Performance Logs and Alerts traffic. [TCP-In]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnablePerformanceLogAccess) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort Any `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\plasrv.exe' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote Event Log Management (RPC)"
+[WindowsFirewallRule] $eventLogRule = @{
+    Name         = 'RemoteEventLogSvc-In-TCP'
+    DisplayName  = 'Remote Event Log Management (RPC)'
+    Group        = 'Remote Event Log Management'
+    Description  = 'Inbound rule for the local Event Log service to be remotely managed via RPC/TCP.'
+    Enabled      = $configuration.RemoteManagement.EnableEventLogManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet # TODO: Allow override
+    Program      = '%SystemRoot%\system32\svchost.exe'
+    Service      = 'Eventlog'
+}
+
+$firewallRules.Add($eventLogRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteEventLogSvc-In-TCP' `
+                    -DisplayName 'Remote Event Log Management (RPC)' `
+                    -Group 'Remote Event Log Management' `
+                    -Description 'Inbound rule for the local Event Log service to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableEventLogManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'Eventlog' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote Scheduled Tasks Management (RPC)"
+[WindowsFirewallRule] $taskSchedulerRule = @{
+    Name         = 'RemoteTask-In-TCP'
+    DisplayName  = 'Remote Scheduled Tasks Management (RPC)'
+    Group        = 'Remote Scheduled Tasks Management'
+    Description  = 'Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP.'
+    Enabled      = $configuration.RemoteManagement.EnableScheduledTaskManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\system32\svchost.exe'
+    Service      = 'schedule'
+}
+
+$firewallRules.Add($taskSchedulerRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteTask-In-TCP' `
+                    -DisplayName 'Remote Scheduled Tasks Management (RPC)' `
+                    -Group 'Remote Scheduled Tasks Management' `
+                    -Description 'Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableScheduledTaskManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'schedule' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote Service Management (RPC)"
+
+[WindowsFirewallRule] $serviceManagementRule = @{
+    Name         = 'RemoteSvcAdmin-In-TCP'
+    DisplayName  = 'Remote Service Management (RPC)'
+    Group        = 'Remote Service Management'
+    Description  = 'Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP.'
+    Enabled      = $configuration.RemoteManagement.EnableServiceManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\system32\services.exe'
+}
+
+$firewallRules.Add($serviceManagementRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteSvcAdmin-In-TCP' `
+                    -DisplayName 'Remote Service Management (RPC)' `
+                    -Group 'Remote Service Management' `
+                    -Description 'Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableServiceManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\services.exe' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "COM+ Remote Administration (DCOM-In)"
+# This rule is required for remote connections using the Computer Management console.
+
+[WindowsFirewallRule] $comPlusRemoteAdminRule = @{
+    Name         = 'ComPlusRemoteAdministration-DCOM-In'
+    DisplayName  = 'COM+ Remote Administration (DCOM-In)'
+    Group        = 'COM+ Remote Administration'
+    Description  = 'Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration.'
+    Enabled      = $configuration.RemoteManagement.EnableComPlusManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%systemroot%\system32\dllhost.exe'
+    Service      = 'COMSysApp'
+}
+
+$firewallRules.Add($comPlusRemoteAdminRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'ComPlusRemoteAdministration-DCOM-In' `
+                    -DisplayName 'COM+ Remote Administration (DCOM-In)' `
+                    -Group 'COM+ Remote Administration' `
+                    -Description 'Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableComPlusManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\dllhost.exe' `
+                    -Service 'COMSysApp' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Defender Firewall Remote Management (RPC)"
+[WindowsFirewallRule] $fwAdminRule = @{
+    Name         = 'RemoteFwAdmin-In-TCP'
+    DisplayName  = 'Windows Defender Firewall Remote Management (RPC)'
+    Group        = 'Windows Defender Firewall Remote Management'
+    Description  = 'Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP.'
+    Enabled      = $configuration.RemoteManagement.EnableFirewallManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\system32\svchost.exe'
+    Service      = 'policyagent'
+}
+
+$firewallRules.Add($fwAdminRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RemoteFwAdmin-In-TCP' `
+                    -DisplayName 'Windows Defender Firewall Remote Management (RPC)' `
+                    -Group 'Windows Defender Firewall Remote Management' `
+                    -Description 'Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableFirewallManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\svchost.exe' `
+                    -Service 'policyagent' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote Volume Management - Virtual Disk Service (RPC)"
+[WindowsFirewallRule] $virtualDiskServiceRule = @{
+    Name         = 'RVM-VDS-In-TCP'
+    DisplayName  = 'Remote Volume Management - Virtual Disk Service (RPC)'
+    Group        = 'Remote Volume Management'
+    Description  = 'Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP.'
+    Enabled      = $configuration.RemoteManagement.EnableDiskManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\system32\vds.exe'
+    Service      = 'vds'
+}
+
+$firewallRules.Add($virtualDiskServiceRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RVM-VDS-In-TCP' `
+                    -DisplayName 'Remote Volume Management - Virtual Disk Service (RPC)' `
+                    -Group 'Remote Volume Management' `
+                    -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableDiskManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\vds.exe' `
+                    -Service 'vds' `
+                    -Verbose:$script:IsVerbose > $null
+
+
+# Create Inbound rule "Remote Volume Management - Virtual Disk Service Loader (RPC)"
+[WindowsFirewallRule] $virtualDiskServiceLoaderRule = @{
+    Name         = 'RVM-VDSLDR-In-TCP'
+    DisplayName  = 'Remote Volume Management - Virtual Disk Service Loader (RPC)'
+    Group        = 'Remote Volume Management'
+    Description  = 'Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP.'
+    Enabled      = $configuration.RemoteManagement.EnableDiskManagement
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\system32\vdsldr.exe'
+}
+
+$firewallRules.Add($virtualDiskServiceLoaderRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'RVM-VDSLDR-In-TCP' `
+                    -DisplayName 'Remote Volume Management - Virtual Disk Service Loader (RPC)' `
+                    -Group 'Remote Volume Management' `
+                    -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableDiskManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\vdsldr.exe' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "OpenSSH SSH Server (sshd)"
+[WindowsFirewallRule] $sshRule = @{
+    Name         = 'OpenSSH-Server-In-TCP'
+    DisplayName  = 'OpenSSH SSH Server (sshd)'
+    Group        = 'OpenSSH Server'
+    Description  = 'Inbound rule for OpenSSH SSH Server (sshd)'
+    Enabled      = $configuration.RemoteManagement.EnableOpenSSHServer
+    Protocol     = 'TCP'
+    LocalPort    = 22
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%SystemRoot%\system32\OpenSSH\sshd.exe'
+}
+
+$firewallRules.Add($sshRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'OpenSSH-Server-In-TCP' `
+                    -DisplayName 'OpenSSH SSH Server (sshd)' `
+                    -Group 'OpenSSH Server' `
+                    -Description 'Inbound rule for OpenSSH SSH Server (sshd)' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.RemoteManagement.EnableOpenSSHServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 22 `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%SystemRoot%\system32\OpenSSH\sshd.exe' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "DHCP Server v4 (UDP-In)"
+[WindowsFirewallRule] $dhcpServerV4Rule = @{
+    Name         = 'Microsoft-Windows-DHCP-ClientSvc-DHCPv4-In'
+    DisplayName  = 'DHCP Server v4 (UDP-In)'
+    Group        = 'DHCP Server'
+    Description  = 'An inbound rule to allow traffic to the IPv4 Dynamic Host Control Protocol Server. [UDP 67]'
+    Enabled      = $configuration.ServerRoles.DHCP.Enabled
+    Protocol     = 'UDP'
+    LocalPort    = 67
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'dhcpserver'
+}
+
+$firewallRules.Add($dhcpServerV4Rule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-ClientSvc-DHCPv4-In' `
+                    -DisplayName 'DHCP Server v4 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic to the IPv4 Dynamic Host Control Protocol Server. [UDP 67]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.DHCP.Enabled) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 67 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "DHCP Server v4 (UDP-In)"
+
+[WindowsFirewallRule] $dhcpSnoopingV4Rule = @{
+    Name         = 'Microsoft-Windows-DHCP-SrvSvc-DHCPv4-In'
+    DisplayName  = 'DHCP Server v4 (UDP-In)'
+    Group        = 'DHCP Server'
+    Description  = 'An inbound rule to allow traffic so that rogue detection works in V4. [UDP 68]'
+    Enabled      = $configuration.ServerRoles.DHCP.Enabled
+    Protocol     = 'UDP'
+    LocalPort    = 68
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'dhcpserver'
+}
+
+$firewallRules.Add($dhcpSnoopingV4Rule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-SrvSvc-DHCPv4-In' `
+                    -DisplayName 'DHCP Server v4 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic so that rogue detection works in V4. [UDP 68]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.DHCP.Enabled) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 68 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "DHCP Server v6 (UDP-In)"
+
+[WindowsFirewallRule] $dhcpSnoopingV6Rule = @{
+    Name         = 'Microsoft-Windows-DHCP-SrvSvc-DHCPv6-In'
+    DisplayName  = 'DHCP Server v6 (UDP-In)'
+    Group        = 'DHCP Server'
+    Description  = 'An inbound rule to allow traffic so that rogue detection works in V6. [UDP 546]'
+    Enabled      = $configuration.ServerRoles.DHCP.Enabled
+    Protocol     = 'UDP'
+    LocalPort    = 546
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'dhcpserver'
+}
+
+$firewallRules.Add($dhcpSnoopingV6Rule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-SrvSvc-DHCPv6-In' `
+                    -DisplayName 'DHCP Server v6 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic so that rogue detection works in V6. [UDP 546]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.DHCP.Enabled) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 546 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "DHCP Server v6 (UDP-In)"
+
+[WindowsFirewallRule] $dhcpServerV6Rule = @{
+    Name         = 'Microsoft-Windows-DHCP-ClientSvc-DHCPv6-In'
+    DisplayName  = 'DHCP Server v6 (UDP-In)'
+    Group        = 'DHCP Server'
+    Description  = 'An inbound rule to allow traffic to the IPv6 Dynamic Host Control Protocol Server. [UDP 547]'
+    Enabled      = $configuration.ServerRoles.DHCP.Enabled
+    Protocol     = 'UDP'
+    LocalPort    = 547
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'dhcpserver'
+}
+
+$firewallRules.Add($dhcpServerV6Rule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-ClientSvc-DHCPv6-In' `
+                    -DisplayName 'DHCP Server v6 (UDP-In)' `
+                    -Group 'DHCP Server' `
+                    -Description 'An inbound rule to allow traffic to the IPv6 Dynamic Host Control Protocol Server. [UDP 547]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.DHCP.Enabled) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 547 `
+                    -RemoteAddress Any `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "DHCP Server Failover (TCP-In)"
+
+[WindowsFirewallRule] $dhcpServerFailoverRule = @{
+    Name         = 'Microsoft-Windows-DHCP-Failover-TCP-In'
+    DisplayName  = 'DHCP Server Failover (TCP-In)'
+    Group        = 'DHCP Server Management'
+    Description  = 'An inbound rule to allow DHCP failover messages to the IPv4 Dynamic Host Configuration Protocol Server. [TCP 647]'
+    Enabled      = $configuration.ServerRoles.DHCP.Enabled
+    Protocol     = 'TCP'
+    LocalPort    = 647
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses # TODO: Create the $configuration.ServerRoles.DhcpFailoverAddresses variable
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'dhcpserver'
+}
+
+$firewallRules.Add($dhcpServerFailoverRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-Failover-TCP-In' `
+                    -DisplayName 'DHCP Server Failover (TCP-In)' `
+                    -Group 'DHCP Server Management' `
+                    -Description 'An inbound rule to allow DHCP failover messages to the IPv4 Dynamic Host Configuration Protocol Server. [TCP 647]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.DHCP.Enabled) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 647 `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "DHCP Server (RPC-In)"
+
+[WindowsFirewallRule] $dhcpServerManagementRule = @{
+    Name         = 'Microsoft-Windows-DHCP-ClientSvc-RPC-TCP-In'
+    DisplayName  = 'DHCP Server (RPC-In)'
+    Group        = 'DHCP Server Management'
+    Description  = 'An inbound rule to allow traffic to allow RPC traffic for DHCP Server management.'
+    Enabled      = $configuration.ServerRoles.DHCP.Enabled
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'dhcpserver'
+}
+
+$firewallRules.Add($dhcpServerManagementRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'Microsoft-Windows-DHCP-ClientSvc-RPC-TCP-In' `
+                    -DisplayName 'DHCP Server (RPC-In)' `
+                    -Group 'DHCP Server Management' `
+                    -Description 'An inbound rule to allow traffic to allow RPC traffic for DHCP Server management.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.DHCP.Enabled) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'dhcpserver' `
+                    -Verbose:$script:IsVerbose > $null
+                    
+# Create Inbound rule "Network Policy Server (Legacy RADIUS Authentication - UDP-In)"
+[WindowsFirewallRule] $npsLegacyAuthRule = @{
+    Name         = 'NPS-NPSSvc-In-UDP-1645'
+    DisplayName  = 'Network Policy Server (Legacy RADIUS Authentication - UDP-In)'
+    Group        = 'Network Policy Server'
+    Description  = 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1645]'
+    Enabled      = $configuration.ServerRoles.EnableNps
+    Protocol     = 'UDP'
+    LocalPort    = 1645
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses # TODO: Create the $configuration.ServerRoles.RadiusClients variable
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'ias'
+}
+
+$firewallRules.Add($npsLegacyAuthRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1645' `
+                    -DisplayName 'Network Policy Server (Legacy RADIUS Authentication - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1645]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1645 `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Network Policy Server (Legacy RADIUS Accounting - UDP-In)"
+
+[WindowsFirewallRule] $npsLegacyAccountingRule = @{
+    Name         = 'NPS-NPSSvc-In-UDP-1646'
+    DisplayName  = 'Network Policy Server (Legacy RADIUS Accounting - UDP-In)'
+    Group        = 'Network Policy Server'
+    Description  = 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1646]'
+    Enabled      = $configuration.ServerRoles.EnableNps
+    Protocol     = 'UDP'
+    LocalPort    = 1646
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses # TODO: Create the $configuration.ServerRoles.RadiusClients variable
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'ias'
+}
+
+$firewallRules.Add($npsLegacyAccountingRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1646' `
+                    -DisplayName 'Network Policy Server (Legacy RADIUS Accounting - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1646]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1646 `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Network Policy Server (RADIUS Authentication - UDP-In)"
+
+[WindowsFirewallRule] $npsRadiusAuthRule = @{
+    Name         = 'NPS-NPSSvc-In-UDP-1812'
+    DisplayName  = 'Network Policy Server (RADIUS Authentication - UDP-In)'
+    Group        = 'Network Policy Server'
+    Description  = 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1812]'
+    Enabled      = $configuration.ServerRoles.EnableNps
+    Protocol     = 'UDP'
+    LocalPort    = 1812
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses # TODO: Create the $configuration.ServerRoles.RadiusClients variable
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'ias'
+}
+
+$firewallRules.Add($npsRadiusAuthRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1812' `
+                    -DisplayName 'Network Policy Server (RADIUS Authentication - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1812]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1812 `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Network Policy Server (RADIUS Accounting - UDP-In)"
+
+[WindowsFirewallRule] $npsRadiusAccountingRule = @{
+    Name         = 'NPS-NPSSvc-In-UDP-1813'
+    DisplayName  = 'Network Policy Server (RADIUS Accounting - UDP-In)'
+    Group        = 'Network Policy Server'
+    Description  = 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1813]'
+    Enabled      = $configuration.ServerRoles.EnableNps
+    Protocol     = 'UDP'
+    LocalPort    = 1813
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses # TODO: Create the $configuration.ServerRoles.RadiusClients variable
+    Program      = '%systemroot%\system32\svchost.exe'
+    Service      = 'ias'
+}
+
+$firewallRules.Add($npsRadiusAccountingRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-UDP-1813' `
+                    -DisplayName 'Network Policy Server (RADIUS Accounting - UDP-In)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1813]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort 1813 `
+                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'ias' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Network Policy Server (RPC)"
+
+[WindowsFirewallRule] $npsManagementRule = @{
+    Name         = 'NPS-NPSSvc-In-RPC'
+    DisplayName  = 'Network Policy Server (RPC)'
+    Group        = 'Network Policy Server'
+    Description  = 'Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP.'
+    Enabled      = $configuration.ServerRoles.EnableNps
+    Protocol     = 'TCP'
+    LocalPort    = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program      = '%systemroot%\system32\iashost.exe'
+}
+
+$firewallRules.Add($npsManagementRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'NPS-NPSSvc-In-RPC' `
+                    -DisplayName 'Network Policy Server (RPC)' `
+                    -Group 'Network Policy Server' `
+                    -Description 'Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableNPS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\iashost.exe' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "World Wide Web Services (HTTP Traffic-In)"
+
+[WindowsFirewallRule] $iisHttpRule = @{
+    Name          = 'IIS-WebServerRole-HTTP-In-TCP'
+    DisplayName   = 'World Wide Web Services (HTTP Traffic-In)'
+    Group         = 'World Wide Web Services (HTTP)'
+    Description   = 'An inbound rule to allow HTTP traffic for Internet Information Services (IIS) [TCP 80]'
+    Enabled       = $configuration.ServerRoles.EnableWebServer
+    Protocol      = 'TCP'
+    LocalPort     = 80
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet # TODO: Add optional override
+    Program       = 'System'
+}
+
+$firewallRules.Add($iisHttpRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'IIS-WebServerRole-HTTP-In-TCP' `
+                    -DisplayName 'World Wide Web Services (HTTP Traffic-In)' `
+                    -Group 'World Wide Web Services (HTTP)' `
+                    -Description 'An inbound rule to allow HTTP traffic for Internet Information Services (IIS) [TCP 80]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWebServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 80 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "World Wide Web Services (HTTPS Traffic-In)"
+
+[WindowsFirewallRule] $iisHttpsRule = @{
+    Name          = 'IIS-WebServerRole-HTTPS-In-TCP'
+    DisplayName   = 'World Wide Web Services (HTTPS Traffic-In)'
+    Group         = 'Secure World Wide Web Services (HTTPS)'
+    Description   = 'An inbound rule to allow HTTPS traffic for Internet Information Services (IIS) [TCP 443]'
+    Enabled       = $configuration.ServerRoles.EnableWebServer
+    Protocol      = 'TCP'
+    LocalPort     = 443
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet # TODO: Add optional override
+    Program       = 'System'
+}
+
+$firewallRules.Add($iisHttpsRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'IIS-WebServerRole-HTTPS-In-TCP' `
+                    -DisplayName 'World Wide Web Services (HTTPS Traffic-In)' `
+                    -Group 'Secure World Wide Web Services (HTTPS)' `
+                    -Description 'An inbound rule to allow HTTPS traffic for Internet Information Services (IIS) [TCP 443]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWebServer) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 443 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Deployment Services (UDP-In)"
+[WindowsFirewallRule] $wdsUdpRule = @{
+    Name          = 'WDS-WdsServer-In-UDP'
+    DisplayName   = 'Windows Deployment Services (UDP-In)'
+    Group         = 'Windows Deployment Services'
+    Description   = 'Inbound rule for Windows Deployment Services to allow UDP traffic.'
+    Enabled       = $configuration.ServerRoles.EnableWDS
+    Protocol      = 'UDP'
+    LocalPort     = 'Any'
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program       = '%systemroot%\system32\svchost.exe'
+    Service       = 'WdsServer'
+}
+
+$firewallRules.Add($wdsUdpRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WDS-WdsServer-In-UDP' `
+                    -DisplayName 'Windows Deployment Services (UDP-In)' `
+                    -Group 'Windows Deployment Services' `
+                    -Description 'Inbound rule for Windows Deployment Services to allow UDP traffic.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWDS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol UDP `
+                    -LocalPort Any `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'WdsServer' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Windows Deployment Services (RPC-In)"
+[WindowsFirewallRule] $wdsRpcRule = @{
+    Name          = 'WDS-RPC-In-TCP'
+    DisplayName   = 'Windows Deployment Services (RPC-In)'
+    Group         = 'Windows Deployment Services'
+    Description   = 'Inbound rule for Windows Deployment Services to allow RPC/TCP traffic.'
+    Enabled       = $configuration.ServerRoles.EnableWDS
+    Protocol      = 'TCP'
+    LocalPort     = 'RPC'
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program       = '%systemroot%\system32\svchost.exe'
+    Service       = 'WdsServer'
+}
+
+$firewallRules.Add($wdsRpcRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WDS-RPC-In-TCP' `
+                    -DisplayName 'Windows Deployment Services (RPC-In)' `
+                    -Group 'Windows Deployment Services' `
+                    -Description 'Inbound rule for Windows Deployment Services to allow RPC/TCP traffic.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWDS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $allAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'WdsServer' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Key Management Service (TCP-In)"
+[WindowsFirewallRule] $kmsRule = @{
+    Name          = 'SPPSVC-In-TCP'
+    DisplayName   = 'Key Management Service (TCP-In)'
+    Group         = 'Key Management Service'
+    Description   = 'Inbound rule for the Key Management Service to allow for machine counting and license compliance. [TCP 1688]'
+    Enabled       = (ConvertTo-NetSecurityEnabled -Value $configuration.ServerRoles.EnableKMS)
+    Protocol      = 'TCP'
+    LocalPort     = 1688
+    RemoteAddressSet = $PredefinedAddressSet_AllAddresses
+    Program       = '%SystemRoot%\system32\sppextcomobj.exe'
+    Service       = 'sppsvc'
+}
+
+$firewallRules.Add($kmsRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'SPPSVC-In-TCP' `
+                    -DisplayName 'Key Management Service (TCP-In)' `
+                    -Group 'Key Management Service' `
+                    -Description 'Inbound rule for the Key Management Service to allow for machine counting and license compliance. [TCP 1688]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableKMS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 1688 `
+                    -RemoteAddress Any `
+                    -Program '%SystemRoot%\system32\sppextcomobj.exe' `
+                    -Service 'sppsvc' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote File Server Resource Manager Management - FSRM Service (RPC-In)"
+[WindowsFirewallRule] $fsrmManagementRule = @{
+    Name          = 'FSRM-SrmSvc-In (RPC)'
+    DisplayName   = 'Remote File Server Resource Manager Management - FSRM Service (RPC-In)'
+    Group         = 'Remote File Server Resource Manager Management'
+    Description   = 'Inbound rule for the File Server Resource Manager service to be remotely managed via RPC/TCP.'
+    Enabled       = (ConvertTo-NetSecurityEnabled -Value $configuration.ServerRoles.FileServer.EnableFSRMManagement)
+    Protocol      = 'TCP'
+    LocalPort     = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program       = '%systemroot%\system32\svchost.exe'
+    Service       = 'SrmSvc'
+}
+
+$firewallRules.Add($fsrmManagementRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FSRM-SrmSvc-In (RPC)' `
+                    -DisplayName 'Remote File Server Resource Manager Management - FSRM Service (RPC-In)' `
+                    -Group 'Remote File Server Resource Manager Management' `
+                    -Description 'Inbound rule for the File Server Resource Manager service to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.FileServer.EnableFSRMManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\svchost.exe' `
+                    -Service 'SrmSvc' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Create Inbound rule "Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)"
+[WindowsFirewallRule] $fsrmReportsRule = @{
+    Name          = 'FSRM-SrmReports-In (RPC)'
+    DisplayName   = 'Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)'
+    Group         = 'Remote File Server Resource Manager Management'
+    Description   = 'Inbound rule for the File Server Storage Reports Manager service to be remotely managed via RPC/TCP.'
+    Enabled       = (ConvertTo-NetSecurityEnabled -Value $configuration.ServerRoles.FileServer.EnableFSRMManagement)
+    Protocol      = 'TCP'
+    LocalPort     = 'RPC'
+    RemoteAddressSet = $configuration.RemoteManagement.ManagementAddressSet
+    Program       = '%systemroot%\system32\srmhost.exe'
+    Service       = 'SrmReports'
+}
+
+$firewallRules.Add($fsrmReportsRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FSRM-SrmReports-In (RPC)' `
+                    -DisplayName 'Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)' `
+                    -Group 'Remote File Server Resource Manager Management' `
+                    -Description 'Inbound rule for the File Server Storage Reports Manager service to be remotely managed via RPC/TCP.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.FileServer.EnableFSRMManagement) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $remoteManagementAddresses `
+                    -Program '%systemroot%\system32\srmhost.exe' `
+                    -Service 'SrmReports' `
+                    -Verbose:$script:IsVerbose > $null
+
+
+# TODO: Add DHCP Client
+
+# TODO: File and Printer Sharing (Restrictive) (Echo Request - ICMPv4-In)
+
+# TODO: File and Printer Sharing (Restrictive) (SMB-In)
+
+# TODO: Add File and Printer Sharing (Restrictive) (Spooler Service Worker - RPC)
+# Create Inbound rule "File and Printer Sharing (Spooler Service - RPC)"
+
+[WindowsFirewallRule] $printSpoolerRule = @{
+    Name          = 'FPS-SpoolSvc-In-TCP'
+    DisplayName   = 'File and Printer Sharing (Spooler Service - RPC)'
+    Group         = 'File and Printer Sharing'
+    Description   = 'Inbound rule for File and Printer Sharing to allow the Print Spooler Service to communicate via TCP/RPC.'
+    Enabled       = $configuration.ServerRoles.PrintServer.Enabled
+    Protocol      = 'TCP'
+    LocalPort     = 'RPC'
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet
+    Program       = '%SystemRoot%\system32\spoolsv.exe'
+    Service       = 'Spooler'
+}
+
+$firewallRules.Add($printSpoolerRule)
+
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'FPS-SpoolSvc-In-TCP' `
+                    -DisplayName 'File and Printer Sharing (Spooler Service - RPC)' `
+                    -Group 'File and Printer Sharing' `
+                    -Description 'Inbound rule for File and Printer Sharing to allow the Print Spooler Service to communicate via TCP/RPC.' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.PrintServer.Enabled) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort RPC `
+                    -RemoteAddress $allAddresses `
+                    -Program '%SystemRoot%\system32\spoolsv.exe' `
+                    -Service 'Spooler' `
+                    -Verbose:$script:IsVerbose > $null
+
+[WindowsFirewallRule] $wsusHttpRule = @{
+    Name          = 'WSUS-In-HTTP'
+    DisplayName   = 'Windows Server Update Services (HTTP-In)'
+    Group         = 'Windows Server Update Services (WSUS)'
+    Description   = 'Inbound rule for Windows Server Update Services to allow HTTP traffic. [TCP 8530]'
+    Enabled       = (ConvertTo-NetSecurityEnabled -Value $configuration.ServerRoles.EnableWSUS)
+    Protocol      = 'TCP'
+    LocalPort     = 8530
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet
+    Program       = 'System'
+}
+
+$firewallRules.Add($wsusHttpRule)
+
+# Create Inbound rule "Windows Server Update Services (HTTP-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WSUS-In-HTTP' `
+                    -DisplayName 'Windows Server Update Services (HTTP-In)' `
+                    -Group 'Windows Server Update Services (WSUS)' `
+                    -Description 'Inbound rule for Windows Server Update Services to allow HTTP traffic. [TCP 8530]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWSUS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 8530 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+[WindowsFirewallRule] $wsusHttpsRule = @{
+    Name          = 'WSUS-In-HTTPS'
+    DisplayName   = 'Windows Server Update Services (HTTPS-In)'
+    Group         = 'Windows Server Update Services (WSUS)'
+    Description   = 'Inbound rule for Windows Server Update Services to allow HTTPS traffic. [TCP 8531]'
+    Enabled       = (ConvertTo-NetSecurityEnabled -Value $configuration.ServerRoles.EnableWSUS)
+    Protocol      = 'TCP'
+    LocalPort     = 8531
+    RemoteAddressSet = $configuration.ServerRoles.ClientAddressSet
+    Program       = 'System'
+}
+
+$firewallRules.Add($wsusHttpsRule)
+
+# Create Inbound rule "Windows Server Update Services (HTTPS-In)"
+New-NetFirewallRule -GPOSession $gpoSession `
+                    -Name 'WSUS-In-HTTPS' `
+                    -DisplayName 'Windows Server Update Services (HTTPS-In)' `
+                    -Group 'Windows Server Update Services (WSUS)' `
+                    -Description 'Inbound rule for Windows Server Update Services to allow HTTPS traffic. [TCP 8531]' `
+                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.ServerRoles.EnableWSUS) `
+                    -Profile Any `
+                    -Direction Inbound `
+                    -Action Allow `
+                    -Protocol TCP `
+                    -LocalPort 8531 `
+                    -RemoteAddress Any `
+                    -Program 'System' `
+                    -Verbose:$script:IsVerbose > $null
+
+# Validate the built-in and custom firewall rules
+foreach ($rule in $firewallRules) {
+    $rule.Validate()
+}
+
+#endregion Inbound Firewall Rules
+
 ### SENTINEL ###
 
 return
+
+#region Create and Configure the GPO
 
 # Determine the target Active Directory domain
 [Microsoft.ActiveDirectory.Management.ADDomain] $domain = $null
@@ -782,1045 +2665,62 @@ if ($gpo.Description -ne $configuration.GroupPolicyObjectComment) {
     $gpo.Description = $configuration.GroupPolicyObjectComment
 }
 
-#endregion Create and configure the GPO
-
-#region Firewall Profiles
-
 # Contruct the qualified GPO name
 [string] $policyStore = '{0}\{1}' -f $gpo.DomainName,$gpo.DisplayName
 
-# Open the GPO
-# Note: The Open-NetGPO cmdlet by default contacts a random DC instead of PDC-E
-Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName)
-
-[string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $targetDomainController
-
-# Remove any pre-existing firewall rules
-Remove-NetFirewallRuleEx -GpoSession $gpoSession
-
-# Configure all firewall profiles (Domain, Private, and Public)
-Set-NetFirewallProfile -GPOSession $gpoSession `
-                       -All `
-                       -Enabled True `
-                       -AllowInboundRules True `
-                       -DefaultInboundAction Block `
-                       -DefaultOutboundAction Allow `
-                       -AllowLocalFirewallRules False `
-                       -AllowLocalIPsecRules (ConvertTo-GpoBoolean -Value $configuration.EnableLocalIPsecRules) `
-                       -AllowUnicastResponseToMulticast False `
-                       -NotifyOnListen False `
-                       -LogFileName $configuration.LogFilePath `
-                       -LogMaxSizeKilobytes $configuration.LogMaxSizeKilobytes `
-                       -LogBlocked (ConvertTo-GpoBoolean -Value $configuration.LogDroppedPackets) `
-                       -LogAllowed (ConvertTo-GpoBoolean -Value $configuration.LogAllowedPackets) `
-                       -LogIgnored False
-
-#endregion Firewall Profiles
-
-#region Inbound Firewall Rules
-
-# TODO: Merge EPMAP addresses
-# TODO: Replace with COM+ Network Access (DCOM-In)
-
-# Create Inbound rule "Active Directory Domain Controller (RPC-EPMAP)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'ADDS-RPCEPMAP-TCP-In' `
-                    -DisplayName 'Active Directory Domain Controller (RPC-EPMAP)' `
-                    -Group 'Active Directory Domain Services' `
-                    -Description 'Inbound rule for the RPCSS service to allow RPC/TCP traffic to the Active Directory Domain Controller service.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPCEPMap `
-                    -RemoteAddress $allAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'rpcss' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DNS (UDP, Incoming)"
-# As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'DNSSrv-DNS-UDP-In' `
-                    -DisplayName 'DNS (UDP, Incoming)' `
-                    -Group 'DNS Service' `
-                    -Description 'Inbound rule to allow remote UDP access to the DNS service.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 53 `
-                    -RemoteAddress Any `
-                    -Program '%systemroot%\System32\dns.exe' `
-                    -Service 'dns' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DNS (TCP, Incoming)"
-# As the DNS service might be used by non-Windows clients, we do not limit the remote addresses.
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'DNSSrv-DNS-TCP-In' `
-                    -DisplayName 'DNS (TCP, Incoming)' `
-                    -Group 'DNS Service' `
-                    -Description 'Inbound rule to allow remote TCP access to the DNS service.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 53 `
-                    -RemoteAddress Any `
-                    -Program '%systemroot%\System32\dns.exe' `
-                    -Service 'dns' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DFS Replication (RPC-In)"
-# Note that a static port 5722 was used before Windows Server 2012
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'DFSR-DFSRSvc-In-TCP' `
-                    -DisplayName 'DFS Replication (RPC-In)' `
-                    -Group 'DFS Replication' `
-                    -Description 'Inbound rule to allow DFS Replication RPC traffic.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $configuration.DomainControllerAddresses `
-                    -Program '%SystemRoot%\system32\dfsrs.exe' `
-                    -Service 'Dfsr' `
-                    -Verbose:$script:IsVerbose > $null
-
-# TODO: Rename to File and printer sharing - ICMPv4-In
-
-# Create Inbound rule "Active Directory Domain Controller - Echo Request (ICMPv4-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'ADDS-ICMP4-In' `
-                    -DisplayName 'Active Directory Domain Controller - Echo Request (ICMPv4-In)' `
-                    -Group 'Active Directory Domain Services' `
-                    -Description 'Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv4 `
-                    -IcmpType 8 `
-                    -RemoteAddress $allAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Active Directory Domain Controller - Echo Request (ICMPv6-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'ADDS-ICMP6-In' `
-                    -DisplayName 'Active Directory Domain Controller - Echo Request (ICMPv6-In)' `
-                    -Group 'Active Directory Domain Services' `
-                    -Description 'Inbound rule for the Active Directory Domain Controller service to allow Echo requests (ping).' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv6 `
-                    -IcmpType 128 `
-                    -RemoteAddress $allAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# TODO: Rename to file and printer sharing - NB-Datagram-UDP-In
-
-# Create Inbound rule "Active Directory Domain Controller - NetBIOS name resolution (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'ADDS-NB-Datagram-UDP-In' `
-                    -DisplayName 'Active Directory Domain Controller - NetBIOS name resolution (UDP-In)' `
-                    -Group 'Active Directory Domain Services' `
-                    -Description 'Inbound rule for the Active Directory Domain Controller service to allow NetBIOS name resolution. [UDP 138]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosDatagramService) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 138 `
-                    -RemoteAddress $allAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "File and Printer Sharing (NB-Name-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'FPS-NB_Name-In-UDP' `
-                    -DisplayName 'File and Printer Sharing (NB-Name-In)' `
-                    -Group 'File and Printer Sharing' `
-                    -Description 'Inbound rule for File and Printer Sharing to allow NetBIOS Name Resolution. [UDP 137]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosNameService) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 137 `
-                    -RemoteAddress $allAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "File and Printer Sharing (NB-Session-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'FPS-NB_Session-In-TCP' `
-                    -DisplayName 'File and Printer Sharing (NB-Session-In)' `
-                    -Group 'File and Printer Sharing' `
-                    -Description 'Inbound rule for File and Printer Sharing to allow NetBIOS Session Service connections. [TCP 139]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNetbiosSessionService) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 139 `
-                    -RemoteAddress $allAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Internet Naming Service (WINS) (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WINS-Service-In-UDP' `
-                    -DisplayName 'Windows Internet Naming Service (WINS) (UDP-In)' `
-                    -Group 'Windows Internet Naming Service (WINS)' `
-                    -Description 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [UDP 42]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 42 `
-                    -RemoteAddress $allAddresses `
-                    -Program '%SystemRoot%\System32\wins.exe' `
-                    -Service 'WINS' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Internet Naming Service (WINS) (TCP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WINS-Service-In-TCP' `
-                    -DisplayName 'Windows Internet Naming Service (WINS) (TCP-In)' `
-                    -Group 'Windows Internet Naming Service (WINS)' `
-                    -Description 'Inbound rule for the Windows Internet Naming Service to allow WINS requests. [TCP 42]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 42 `
-                    -RemoteAddress $allAddresses `
-                    -Program '%SystemRoot%\System32\wins.exe' `
-                    -Service 'WINS' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Internet Naming Service (WINS) - Remote Management (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WINS-Service-In-RPC' `
-                    -DisplayName 'Windows Internet Naming Service (WINS) - Remote Management (RPC)' `
-                    -Group 'Windows Internet Naming Service (WINS) - Remote Management' `
-                    -Description 'Inbound rule for the Windows Internet Naming Service to allow remote management via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWINS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\System32\wins.exe' `
-                    -Service 'WINS' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Core Networking - Destination Unreachable (ICMPv6-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'CoreNet-ICMP6-DU-In' `
-                    -DisplayName 'Core Networking - Destination Unreachable (ICMPv6-In)' `
-                    -Group 'Core Networking' `
-                    -Description 'Destination Unreachable error messages are sent from any node that a packet traverses which is unable to forward the packet for any reason except congestion.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv6 `
-                    -IcmpType 1 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'CoreNet-ICMP4-DUFRAG-In' `
-                    -DisplayName 'Core Networking - Destination Unreachable Fragmentation Needed (ICMPv4-In)' `
-                    -Group 'Core Networking' `
-                    -Description 'Destination Unreachable Fragmentation Needed error messages are sent from any node that a packet traverses which is unable to forward the packet because fragmentation was needed and the don''t fragment bit was set.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv4 `
-                    -IcmpType 3:4 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'CoreNet-ICMP6-NDA-In' `
-                    -DisplayName 'Core Networking - Neighbor Discovery Advertisement (ICMPv6-In)' `
-                    -Group 'Core Networking' `
-                    -Description 'Neighbor Discovery Advertisement messages are sent by nodes to notify other nodes of link-layer address changes or in response to a Neighbor Discovery Solicitation request.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv6 `
-                    -IcmpType 136 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'CoreNet-ICMP6-NDS-In' `
-                    -DisplayName 'Core Networking - Neighbor Discovery Solicitation (ICMPv6-In)' `
-                    -Group 'Core Networking' `
-                    -Description 'Neighbor Discovery Solicitations are sent by nodes to discover the link-layer address of another on-link IPv6 node.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv6 `
-                    -IcmpType 135 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Core Networking - Packet Too Big (ICMPv6-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'CoreNet-ICMP6-PTB-In' `
-                    -DisplayName 'Core Networking - Packet Too Big (ICMPv6-In)' `
-                    -Group 'Core Networking' `
-                    -Description 'Packet Too Big error messages are sent from any node that a packet traverses which is unable to forward the packet because the packet is too large for the next link.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv6 `
-                    -IcmpType 2 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Core Networking - Parameter Problem (ICMPv6-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'CoreNet-ICMP6-PP-In' `
-                    -DisplayName 'Core Networking - Parameter Problem (ICMPv6-In)' `
-                    -Group 'Core Networking' `
-                    -Description 'Parameter Problem error messages are sent by nodes as a result of incorrectly generated packets.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv6 `
-                    -IcmpType 4 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Core Networking - Time Exceeded (ICMPv6-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'CoreNet-ICMP6-TE-In' `
-                    -DisplayName 'Core Networking - Time Exceeded (ICMPv6-In)' `
-                    -Group 'Core Networking' `
-                    -Description 'Time Exceeded error messages are generated from any node that a packet traverses if the Hop Limit value is decremented to zero at any point on the path.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol ICMPv6 `
-                    -IcmpType 3 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Remote Management (HTTP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WINRM-HTTP-In-TCP-PUBLIC' `
-                    -DisplayName 'Windows Remote Management (HTTP-In)' `
-                    -Group 'Windows Remote Management' `
-                    -Description 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5985]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWindowsRemoteManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 5985 `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Remote Management (HTTPS-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WINRM-HTTPS-In-TCP-PUBLIC' `
-                    -DisplayName 'Windows Remote Management (HTTPS-In)' `
-                    -Group 'Windows Remote Management' `
-                    -Description 'Inbound rule for Windows Remote Management via WS-Management. [TCP 5986]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWindowsRemoteManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 5986 `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Management Instrumentation (WMI-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WMI-WINMGMT-In-TCP' `
-                    -DisplayName 'Windows Management Instrumentation (WMI-In)' `
-                    -Group 'Windows Management Instrumentation (WMI)' `
-                    -Description 'Inbound rule to allow WMI traffic for remote Windows Management Instrumentation. [TCP]' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort Any `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'winmgmt' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Desktop - User Mode (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RemoteDesktop-UserMode-In-UDP' `
-                    -DisplayName 'Remote Desktop - User Mode (UDP-In)' `
-                    -Group 'Remote Desktop' `
-                    -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [UDP 3389]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableRemoteDesktop) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 3389 `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'termservice' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Desktop - User Mode (TCP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RemoteDesktop-UserMode-In-TCP' `
-                    -DisplayName 'Remote Desktop - User Mode (TCP-In)' `
-                    -Group 'Remote Desktop' `
-                    -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableRemoteDesktop) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 3389 `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'termservice' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Desktop (TCP-In)"
-# Note: This redundant rule is created for backward compatibility with Windows Server 2008 R2 and earlier.
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RemoteDesktop-In-TCP' `
-                    -DisplayName 'Remote Desktop (TCP-In)' `
-                    -Group 'Remote Desktop' `
-                    -Description 'Inbound rule for the Remote Desktop service to allow RDP traffic. [TCP 3389]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableRemoteDesktop) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 3389 `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DFS Management (TCP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'DfsMgmt-In-TCP' `
-                    -DisplayName 'DFS Management (TCP-In)' `
-                    -Group 'DFS Management' `
-                    -Description 'Inbound rule for DFS Management to allow the DFS Management service to be remotely managed via DCOM.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\dfsfrsHost.exe' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "RPC (TCP, Incoming)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'DNSSrv-RPC-TCP-In' `
-                    -DisplayName 'RPC (TCP, Incoming)' `
-                    -Group 'DNS Service' `
-                    -Description 'Inbound rule to allow remote RPC/TCP access to the DNS service.' `
-                    -Enabled True `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\System32\dns.exe' `
-                    -Service 'dns' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Backup (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WindowsServerBackup-wbengine-In-TCP-NoScope' `
-                    -DisplayName 'Windows Backup (RPC)' `
-                    -Group 'Windows Backup' `
-                    -Description 'Inbound rule for the Windows Backup Service to be remotely managed via RPC/TCP' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableBackupManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\wbengine.exe' `
-                    -Service 'wbengine' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Performance Logs and Alerts (TCP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'PerfLogsAlerts-PLASrv-In-TCP-NoScope' `
-                    -DisplayName 'Performance Logs and Alerts (TCP-In)' `
-                    -Group 'Performance Logs and Alerts' `
-                    -Description 'Inbound rule for Performance Logs and Alerts traffic. [TCP-In]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnablePerformanceLogAccess) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort Any `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\plasrv.exe' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Event Log Management (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RemoteEventLogSvc-In-TCP' `
-                    -DisplayName 'Remote Event Log Management (RPC)' `
-                    -Group 'Remote Event Log Management' `
-                    -Description 'Inbound rule for the local Event Log service to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableEventLogManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'Eventlog' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Scheduled Tasks Management (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RemoteTask-In-TCP' `
-                    -DisplayName 'Remote Scheduled Tasks Management (RPC)' `
-                    -Group 'Remote Scheduled Tasks Management' `
-                    -Description 'Inbound rule for the Task Scheduler service to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableScheduledTaskManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'schedule' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Service Management (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RemoteSvcAdmin-In-TCP' `
-                    -DisplayName 'Remote Service Management (RPC)' `
-                    -Group 'Remote Service Management' `
-                    -Description 'Inbound rule for the local Service Control Manager to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableServiceManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\services.exe' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "COM+ Remote Administration (DCOM-In)"
-# This rule is required for remote connections using the Computer Management console.
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'ComPlusRemoteAdministration-DCOM-In' `
-                    -DisplayName 'COM+ Remote Administration (DCOM-In)' `
-                    -Group 'COM+ Remote Administration' `
-                    -Description 'Inbound rule to allow DCOM traffic to the COM+ System Application for remote administration.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableComPlusManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\dllhost.exe' `
-                    -Service 'COMSysApp' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Defender Firewall Remote Management (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RemoteFwAdmin-In-TCP' `
-                    -DisplayName 'Windows Defender Firewall Remote Management (RPC)' `
-                    -Group 'Windows Defender Firewall Remote Management' `
-                    -Description 'Inbound rule for the Windows Defender Firewall to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableFirewallManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\svchost.exe' `
-                    -Service 'policyagent' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Volume Management - Virtual Disk Service (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RVM-VDS-In-TCP' `
-                    -DisplayName 'Remote Volume Management - Virtual Disk Service (RPC)' `
-                    -Group 'Remote Volume Management' `
-                    -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDiskManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\vds.exe' `
-                    -Service 'vds' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote Volume Management - Virtual Disk Service Loader (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'RVM-VDSLDR-In-TCP' `
-                    -DisplayName 'Remote Volume Management - Virtual Disk Service Loader (RPC)' `
-                    -Group 'Remote Volume Management' `
-                    -Description 'Inbound rule for the Remote Volume Management - Virtual Disk Service Loader to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDiskManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\vdsldr.exe' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "OpenSSH SSH Server (sshd)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'OpenSSH-Server-In-TCP' `
-                    -DisplayName 'OpenSSH SSH Server (sshd)' `
-                    -Group 'OpenSSH Server' `
-                    -Description 'Inbound rule for OpenSSH SSH Server (sshd)' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableOpenSSHServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 22 `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%SystemRoot%\system32\OpenSSH\sshd.exe' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DHCP Server v4 (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'Microsoft-Windows-DHCP-ClientSvc-DHCPv4-In' `
-                    -DisplayName 'DHCP Server v4 (UDP-In)' `
-                    -Group 'DHCP Server' `
-                    -Description 'An inbound rule to allow traffic to the IPv4 Dynamic Host Control Protocol Server. [UDP 67]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 67 `
-                    -RemoteAddress Any `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'dhcpserver' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DHCP Server v4 (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'Microsoft-Windows-DHCP-SrvSvc-DHCPv4-In' `
-                    -DisplayName 'DHCP Server v4 (UDP-In)' `
-                    -Group 'DHCP Server' `
-                    -Description 'An inbound rule to allow traffic so that rogue detection works in V4. [UDP 68]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 68 `
-                    -RemoteAddress Any `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'dhcpserver' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DHCP Server v6 (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'Microsoft-Windows-DHCP-SrvSvc-DHCPv6-In' `
-                    -DisplayName 'DHCP Server v6 (UDP-In)' `
-                    -Group 'DHCP Server' `
-                    -Description 'An inbound rule to allow traffic so that rogue detection works in V6. [UDP 546]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 546 `
-                    -RemoteAddress Any `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'dhcpserver' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DHCP Server v6 (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'Microsoft-Windows-DHCP-ClientSvc-DHCPv6-In' `
-                    -DisplayName 'DHCP Server v6 (UDP-In)' `
-                    -Group 'DHCP Server' `
-                    -Description 'An inbound rule to allow traffic to the IPv6 Dynamic Host Control Protocol Server. [UDP 547]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 547 `
-                    -RemoteAddress Any `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'dhcpserver' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DHCP Server Failover (TCP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'Microsoft-Windows-DHCP-Failover-TCP-In' `
-                    -DisplayName 'DHCP Server Failover (TCP-In)' `
-                    -Group 'DHCP Server Management' `
-                    -Description 'An inbound rule to allow DHCP failover messages to the IPv4 Dynamic Host Configuration Protocol Server. [TCP 647]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 647 `
-                    -RemoteAddress $configuration.DomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'dhcpserver' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "DHCP Server (RPC-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'Microsoft-Windows-DHCP-ClientSvc-RPC-TCP-In' `
-                    -DisplayName 'DHCP Server (RPC-In)' `
-                    -Group 'DHCP Server Management' `
-                    -Description 'An inbound rule to allow traffic to allow RPC traffic for DHCP Server management.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableDhcpServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'dhcpserver' `
-                    -Verbose:$script:IsVerbose > $null
-                    
-# Create Inbound rule "Network Policy Server (Legacy RADIUS Authentication - UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'NPS-NPSSvc-In-UDP-1645' `
-                    -DisplayName 'Network Policy Server (Legacy RADIUS Authentication - UDP-In)' `
-                    -Group 'Network Policy Server' `
-                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1645]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 1645 `
-                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Network Policy Server (Legacy RADIUS Accounting - UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'NPS-NPSSvc-In-UDP-1646' `
-                    -DisplayName 'Network Policy Server (Legacy RADIUS Accounting - UDP-In)' `
-                    -Group 'Network Policy Server' `
-                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1646]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 1646 `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
-                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Network Policy Server (RADIUS Authentication - UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'NPS-NPSSvc-In-UDP-1812' `
-                    -DisplayName 'Network Policy Server (RADIUS Authentication - UDP-In)' `
-                    -Group 'Network Policy Server' `
-                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Authentication requests. [UDP 1812]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 1812 `
-                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Network Policy Server (RADIUS Accounting - UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'NPS-NPSSvc-In-UDP-1813' `
-                    -DisplayName 'Network Policy Server (RADIUS Accounting - UDP-In)' `
-                    -Group 'Network Policy Server' `
-                    -Description 'Inbound rule to allow Network Policy Server to receive RADIUS Accounting requests. [UDP 1813]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort 1813 `
-                    -RemoteAddress $radiusClientAndDomainControllerAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'ias' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Network Policy Server (RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'NPS-NPSSvc-In-RPC' `
-                    -DisplayName 'Network Policy Server (RPC)' `
-                    -Group 'Network Policy Server' `
-                    -Description 'Inbound rule for the Network Policy Server to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableNPS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\iashost.exe' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "World Wide Web Services (HTTP Traffic-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'IIS-WebServerRole-HTTP-In-TCP' `
-                    -DisplayName 'World Wide Web Services (HTTP Traffic-In)' `
-                    -Group 'World Wide Web Services (HTTP)' `
-                    -Description 'An inbound rule to allow HTTP traffic for Internet Information Services (IIS) [TCP 80]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWebServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 80 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "World Wide Web Services (HTTPS Traffic-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'IIS-WebServerRole-HTTPS-In-TCP' `
-                    -DisplayName 'World Wide Web Services (HTTPS Traffic-In)' `
-                    -Group 'Secure World Wide Web Services (HTTPS)' `
-                    -Description 'An inbound rule to allow HTTPS traffic for Internet Information Services (IIS) [TCP 443]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWebServer) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 443 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Deployment Services (UDP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WDS-WdsServer-In-UDP' `
-                    -DisplayName 'Windows Deployment Services (UDP-In)' `
-                    -Group 'Windows Deployment Services' `
-                    -Description 'Inbound rule for Windows Deployment Services to allow UDP traffic.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWDS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol UDP `
-                    -LocalPort Any `
-                    -RemoteAddress $allAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'WdsServer' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Deployment Services (RPC-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WDS-RPC-In-TCP' `
-                    -DisplayName 'Windows Deployment Services (RPC-In)' `
-                    -Group 'Windows Deployment Services' `
-                    -Description 'Inbound rule for Windows Deployment Services to allow RPC/TCP traffic.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWDS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $allAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'WdsServer' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Key Management Service (TCP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'SPPSVC-In-TCP' `
-                    -DisplayName 'Key Management Service (TCP-In)' `
-                    -Group 'Key Management Service' `
-                    -Description 'Inbound rule for the Key Management Service to allow for machine counting and license compliance. [TCP 1688]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableKMS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 1688 `
-                    -RemoteAddress Any `
-                    -Program '%SystemRoot%\system32\sppextcomobj.exe' `
-                    -Service 'sppsvc' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote File Server Resource Manager Management - FSRM Service (RPC-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'FSRM-SrmSvc-In (RPC)' `
-                    -DisplayName 'Remote File Server Resource Manager Management - FSRM Service (RPC-In)' `
-                    -Group 'Remote File Server Resource Manager Management' `
-                    -Description 'Inbound rule for the File Server Resource Manager service to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableFSRMManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\svchost.exe' `
-                    -Service 'SrmSvc' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'FSRM-SrmReports-In (RPC)' `
-                    -DisplayName 'Remote File Server Resource Manager Management - FSRM Reports Service (RPC-In)' `
-                    -Group 'Remote File Server Resource Manager Management' `
-                    -Description 'Inbound rule for the File Server Storage Reports Manager service to be remotely managed via RPC/TCP.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableFSRMManagement) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $remoteManagementAddresses `
-                    -Program '%systemroot%\system32\srmhost.exe' `
-                    -Service 'SrmReports' `
-                    -Verbose:$script:IsVerbose > $null
-
-
-# TODO: Add DHCP Client
-
-# TODO: File and Printer Sharing (Restrictive) (Echo Request - ICMPv4-In)
-
-# TODO: File and Printer Sharing (Restrictive) (SMB-In)
-
-# TODO: Add File and Printer Sharing (Restrictive) (Spooler Service Worker - RPC)
-# Create Inbound rule "File and Printer Sharing (Spooler Service - RPC)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'FPS-SpoolSvc-In-TCP' `
-                    -DisplayName 'File and Printer Sharing (Spooler Service - RPC)' `
-                    -Group 'File and Printer Sharing' `
-                    -Description 'Inbound rule for File and Printer Sharing to allow the Print Spooler Service to communicate via TCP/RPC.' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnablePrintSpooler) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort RPC `
-                    -RemoteAddress $allAddresses `
-                    -Program '%SystemRoot%\system32\spoolsv.exe' `
-                    -Service 'Spooler' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Server Update Services (HTTP-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WSUS-In-HTTP' `
-                    -DisplayName 'Windows Server Update Services (HTTP-In)' `
-                    -Group 'Windows Server Update Services (WSUS)' `
-                    -Description 'Inbound rule for Windows Server Update Services to allow HTTP traffic. [TCP 8530]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWSUS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 8530 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create Inbound rule "Windows Server Update Services (HTTPS-In)"
-New-NetFirewallRule -GPOSession $gpoSession `
-                    -Name 'WSUS-In-HTTPS' `
-                    -DisplayName 'Windows Server Update Services (HTTPS-In)' `
-                    -Group 'Windows Server Update Services (WSUS)' `
-                    -Description 'Inbound rule for Windows Server Update Services to allow HTTPS traffic. [TCP 8531]' `
-                    -Enabled (ConvertTo-NetSecurityEnabled $configuration.EnableWSUS) `
-                    -Profile Any `
-                    -Direction Inbound `
-                    -Action Allow `
-                    -Protocol TCP `
-                    -LocalPort 8531 `
-                    -RemoteAddress Any `
-                    -Program 'System' `
-                    -Verbose:$script:IsVerbose > $null
-
-# Create the custom firewall rules
-foreach ($customRule in $configuration.CustomRules) {
-    New-CustomFirewallRule -GpoSession $gpoSession -CustomRule $customRule -IPAddressSets $configuration.IPAddressSets
+# Make sure the GPO firewall configuration is atomic and only saved on successful completion
+try {
+    # Open the GPO
+    # Note: The Open-NetGPO cmdlet by default contacts a random DC instead of PDC-E
+    Write-Verbose -Message ('Opening GPO {0}.' -f $gpo.DisplayName)
+    [string] $gpoSession = Open-NetGPO -PolicyStore $policyStore -DomainController $targetDomainController
+
+    # Remove any pre-existing firewall rules
+    Remove-NetFirewallRuleEx -GpoSession $gpoSession
+
+    # Configure all firewall profiles (Domain, Private, and Public)
+    Set-NetFirewallProfile -GPOSession $gpoSession `
+                        -All `
+                        -Enabled True `
+                        -AllowInboundRules True `
+                        -DefaultInboundAction Block `
+                        -DefaultOutboundAction Allow `
+                        -AllowLocalFirewallRules False `
+                        -AllowLocalIPsecRules (ConvertTo-GpoBoolean -Value $configuration.EnableLocalIPsecRules) `
+                        -AllowUnicastResponseToMulticast False `
+                        -NotifyOnListen False `
+                        -LogFileName $configuration.LogFilePath `
+                        -LogMaxSizeKilobytes $configuration.LogMaxSizeKilobytes `
+                        -LogBlocked (ConvertTo-GpoBoolean -Value $configuration.LogDroppedPackets) `
+                        -LogAllowed (ConvertTo-GpoBoolean -Value $configuration.LogAllowedPackets) `
+                        -LogIgnored False
+
+    # Create built-in and custom firewall rules
+    foreach ($rule in $firewallRules) {
+        Add-FirewallRule -GpoSession $gpoSession -Rule $rule -IPAddressSets $configuration.IPAddressSets -IncludeDisabled:$configuration.IncludeDisabledRules
+    }
+
+    # Commit the firewall-related GPO changes
+    Write-Verbose -Message 'Saving the GPO changes...'
+    Save-NetGPO -GPOSession $gpoSession
+} catch {
+    # Abort the GPO changes on error
+    Write-Verbose -Message 'An error occurred. Aborting the GPO changes...'
+    throw
 }
 
-# Commit the firewall-related GPO changes
-Write-Verbose -Message 'Saving the GPO changes...'
-Save-NetGPO -GPOSession $gpoSession
-
-#endregion Inbound Firewall Rules
+#endregion Create and configure the GPO
 
 #region Registry Settings
 
 # Prevent users and apps from accessing dangerous websites
 # (Enables Microsoft Defender Exploit Guard Network Protection)
 # This might block some Internet C2 traffic.
-if ($null -ne $configuration.EnableNetworkProtection) {
+if ($null -ne $configuration.CoreNetworking.EnableNetworkProtection) {
     # We will enable the audit mode by default
     [int] $networkProtectionState = 2
 
-    if ($configuration.EnableNetworkProtection) {
+    if ($configuration.CoreNetworking.EnableNetworkProtection) {
         # Switch Network Protection to Block mode
         $networkProtectionState = 1
     }
@@ -1864,11 +2764,11 @@ if ($null -ne $configuration.EnableNetworkProtection) {
 # Block process creations originating from PSExec and WMI commands
 # Block persistence through WMI event subscription
 # Uses Microsoft Defender Exploit Guard Attack Surface Reduction
-if ($null -ne $configuration.BlockWmiCommandExecution) {
+if ($null -ne $configuration.RemoteManagement.WMI.BlockCommandExecution) {
     # Audit (Evaluate how the attack surface reduction rule would impact your organization if enabled)
     [int] $blockPsExecAndWmi = 2
 
-    if ($configuration.BlockWmiCommandExecution -eq $true) {
+    if ($configuration.RemoteManagement.WMI.BlockCommandExecution -eq $true) {
         # Block (Enable the attack surface reduction rule)
         $blockPsExecAndWmi = 1
     }
@@ -1981,11 +2881,11 @@ Set-GPRegistryValue -Guid $gpo.Id `
                     -Server $targetDomainController `
                     -Verbose:$script:IsVerbose > $null
 
-if ($null -ne $configuration.DisableNetbiosBroadcasts) {
+if ($null -ne $configuration.CoreNetworking.DisableNetbiosBroadcasts) {
     # NetBT NodeType configuration
     [int] $nodeType = 8 # Default to H-node (use WINS servers first, then use broadcast)
 
-    if ($configuration.DisableNetbiosBroadcasts) {
+    if ($configuration.CoreNetworking.DisableNetbiosBroadcasts) {
         $nodeType = 2 # P-node (use WINS servers only, recommended)
     }
 
@@ -2002,7 +2902,7 @@ if ($null -ne $configuration.DisableNetbiosBroadcasts) {
     # Configure NetBIOS settings
     [int] $enableNetbios = 3 # Default to learning mode
 
-    if ($configuration.DisableNetbiosBroadcasts) {
+    if ($configuration.CoreNetworking.DisableNetbiosBroadcasts) {
         $enableNetbios = 0 # Disable NetBIOS
     }
 
@@ -2034,7 +2934,7 @@ if ($null -ne $configuration.DisableNetbiosBroadcasts) {
 }
 
 # Turn off Link-Local Multicast Name Resolution (LLMNR)
-if ($configuration.DisableLLMNR -eq $true) {
+if ($configuration.CoreNetworking.DisableLLMNR -eq $true) {
     Set-GPRegistryValue -Guid $gpo.Id `
                         -Key 'HKLM\Software\Policies\Microsoft\Windows NT\DNSClient' `
                         -ValueName 'EnableMulticast' `
@@ -2055,11 +2955,11 @@ if ($configuration.DisableLLMNR -eq $true) {
 
 # Turn off Multicast DNS (mDNS)
 # Note: This is not a managed GPO setting.
-if ($null -ne $configuration.DisableMDNS) {
+if ($null -ne $configuration.CoreNetworking.DisableMDNS) {
     Set-GPRegistryValue -Guid $gpo.Id `
                         -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' `
                         -ValueName 'EnableMDNS' `
-                        -Value ([int](-not $configuration.DisableMDNS)) `
+                        -Value ([int](-not $configuration.CoreNetworking.DisableMDNS)) `
                         -Type DWord `
                         -Domain $domain.DNSRoot `
                         -Server $targetDomainController `
@@ -2068,6 +2968,26 @@ if ($null -ne $configuration.DisableMDNS) {
     Remove-GPRegistryValue -Guid $gpo.Id `
                            -Key 'HKLM\SYSTEM\CurrentControlSet\Services\Dnscache\Parameters' `
                            -ValueName 'EnableMDNS' `
+                           -Domain $domain.DNSRoot `
+                           -Server $targetDomainController `
+                           -ErrorAction SilentlyContinue `
+                           -Verbose:$script:IsVerbose > $null
+}
+
+# Configure Print Spooler RPC over TCP static port
+if ($null -ne $configuration.ServerRoles.PrintServer.StaticPort) {
+    Set-GPRegistryValue -Guid $gpo.Id `
+                        -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC' `
+                        -ValueName 'RpcTcpPort' `
+                        -Value ([int] $configuration.ServerRoles.PrintServer.StaticPort) `
+                        -Type DWord `
+                        -Domain $domain.DNSRoot `
+                        -Server $targetDomainController `
+                        -Verbose:$script:IsVerbose > $null
+} else {
+    Remove-GPRegistryValue -Guid $gpo.Id `
+                           -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC' `
+                           -ValueName 'RpcTcpPort' `
                            -Domain $domain.DNSRoot `
                            -Server $targetDomainController `
                            -ErrorAction SilentlyContinue `
@@ -2097,11 +3017,11 @@ $startupScript.AppendLine('@ECHO OFF') > $null
 $startupScript.AppendLine('REM This script is managed by the Set-ADDSFirewallPolicy.ps1 PowerShell script.') > $null
 
 # Configure the WMI  protocol to use the deafult static port 24158
-if ($configuration.WmiStaticPort -eq $true) {
+if ($configuration.RemoteManagement.WMI.StaticPort -eq $true) {
     $startupScript.AppendLine() > $null
     $startupScript.AppendLine('echo Move the WMI service to a standalone process listening on TCP port 24158 with authentication level set to RPC_C_AUTHN_LEVEL_PKT_PRIVACY.') > $null
     $startupScript.AppendLine('winmgmt.exe /standalonehost 6') > $null
-} elseif ($configuration.WmiStaticPort -eq $false) {
+} elseif ($configuration.RemoteManagement.WMI.StaticPort -eq $false) {
     $startupScript.AppendLine() > $null
     $startupScript.AppendLine('echo Move the WMI service into the shared Svchost process.') > $null
     $startupScript.AppendLine('winmgmt.exe /sharedhost') > $null
@@ -2115,13 +3035,13 @@ if not exist "%SystemRoot%\system32\dfsrdiag.exe" (
 )
 '@
 
-if ($configuration.DfsrStaticPort -ge 1) {
+if ($configuration.ServerRoles.FileServer.DfsrStaticPort -ge 1) {
     $startupScript.AppendLine() > $null
     $startupScript.AppendLine($dfsrDiagInstallScript) > $null
     $startupScript.AppendLine('echo Set static RPC port for DFS Replication.') > $null
-    $startupScript.AppendFormat('dfsrdiag.exe StaticRPC /Port:{0}', $configuration.DfsrStaticPort) > $null
+    $startupScript.AppendFormat('dfsrdiag.exe StaticRPC /Port:{0}', $configuration.ServerRoles.FileServer.DfsrStaticPort) > $null
     $startupScript.AppendLine() > $null
-} elseif ($configuration.DfsrStaticPort -eq 0) {
+} elseif ($configuration.ServerRoles.FileServer.DfsrStaticPort -eq 0) {
     $startupScript.AppendLine() > $null
     $startupScript.AppendLine($dfsrDiagInstallScript) > $null
     $startupScript.AppendLine('echo Set dynamic RPC port for DFS Replication.') > $null
@@ -2139,12 +3059,12 @@ $startupScript.AppendLine() > $null
 [string] $rpcFilterScriptSourcePath = Join-Path -Path $PSScriptRoot -ChildPath $rpcFilterScriptName
 [string] $rpcFilterScriptTargetPath = Join-Path -Path $startupScriptDirectory -ChildPath $rpcFilterScriptName
 
-if ($configuration.EnableRpcFilters -eq $true) {
+if ($configuration.ServerRoles.FileServer.EnableRpcFilters -eq $true) {
     $startupScript.AppendLine() > $null
     $startupScript.AppendLine('echo Register the RPC filters.') > $null
     $startupScript.AppendFormat('netsh.exe -f "%~dp0{0}"', $rpcFilterScriptName) > $null
     $startupScript.AppendLine() > $null
-} elseif ($null -ne $configuration.EnableRpcFilters) {
+} elseif ($null -ne $configuration.ServerRoles.FileServer.EnableRpcFilters) {
     $startupScript.AppendLine() > $null
     $startupScript.AppendLine('echo Remove all RPC filters.') > $null
     $startupScript.AppendLine('netsh.exe rpc filter delete filter filterkey=all') > $null
@@ -2152,7 +3072,7 @@ if ($configuration.EnableRpcFilters -eq $true) {
 
 # Fix the Network Policy Server (NPS) to work with Windows Firewall on Windows Server 2016 and Windows Server 2019.
 # This is not required on Windows Server 2022.
-if ($configuration.EnableNPS -eq $true) {
+if ($configuration.ServerRoles.EnableNPS -eq $true) {
     $startupScript.AppendLine() > $null
     $startupScript.AppendLine('echo Fix the NPS service to work with Windows Firewall on downlevel Windows Server versions.') > $null
     $startupScript.AppendLine('sc.exe sidtype IAS unrestricted') > $null

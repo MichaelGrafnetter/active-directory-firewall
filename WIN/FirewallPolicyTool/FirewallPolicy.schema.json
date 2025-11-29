@@ -4,8 +4,7 @@
   "title": "Windows Firewall Policy Configuration",
   "type": "object",
   "required": [
-    "GroupPolicyObjectName",
-    "IPAddressSets"
+    "GroupPolicyObjectName"
   ],
   "additionalProperties": false,
   "patternProperties": {
@@ -20,7 +19,7 @@
       "description": "The name of the Group Policy Object (GPO) that will be created or updated."
     },
     "GroupPolicyObjectId": {
-      "type": "string",
+      "$ref": "#/$defs/NullableGuid",
       "default": null,
       "examples": [
         "a1b2c3d4-e5f6-7890-abcd-ef0123456789"
@@ -134,32 +133,44 @@
       "description": "Configuration of remote management-related firewall rules.",
       "additionalProperties": false,
       "properties": {
+        "ManagementAddressSet": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "One or more names of IP address sets from which management traffic should be allowed.",
+          "default": [ "ManagementAddresses" ],
+          "examples": [
+            [ "Tier0PAW", "Tier0JumpServer" ], null
+          ]
+        },
         "EnableWindowsRemoteManagement": {
           "type": "boolean",
           "default": true,
           "description": "Indicates whether inbound Windows Remote Management (WinRM) traffic should be enabled."
         },
-        "EnableWindowsManagementInstrumentation": {
-          "type": "boolean",
-          "default": false,
-          "description": "Indicates whether inbound Windows Management Instrumentation (WMI) traffic should be enabled."
-        },
-        "WmiStaticPort": {
-          "anyOf": [
-            {
-              "type": "boolean"
+        "WMI": {
+          "type": "object",
+          "description": "Configuration of Windows Management Instrumentation (WMI) traffic.",
+          "additionalProperties": false,
+          "properties": {
+            "Enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Windows Management Instrumentation (WMI) traffic should be enabled."
             },
-            {
-              "type": "null"
+            "StaticPort": {
+              "$ref": "#/$defs/NullableBoolean",
+              "default": null,
+              "description": "Indicates whether WMI traffic should use a static port."
+            },
+            "BlockCommandExecution": {
+              "$ref": "#/$defs/NullableBoolean",
+              "default": null,
+              "description": "Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR."
             }
-          ],
-          "default": null,
-          "description": "Indicates whether WMI traffic should use a static port."
-        },
-        "BlockWmiCommandExecution": {
-          "$ref": "#/$defs/NullableBoolean",
-          "default": null,
-          "description": "Indicates whether to block process creations originating from PSExec and WMI commands using Defender ASR."
+          }
         },
         "EnableRemoteDesktop": {
           "type": "boolean",
@@ -170,11 +181,6 @@
           "type": "boolean",
           "default": false,
           "description": "Indicates whether inbound OpenSSH traffic should be enabled."
-        },
-        "EnableRpcFilters": {
-          "$ref": "#/$defs/NullableBoolean",
-          "default": null,
-          "description": "Indicates whether additional filtering of RPC over Named Pipes should be applied."
         },
         "EnableServiceManagement": {
           "type": "boolean",
@@ -234,22 +240,8 @@
               "description": "Indicates whether inbound Distributed File System Replication (DFSR) traffic should be allowed."
             },
             "DfsrStaticPort": {
-              "oneOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1024,
-                  "maximum": 49151,
-                  "examples": [
-                    5722
-                  ]
-                },
-                {
-                  "const": 0
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "$ref": "#/$defs/RpcStaticPort",
+              "examples": [ 5722 ],
               "default": null,
               "description": "Static port to be used for DFSR traffic."
             },
@@ -267,18 +259,43 @@
               "type": "boolean",
               "default": false,
               "description": "Indicates whether inbound Network File System (NFS) traffic should be allowed."
+            },
+            "EnableRpcFilters": {
+              "$ref": "#/$defs/NullableBoolean",
+              "default": null,
+              "description": "Indicates whether additional filtering of RPC over Named Pipes should be applied."
             }
           }
         },
-        "EnablePrintSpooler": {
-          "type": "boolean",
-          "default": false,
-          "description": "Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed."
+        "PrintServer": {
+          "type": "object",
+          "description": "Firewall configuration for the Print Server role.",
+          "additionalProperties": false,
+          "properties": {
+            "Enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Print Spooler traffic through RPC over TCP should be allowed."
+            },
+            "StaticPort": {
+              "$ref": "#/$defs/RpcStaticPort",
+              "examples": [ 14550 ],
+              "default": null,
+              "description": "Static port number to be used by the Print Spooler RPC/TCP listener."
+            }
+          }
         },
-        "EnableDhcpServer": {
-          "type": "boolean",
-          "default": false,
-          "description": "Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed."
+        "DHCP": {
+          "type": "object",
+          "description": "Firewall configuration for the DHCP Server role.",
+          "additionalProperties": false,
+          "properties": {
+            "Enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Dynamic Host Configuration Protocol (DHCP) server traffic should be allowed."
+            }
+          }
         },
         "EnableWebServer": {
           "type": "boolean",
@@ -290,10 +307,17 @@
           "default": false,
           "description": "Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed."
         },
-        "EnableDnsServer": {
-          "type": "boolean",
-          "default": false,
-          "description": "Indicates whether inbound Domain Name System (DNS) server traffic should be allowed."
+        "DNS": {
+          "type": "object",
+          "description": "Firewall configuration for the DNS Server role.",
+          "additionalProperties": false,
+          "properties": {
+            "Enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Domain Name System (DNS) server traffic should be allowed."
+            }
+          }
         },
         "EnableWINS": {
           "type": "boolean",
@@ -344,6 +368,18 @@
           "type": "boolean",
           "default": false,
           "description": "Indicates whether inbound SQL Server traffic should be allowed."
+        },
+        "ClientAddressSet": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "One or more names of IP address sets from which client traffic should be allowed.",
+          "default": [ "AllAddresses" ],
+          "examples": [
+            [ "ClientAddresses" ], [ "NewYorkClients", "LondonClients", "LondonServers" ], null
+          ]
         }
       }
     },
@@ -457,6 +493,31 @@
             }
           ]
         },
+        "IcmpType": {
+          "description": "The ICMP type for the rule (only applicable if Protocol is ICMPv4 or ICMPv6).",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255,
+              "description": "ICMP type code"
+            },
+            {
+              "const": "Any"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{1,3}:[0-9]{1,3}$",
+              "description": "ICMP type code pair in the format 'type:code'."
+            }
+          ],
+          "default": null,
+          "examples": [
+            8,
+            128,
+            "3:4"
+          ]
+        },
         "RemoteAddressSet": {
           "type": "array",
           "items": {
@@ -466,7 +527,7 @@
           "description": "One or more names of IP address sets defined in the IPAddressSets section.",
           "default": null,
           "examples": [
-            "ManagementAddresses"
+            [ "ManagementAddresses" ]
           ]
         },
         "Program": {
@@ -557,6 +618,10 @@
         "Name": {
           "type": "string",
           "description": "The name of the IP address set.",
+          "not": {
+            "const": "AllAddresses",
+            "description": "This name is reserved for the default set containing all IP addresses."
+          },
           "examples": [
             "ManagementAddresses"
           ]
@@ -571,10 +636,35 @@
         "Addresses"
       ]
     },
+    "RpcStaticPort": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 49151
+        },
+        {
+          "const": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "NullableBoolean": {
       "anyOf": [
         {
           "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NullableGuid": {
+      "anyOf": [
+        {
+          "type": "string"
         },
         {
           "type": "null"

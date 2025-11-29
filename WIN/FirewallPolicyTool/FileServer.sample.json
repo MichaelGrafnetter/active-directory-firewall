@@ -4,23 +4,21 @@
     "IPAddressSets": [
         {
             "Name": "ManagementAddresses",
-            "Addresses": [
-                "xx"
-            ]
+            "Addresses": [ "10.2.0.0/16" ]
         }
     ],
     "CoreNetworking": {
         "EnableNetworkProtection": true
     },
     "RemoteManagement": {
-        "EnableDiskManagement": true,
-        "EnableRpcFilters": true
+        "EnableDiskManagement": true
     },
     "ServerRoles": {
         "FileServer": {
             "EnableSMB": true,
             "EnableDFSR": true,
-            "DfsrStaticPort": 5722
+            "DfsrStaticPort": 5722,
+            "EnableRpcFilters": true
         }
     },
     "CustomRules": [
