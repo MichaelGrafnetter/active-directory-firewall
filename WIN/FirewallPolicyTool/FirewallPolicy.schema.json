@@ -312,15 +312,51 @@
             }
           }
         },
-        "EnableWebServer": {
-          "type": "boolean",
-          "default": false,
-          "description": "Indicates whether inbound http.sys-based web server traffic on default HTTP and HTTPS ports should be allowed."
+        "RADIUS": {
+          "type": "object",
+          "description": "Firewall configuration for the Network Policy Server (NPS) / RADIUS role.",
+          "additionalProperties": false,
+          "properties": {
+            "Enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed."
+            },
+            "ClientAddressSet": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "One or more names of IP address sets from which RADIUS client traffic should be allowed.",
+              "default": null,
+              "examples": [
+                [ "NetworkAccessServers", "WirelessAccessPoints" ]
+              ]
+            }
+          }
         },
-        "EnableNPS": {
-          "type": "boolean",
-          "default": false,
-          "description": "Indicates whether inbound Network Policy Server (NPS) / RADIUS traffic should be allowed."
+        "WebServer": {
+          "type": "object",
+          "description": "Firewall configuration for http.sys-based web server traffic.",
+          "additionalProperties": false,
+          "properties": {
+            "EnableHTTP": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound HTTP web server traffic on port 80 should be allowed."
+            },
+            "EnableHTTPS": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound HTTPS web server traffic on port 443 should be allowed."
+            },
+            "EnableQUIC": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound HTTP/3 web server traffic on port 443 should be allowed."
+            }
+          }
         },
         "DNS": {
           "type": "object",
@@ -331,6 +367,34 @@
               "type": "boolean",
               "default": false,
               "description": "Indicates whether inbound Domain Name System (DNS) server traffic should be allowed."
+            }
+          }
+        },
+        "CA": {
+          "type": "object",
+          "description": "Firewall configuration for the Certification Authority (CA) role.",
+          "additionalProperties": false,
+          "properties": {
+            "Enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Indicates whether inbound Certification Authority (CA) traffic should be allowed."
+            },
+            "StaticPort": {
+              "$ref": "#/$defs/RpcStaticPort",
+              "examples": [ 10509 ],
+              "default": null,
+              "description": "Static port number to be used by the Certification Authority DCOM interface."
+            },
+            "BlockRemoteManagement": {
+              "$ref": "#/$defs/NullableBoolean",
+              "default": null,
+              "description": "Indicates whether remote access to the ICertAdmin interface should be blocked."
+            },
+            "BlockLegacyRpc": {
+              "$ref": "#/$defs/NullableBoolean",
+              "default": null,
+              "description": "Indicates whether the legacy ICertPassage Remote Protocol (MS-ICPR) should be blocked."
             }
           }
         },
@@ -358,11 +422,6 @@
           "type": "boolean",
           "default": false,
           "description": "Indicates whether remote backup management should be enabled."
-        },
-        "EnableADFS": {
-          "type": "boolean",
-          "default": false,
-          "description": "Indicates whether inbound Active Directory Federation Services (ADFS) traffic should be allowed."
         },
         "EnableWebApplicationProxy": {
           "type": "boolean",
@@ -533,6 +592,12 @@
             "3:4"
           ]
         },
+        "RemoteAddress": {
+          "$ref": "#/$defs/IPAddressSet",
+          "description": "The list of remote IP addresses, subnets, or predefined keywords to which the rule applies.",
+          "default": null,
+          "deprecated": true
+        },
         "RemoteAddressSet": {
           "type": "array",
           "items": {
@@ -600,6 +665,7 @@
               {
                 "enum": [
                   "LocalSubnet",
+                  "LocalSubnet6",
                   "DNS",
                   "DHCP",
                   "WINS",
@@ -623,6 +689,9 @@
             "minLength": 1,
             "maxLength": 1
           }
+        },
+        {
+          "const": null
         }
       ]
     },
