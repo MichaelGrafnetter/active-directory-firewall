@@ -880,7 +880,7 @@ add condition field=if_uuid matchtype=equal data=378E52B0-C0A9-11CF-822D-00AA005
 add filter
 ```
 
-#### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0 {#ms-even6-eventlog-remoting-protocol-version-60}
+#### \[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0
 
 The [\[MS-EVEN6\]: EventLog Remoting Protocol Version 6.0](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/18000371-ae6d-45f7-95f3-249cbe2be39b)
 with UUID [F6BEAFF7-1E19-4FBB-9F8F-B89E2018337C](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/3479d837-b759-4b13-9d5e-4c93eede7cb6)
@@ -1528,7 +1528,7 @@ The following registry-based network settings recommended by Microsoft are alway
 | MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)   | Disabled |
 | MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers | Enabled  |
 
-Note that support for these settings is added by the [MSS Legacy](#mss-legacy-admx) administrative template.
+Note that support for these settings is added by the [MSS Legacy](#mss-legacyadmx) administrative template.
 
 ### Administrative Templates
 
@@ -1566,7 +1566,7 @@ This template is provided by Microsoft as part of the [Security Compliance Toolk
 
 The corresponding settings can be found under Computer Configuration → Administrative Templates → MS Security Guide.
 
-#### MSS-legacy.admx {#mss-legacy-admx}
+#### MSS-legacy.admx
 
 The [MSS (Legacy) template](https://techcommunity.microsoft.com/blog/microsoft-security-baselines/the-mss-settings/701055)
 is provided by Microsoft as part of the [Security Compliance Toolkit](https://learn.microsoft.com/en-us/windows/security/operating-system-security/device-management/windows-security-configuration-framework/security-compliance-toolkit-10).

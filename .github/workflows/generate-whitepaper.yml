@@ -26,7 +26,7 @@ jobs:
         run: echo "date=$(TZ=':Europe/Prague' date '+%B %e, %Y')" > $GITHUB_OUTPUT
 
       - name: Generate the whitepaper using Pandoc
-        uses: docker://pandoc/extra:3.6.0
+        uses: docker://pandoc/extra:3.9.0
         with:
           args: >-
             --output="${{ env.pdf_file_name }}"
@@ -43,6 +43,7 @@ jobs:
             --number-sections
             --variable=linkcolor:"[HTML]{4077C0}"
             --metadata date="${{ steps.get_date.outputs.date }}"
+            --from markdown+gfm_auto_identifiers+alerts
             ADDS/README.md
 
       - name: Publish the whitepaper as artifact

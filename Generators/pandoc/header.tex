@@ -2,6 +2,7 @@
 \usepackage{Generators/pandoc/floatflt}
 \usepackage{needspace}
 \usepackage{sectsty}
+\usepackage{tcolorbox}
 
 % Do not put any heading at the bottom of a page
 % TODO: This currently does not work as expected
@@ -9,3 +10,17 @@
 
 % Insert a page break before each section
 \sectionfont{\clearpage}
+
+% Define colors for GitHub Alert boxes
+\definecolor{note-border}{HTML}{0969da}
+\definecolor{tip-border}{HTML}{1a7f37}
+\definecolor{important-border}{HTML}{8250df}
+\definecolor{warning-border}{HTML}{9a6700}
+\definecolor{caution-border}{HTML}{cf222e}
+
+% Define border styles for GitHub Alert boxes
+\newtcolorbox{note-box}{colback=note-border!4!white,arc=0pt,outer arc=0pt,colframe=note-border,fonttitle=\bfseries,coltitle=note-border,attach title to upper,adjusted title={Note}}
+\newtcolorbox{tip-box}{colback=tip-border!4!white,arc=0pt,outer arc=0pt,colframe=tip-border,fonttitle=\bfseries,coltitle=tip-border,attach title to upper,adjusted title={Tip}}
+\newtcolorbox{important-box}{colback=important-border!4!white,arc=0pt,outer arc=0pt,colframe=important-border,fonttitle=\bfseries,coltitle=important-border,attach title to upper,adjusted title={Important}}
+\newtcolorbox{warning-box}{colback=warning-border!4!white,arc=0pt,outer arc=0pt,colframe=warning-border,fonttitle=\bfseries,coltitle=warning-border,attach title to upper,adjusted title={Warning}}
+\newtcolorbox{caution-box}{colback=caution-border!4!white,arc=0pt,outer arc=0pt,colframe=caution-border,fonttitle=\bfseries,coltitle=caution-border,attach title to upper,adjusted title={Caution}}
